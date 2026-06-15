@@ -5,8 +5,9 @@ import { useState } from "react";
 import { UpdateBanner } from "../features/updater/UpdateBanner";
 import { CatalogView } from "../features/catalog/CatalogView";
 import { SettingsView } from "../features/settings/SettingsView";
+import { SocialView } from "../features/social/SocialView";
 
-type View = "library" | "settings";
+type View = "library" | "friends" | "settings";
 
 export function AppShell() {
   const [view, setView] = useState<View>("library");
@@ -24,6 +25,12 @@ export function AppShell() {
             Library
           </button>
           <button
+            className={`app__navbtn${view === "friends" ? " app__navbtn--active" : ""}`}
+            onClick={() => setView("friends")}
+          >
+            Friends
+          </button>
+          <button
             className={`app__navbtn${view === "settings" ? " app__navbtn--active" : ""}`}
             onClick={() => setView("settings")}
           >
@@ -32,7 +39,11 @@ export function AppShell() {
         </nav>
       </header>
       <UpdateBanner />
-      <main className="app__main">{view === "library" ? <CatalogView /> : <SettingsView />}</main>
+      <main className="app__main">
+        {view === "library" && <CatalogView />}
+        {view === "friends" && <SocialView />}
+        {view === "settings" && <SettingsView />}
+      </main>
     </div>
   );
 }

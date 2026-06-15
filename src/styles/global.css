@@ -186,3 +186,89 @@ body {
   padding: 10px 18px; border-radius: 9px; border: none;
   background: var(--on); color: #06210f; font-weight: 700; cursor: pointer; font-size: 14px;
 }
+
+/* ── Social ────────────────────────────────────────────────────────────── */
+.social { display: flex; flex-direction: column; height: 100%; }
+.social__empty { color: var(--muted); padding: 12px 4px; }
+
+.social__status {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+  font-size: 12px; color: var(--muted);
+}
+.social__status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--off); }
+.social__status--connected .social__status-dot { background: var(--on); }
+.social__status--connecting .social__status-dot,
+.social__status--reconnecting .social__status-dot { background: var(--star); }
+.social__status-note { color: var(--muted); }
+
+.social__layout {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 240px 1fr; gap: 16px; align-items: stretch;
+}
+.social__roster {
+  overflow: auto; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--panel); padding: 6px;
+}
+.social__chat { min-width: 0; display: flex; }
+
+/* Friend roster */
+.friendlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.friendlist__row {
+  width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
+  padding: 8px 10px; border: none; border-radius: 8px; background: transparent;
+  color: var(--text); cursor: pointer; text-align: left;
+}
+.friendlist__row:hover { background: var(--panel-2); }
+.friendlist__row--active { background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
+.friendlist__name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.friendlist__star { color: var(--star); margin-right: 5px; }
+.friendlist__sub { font-size: 11px; color: var(--muted); justify-self: end; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.friendlist__sub--game { color: var(--on); }
+
+/* Presence dot */
+.presence-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--off); box-shadow: 0 0 0 2px var(--panel); }
+.presence-dot--online { background: var(--on); }
+.presence-dot--away { background: var(--star); }
+.presence-dot--busy { background: var(--error); }
+.presence-dot--ingame { background: var(--accent); }
+
+/* Chat pane */
+.chatpane {
+  flex: 1; display: flex; flex-direction: column; min-width: 0;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--panel); overflow: hidden;
+}
+.chatpane--empty { align-items: center; justify-content: center; }
+.chatpane__head {
+  display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+  border-bottom: 1px solid var(--border); background: var(--panel-2);
+}
+.chatpane__name { font-weight: 700; font-size: 14px; }
+.chatpane__sub { font-size: 12px; color: var(--muted); }
+.chatpane__messages { flex: 1; overflow: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.chatpane__typing { font-size: 12px; color: var(--muted); font-style: italic; }
+
+/* Message rows */
+.msg { display: flex; flex-direction: column; gap: 2px; max-width: 78%; align-self: flex-start; }
+.msg--mine { align-self: flex-end; align-items: flex-end; }
+.msg__bubble {
+  padding: 8px 12px; border-radius: 12px; background: var(--panel-2);
+  border: 1px solid var(--border); font-size: 13px; line-height: 1.35; word-break: break-word;
+}
+.msg--mine .msg__bubble { background: var(--accent); border-color: var(--accent); color: #fff; }
+.msg--pending .msg__bubble { opacity: .6; }
+.msg__deleted { color: var(--muted); font-style: italic; }
+.msg__edited { color: var(--muted); font-size: 11px; margin-left: 6px; }
+.msg__meta { display: flex; gap: 8px; font-size: 10px; color: var(--muted); padding: 0 4px; }
+
+/* Composer */
+.composer { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
+.composer__input {
+  flex: 1; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text);
+}
+.composer__input:disabled { opacity: .6; }
+.composer__send {
+  padding: 9px 18px; border-radius: 9px; border: none;
+  background: var(--accent); color: #fff; font-weight: 600; cursor: pointer;
+}
+.composer__send:disabled { opacity: .5; cursor: default; }

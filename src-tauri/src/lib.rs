@@ -6,6 +6,7 @@ mod catalog;
 mod error;
 mod launch;
 mod settings;
+mod social;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
