@@ -1,0 +1,90 @@
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --panel-2: #1c2230;
+  --border: #2a3140;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent: #3b82f6;
+  --star: #f5c518;
+  --on: #3fb950;
+  --off: #6e7681;
+  --error: #f85149;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+}
+
+/* ── Shell ─────────────────────────────────────────────────────────────── */
+.app { display: flex; flex-direction: column; height: 100%; }
+
+.app__header {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.app__title { margin: 0; font-size: 18px; font-weight: 700; }
+.app__tag { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.app__main { flex: 1; overflow: auto; padding: 18px 20px; }
+
+/* ── Update banner ─────────────────────────────────────────────────────── */
+.update-banner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 20px; background: var(--panel-2);
+  border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.update-banner--error { color: var(--error); }
+.update-banner__btn {
+  margin-left: auto; padding: 4px 10px; border-radius: 6px;
+  border: 1px solid var(--accent); background: transparent; color: var(--text); cursor: pointer;
+}
+
+/* ── Catalog bar ───────────────────────────────────────────────────────── */
+.catalog__bar { display: flex; gap: 8px; margin-bottom: 14px; }
+.catalog__path {
+  flex: 1; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--panel); color: var(--text);
+}
+.catalog__load {
+  padding: 8px 14px; border-radius: 8px; border: 1px solid var(--accent);
+  background: var(--accent); color: #fff; cursor: pointer; font-weight: 600;
+}
+.catalog__load:disabled { opacity: .5; cursor: default; }
+.catalog__status { color: var(--muted); margin: 4px 0 12px; }
+.catalog__error { color: var(--error); margin: 4px 0 12px; }
+.catalog__empty { color: var(--muted); }
+
+/* ── Grid + cards ──────────────────────────────────────────────────────── */
+.catalog-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+.game-card {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 0; border: none; background: none; color: inherit;
+  cursor: pointer; text-align: left;
+}
+.game-card__art {
+  position: relative; aspect-ratio: 3 / 4; border-radius: 10px; overflow: hidden;
+  background: var(--panel-2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .08s ease, border-color .08s ease;
+}
+.game-card:hover .game-card__art { transform: translateY(-2px); border-color: var(--accent); }
+.game-card__art img { width: 100%; height: 100%; object-fit: cover; }
+.game-card__placeholder { padding: 8px; font-size: 12px; color: var(--muted); text-align: center; }
+.game-card__star { position: absolute; top: 6px; left: 6px; color: var(--star); font-size: 16px; text-shadow: 0 1px 2px #000; }
+.game-card__state { position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 2px var(--panel); }
+.game-card__state--on { background: var(--on); }
+.game-card__state--off { background: var(--off); }
+.game-card__title { font-size: 13px; font-weight: 600; line-height: 1.2; }
+.game-card__platform { font-size: 11px; color: var(--muted); }

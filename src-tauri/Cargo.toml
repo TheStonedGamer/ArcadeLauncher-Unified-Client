@@ -1,0 +1,26 @@
+[package]
+name = "arcade_launcher"
+version = "0.1.0"
+description = "ArcadeLauncher Unified Client"
+authors = ["TheStonedGamer"]
+edition = "2021"
+
+[lib]
+# `_lib` suffix keeps the lib name distinct from the bin (Windows linker quirk).
+name = "arcade_launcher_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+# Desktop-only plugins (updater/process are not built for mobile targets).
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"

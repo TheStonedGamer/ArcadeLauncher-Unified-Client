@@ -1,0 +1,143 @@
+//! The `Game` data model — a UTF-8 mirror of the entries `GameLibrary::Save`
+//! writes to `library.json`. Field names and casing match the on-disk format
+//! exactly (verified against the C++ client's Catalog reader), so the same
+//! `library.json` loads in both clients during the migration.
+
+use serde::{Deserialize, Serialize};
+
+/// One library entry. Unknown/missing fields default, so older or newer
+/// `library.json` files still load instead of failing the whole catalog.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Game {
+    pub id: String,
+    pub title: String,
+    pub platform: String,
+    /// "installed" | "notInstalled" | "updateAvailable" | …
+    pub install_state: String,
+
+    // ── Art ────────────────────────────────────────────────────────────────
+    pub cover_art_path: String,
+    pub cover_art_url: String,
+
+    // ── Metadata ─────────────────────────────────────────────────────────────
+    pub developer: String,
+    pub publisher: String,
+    pub franchise: String,
+    pub genres: String,
+    pub content_path: String,
+    pub release_date: i64,
+    pub playtime_seconds: u64,
+    pub last_played: i64,
+    pub server_backed: bool,
+    pub favorite: bool,
+    pub hidden: bool,
+    /// Newline-joined in the JSON; split lazily by the UI when needed.
+    pub collections: String,
+
+    // ── Launch target (mirrors GameLibrary::LaunchTarget precedence) ─────────
+    pub launch_uri: String,
+    pub exe_path: String,
+    pub emulator_path: String,
+    pub rom_path: String,
+    pub arguments: String,
+}
+
+/// What to run, resolved with the same precedence as the C++ client:
+/// launchUri → emulatorPath(+romPath) → exePath(+arguments).
+pub struct LaunchPlan {
+    pub program: String,
+    pub args: Vec<String>,
+}
+
+impl Game {
+    /// Build the launch plan, or `None` if the entry has no runnable target.
+    pub fn launch_plan(&self) -> Option<LaunchPlan> {
+        if !self.launch_uri.is_empty() {
+            return Some(LaunchPlan { program: self.launch_uri.clone(), args: vec![] });
+        }
+        if !self.emulator_path.is_empty() {
+            let mut args = Vec::new();
+            if !self.rom_path.is_empty() {
+                args.push(self.rom_path.clone());
+            }
+            return Some(LaunchPlan { program: self.emulator_path.clone(), args });
+        }
+        if !self.exe_path.is_empty() {
+            return Some(LaunchPlan {
+                program: self.exe_path.clone(),
+                args: split_args(&self.arguments),
+            });
+        }
+        None
+    }
+}
+
+/// Minimal whitespace arg split (quotes respected). Good enough for T0; a
+/// fuller parser can replace this without touching callers.
+fn split_args(s: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut in_quote = false;
+    for c in s.chars() {
+        match c {
+            '"' => in_quote = !in_quote,
+            ' ' if !in_quote => {
+                if !cur.is_empty() {
+                    out.push(std::mem::take(&mut cur));
+                }
+            }
+            _ => cur.push(c),
+        }
+    }
+    if !cur.is_empty() {
+        out.push(cur);
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn launch_precedence_uri_wins() {
+        let g = Game {
+            launch_uri: "steam://run/220".into(),
+            exe_path: "ignored.exe".into(),
+            ..Default::default()
+        };
+        let p = g.launch_plan().unwrap();
+        assert_eq!(p.program, "steam://run/220");
+        assert!(p.args.is_empty());
+    }
+
+    #[test]
+    fn launch_emulator_passes_rom() {
+        let g = Game {
+            emulator_path: "/usr/bin/mednafen".into(),
+            rom_path: "/roms/crystalis.nes".into(),
+            ..Default::default()
+        };
+        let p = g.launch_plan().unwrap();
+        assert_eq!(p.program, "/usr/bin/mednafen");
+        assert_eq!(p.args, vec!["/roms/crystalis.nes"]);
+    }
+
+    #[test]
+    fn launch_exe_splits_quoted_args() {
+        let g = Game {
+            exe_path: "game.exe".into(),
+            arguments: "-w \"save dir\" -fast".into(),
+            ..Default::default()
+        };
+        let p = g.launch_plan().unwrap();
+        assert_eq!(p.program, "game.exe");
+        assert_eq!(p.args, vec!["-w", "save dir", "-fast"]);
+    }
+
+    #[test]
+    fn no_target_is_none() {
+        assert!(Game::default().launch_plan().is_none());
+    }
+}

@@ -1,0 +1,55 @@
+name: CI
+
+# Enforces the project rule: every push must be green on BOTH Windows and Linux
+# before anything can ship. Frontend typecheck/build + Rust compile + unit tests
+# run on both OSes.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+          - os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux Tauri deps
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install npm deps
+        run: npm ci
+
+      - name: Frontend build (tsc + vite)
+        run: npm run build
+
+      - name: Rust unit tests
+        working-directory: src-tauri
+        run: cargo test --locked
+
+      - name: Rust compile check (release)
+        working-directory: src-tauri
+        run: cargo check --release --locked

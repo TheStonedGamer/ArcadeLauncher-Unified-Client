@@ -1,0 +1,26 @@
+//! Application entry point. Intentionally thin: it only registers plugins and
+//! wires up the command handlers each feature module owns. Feature logic lives
+//! in `catalog/` and `launch/` so this file never grows.
+
+mod catalog;
+mod error;
+mod launch;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+
+    // Updater + process plugins are desktop-only (Steam-style admin-free updates).
+    #[cfg(desktop)]
+    let builder = builder
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init());
+
+    builder
+        .invoke_handler(tauri::generate_handler![
+            catalog::commands::load_catalog,
+            launch::commands::launch_game,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
