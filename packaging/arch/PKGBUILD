@@ -1,0 +1,48 @@
+# Maintainer: TheStonedGamer <thestonedgamer@users.noreply.github.com>
+#
+# Source PKGBUILD for ArcadeLauncher (Tauri unified client). Builds the release
+# binary with `tauri build --bundles none` and installs it with a desktop entry
+# and icon. Once GitHub Releases publish a `.deb`/AppImage, an `arcadelauncher-bin`
+# companion PKGBUILD (see packaging/README.md) can repackage the prebuilt
+# artifact for faster AUR installs.
+
+pkgname=arcadelauncher
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Steam-style game library and launcher with friends, chat, and per-user auto-updates"
+arch=('x86_64')
+url="https://github.com/TheStonedGamer/ArcadeLauncher-Unified-Client"
+license=('MIT')
+depends=('webkit2gtk-4.1' 'gtk3' 'libayatana-appindicator')
+makedepends=('rust' 'cargo' 'nodejs' 'npm' 'git')
+# The cargo binary is named after the crate (`arcade_launcher`); the install
+# target is the friendlier `arcadelauncher`.
+_binname=arcade_launcher
+source=("git+https://github.com/TheStonedGamer/ArcadeLauncher-Unified-Client.git#tag=v$pkgver"
+        "arcadelauncher.desktop")
+sha256sums=('SKIP'
+            'SKIP')
+
+build() {
+  cd "$srcdir/ArcadeLauncher-Unified-Client"
+  export RUSTUP_TOOLCHAIN=stable
+  npm ci
+  # --bundles none: produce only the release binary; Arch handles packaging.
+  npm run tauri build -- --bundles none
+}
+
+package() {
+  cd "$srcdir/ArcadeLauncher-Unified-Client"
+
+  install -Dm755 "src-tauri/target/release/$_binname" "$pkgdir/usr/bin/$pkgname"
+  install -Dm644 "$srcdir/arcadelauncher.desktop" \
+    "$pkgdir/usr/share/applications/$pkgname.desktop"
+
+  # Icons (hicolor theme).
+  install -Dm644 "src-tauri/icons/32x32.png" \
+    "$pkgdir/usr/share/icons/hicolor/32x32/apps/$pkgname.png"
+  install -Dm644 "src-tauri/icons/128x128.png" \
+    "$pkgdir/usr/share/icons/hicolor/128x128/apps/$pkgname.png"
+  install -Dm644 "src-tauri/icons/128x128@2x.png" \
+    "$pkgdir/usr/share/icons/hicolor/256x256/apps/$pkgname.png"
+}

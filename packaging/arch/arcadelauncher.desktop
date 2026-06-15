@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=ArcadeLauncher
+GenericName=Game Launcher
+Comment=Steam-style game library and launcher with friends, chat, and auto-updates
+Exec=arcadelauncher
+Icon=arcadelauncher
+Terminal=false
+Categories=Game;
+StartupNotify=true
+StartupWMClass=ArcadeLauncher
