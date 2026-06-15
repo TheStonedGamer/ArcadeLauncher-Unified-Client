@@ -1,23 +1,26 @@
-// Responsive grid of game cards. Hidden games are filtered out here so the
-// view stays declarative.
+// Responsive grid of variant groups: one tile per logical game (dumps collapsed).
 
-import type { Game } from "../types";
+import type { VariantGroup } from "../variants";
 import { GameCard } from "./GameCard";
 
 interface Props {
-  games: Game[];
-  onLaunch: (game: Game) => void;
+  groups: VariantGroup[];
+  onOpen: (group: VariantGroup) => void;
 }
 
-export function CatalogGrid({ games, onLaunch }: Props) {
-  const visible = games.filter((g) => !g.hidden);
-  if (visible.length === 0) {
-    return <p className="catalog__empty">No games to show yet.</p>;
+export function CatalogGrid({ groups, onOpen }: Props) {
+  if (groups.length === 0) {
+    return <p className="catalog__empty">No games match.</p>;
   }
   return (
     <div className="catalog-grid">
-      {visible.map((g) => (
-        <GameCard key={g.id || g.title} game={g} onLaunch={onLaunch} />
+      {groups.map((grp) => (
+        <GameCard
+          key={grp.key}
+          game={grp.representative}
+          variantCount={grp.members.length}
+          onOpen={() => onOpen(grp)}
+        />
       ))}
     </div>
   );

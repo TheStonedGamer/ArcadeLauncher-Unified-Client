@@ -6,15 +6,17 @@ import type { Game } from "../types";
 
 interface Props {
   game: Game;
-  onLaunch: (game: Game) => void;
+  /** Number of ROM dumps collapsed under this tile (1 = no variants). */
+  variantCount?: number;
+  onOpen: (game: Game) => void;
 }
 
-export function GameCard({ game, onLaunch }: Props) {
+export function GameCard({ game, variantCount = 1, onOpen }: Props) {
   const cover = game.coverArtPath ? convertFileSrc(game.coverArtPath) : game.coverArtUrl;
   const installed = game.installState === "installed";
 
   return (
-    <button className="game-card" onClick={() => onLaunch(game)} title={`Launch ${game.title}`}>
+    <button className="game-card" onClick={() => onOpen(game)} title={game.title}>
       <div className="game-card__art">
         {cover ? (
           <img src={cover} alt={game.title} loading="lazy" />
@@ -26,6 +28,11 @@ export function GameCard({ game, onLaunch }: Props) {
           className={`game-card__state game-card__state--${installed ? "on" : "off"}`}
           aria-label={installed ? "installed" : "not installed"}
         />
+        {variantCount > 1 && (
+          <span className="game-card__variants" title={`${variantCount} versions`}>
+            ×{variantCount}
+          </span>
+        )}
       </div>
       <div className="game-card__title">{game.title}</div>
       {game.platform && <div className="game-card__platform">{game.platform}</div>}

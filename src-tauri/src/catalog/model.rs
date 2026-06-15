@@ -29,6 +29,9 @@ pub struct Game {
     pub release_date: i64,
     pub playtime_seconds: u64,
     pub last_played: i64,
+    /// IGDB rating 0–100 (0 = unrated). Used for the rating sort + detail panel.
+    pub igdb_rating: f64,
+    pub summary: String,
     pub server_backed: bool,
     pub favorite: bool,
     pub hidden: bool,
@@ -41,6 +44,11 @@ pub struct Game {
     pub emulator_path: String,
     pub rom_path: String,
     pub arguments: String,
+
+    // ── Launch hooks (Playnite-style; run hidden, failures ignored) ──────────
+    pub launch_options: String,
+    pub pre_launch_cmd: String,
+    pub post_exit_cmd: String,
 }
 
 /// What to run, resolved with the same precedence as the C++ client:

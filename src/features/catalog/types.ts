@@ -16,6 +16,8 @@ export interface Game {
   releaseDate: number;
   playtimeSeconds: number;
   lastPlayed: number;
+  igdbRating: number;
+  summary: string;
   serverBacked: boolean;
   favorite: boolean;
   hidden: boolean;
@@ -25,4 +27,7 @@ export interface Game {
   emulatorPath: string;
   romPath: string;
   arguments: string;
+  launchOptions: string;
+  preLaunchCmd: string;
+  postExitCmd: string;
 }

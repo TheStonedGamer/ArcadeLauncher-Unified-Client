@@ -2,9 +2,18 @@
 // loading/error flags. Keeping this out of the view component means the grid is
 // pure presentation and easy to test/replace.
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { loadCatalog, launchGame } from "./api";
 import type { Game } from "./types";
+
+// Emitted by Rust when a launched game exits (see launch/session.rs).
+interface GameExited {
+  id: string;
+  title: string;
+  playtimeSeconds: number;
+  exitOk: boolean;
+}
 
 export interface CatalogState {
   games: Game[];
@@ -20,6 +29,26 @@ export function useCatalog(): CatalogState {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+
+  // When a game exits, fold its session time into the matching entry so the
+  // grid/detail playtime updates without a reload.
+  useEffect(() => {
+    const unlisten = listen<GameExited>("game-exited", (event) => {
+      const { id, title, playtimeSeconds } = event.payload;
+      setGames((prev) =>
+        prev.map((g) =>
+          g.id === id
+            ? { ...g, playtimeSeconds: g.playtimeSeconds + playtimeSeconds, lastPlayed: Math.floor(Date.now() / 1000) }
+            : g,
+        ),
+      );
+      const mins = Math.max(1, Math.round(playtimeSeconds / 60));
+      setStatus(`"${title}" exited — +${mins} min playtime`);
+    });
+    return () => {
+      unlisten.then((off) => off());
+    };
+  }, []);
 
   const load = useCallback(async (path: string) => {
     setLoading(true);

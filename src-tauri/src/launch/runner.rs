@@ -1,20 +1,18 @@
-//! Spawns a game process from a resolved `LaunchPlan`. Cross-platform: the same
-//! code path runs on Windows and Linux because `std::process::Command` abstracts
-//! the OS. The child is detached — we don't wait on it (playtime tracking that
-//! does wait comes in a later phase).
+//! Spawns a game process from a resolved `LaunchPlan`. Cross-platform via
+//! `std::process::Command`. Returns the live `Child` so the caller (session)
+//! can wait on it for playtime tracking.
 
 use crate::catalog::model::LaunchPlan;
 use crate::error::{AppError, AppResult};
-use std::process::Command;
+use std::process::{Child, Command};
 
-/// Launch the program described by `plan`. Returns the child PID on success.
-pub fn spawn(plan: &LaunchPlan) -> AppResult<u32> {
+/// Launch the program described by `plan`, returning the child handle.
+pub fn spawn(plan: &LaunchPlan) -> AppResult<Child> {
     if plan.program.trim().is_empty() {
         return Err(AppError::msg("game has no launch target"));
     }
-    let child = Command::new(&plan.program)
+    Command::new(&plan.program)
         .args(&plan.args)
         .spawn()
-        .map_err(|e| AppError::msg(format!("failed to launch '{}': {e}", plan.program)))?;
-    Ok(child.id())
+        .map_err(|e| AppError::msg(format!("failed to launch '{}': {e}", plan.program)))
 }
