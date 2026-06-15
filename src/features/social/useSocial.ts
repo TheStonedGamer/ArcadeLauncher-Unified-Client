@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NullGateway, type Gateway, type GatewayState } from "./gateway";
 import { DemoGateway } from "./demoGateway";
+import { WsGateway } from "./wsGateway";
 import { outbound } from "./protocol";
 import {
   applyFriendList,
@@ -42,11 +43,22 @@ const EMPTY_CONV: Conversation = {
   readUpTo: 0,
 };
 
-/** Default gateway: NullGateway in production; DemoGateway when `?demo` is set. */
+/**
+ * Default gateway selection:
+ *  - `?ws=<host>&token=<token>` → the live {@link WsGateway} (manual testing
+ *    against a real backend; the auth slice will select this with the user's
+ *    real session instead of URL params).
+ *  - `?demo` → the scripted {@link DemoGateway}.
+ *  - otherwise → {@link NullGateway} (the safe production default until the
+ *    session/auth layer exists to supply a host + token).
+ */
 function defaultGateway(): Gateway {
-  if (typeof window !== "undefined" && window.location.search.includes("demo")) {
-    return new DemoGateway();
-  }
+  if (typeof window === "undefined") return new NullGateway();
+  const params = new URLSearchParams(window.location.search);
+  const host = params.get("ws");
+  const token = params.get("token");
+  if (host && token) return new WsGateway(host, token);
+  if (params.has("demo")) return new DemoGateway();
   return new NullGateway();
 }
 

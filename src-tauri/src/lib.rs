@@ -19,11 +19,17 @@ pub fn run() {
         .plugin(tauri_plugin_process::init());
 
     builder
+        // Live social gateway connection state (one per app instance).
+        .manage(social::transport::SocialTransport::default())
         .invoke_handler(tauri::generate_handler![
             catalog::commands::load_catalog,
             launch::commands::launch_game,
             settings::commands::load_settings,
             settings::commands::save_settings,
+            social::commands::social_connect,
+            social::commands::social_send,
+            social::commands::social_disconnect,
+            social::commands::social_fetch_friends,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

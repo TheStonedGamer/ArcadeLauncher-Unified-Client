@@ -7,6 +7,8 @@
 #![allow(dead_code)]
 
 pub mod backoff;
+pub mod commands;
 pub mod endpoint;
 pub mod model;
 pub mod protocol;
+pub mod transport;
