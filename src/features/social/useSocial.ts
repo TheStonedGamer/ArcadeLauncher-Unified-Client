@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NullGateway, type Gateway, type GatewayState } from "./gateway";
+import { DemoGateway } from "./demoGateway";
 import { outbound } from "./protocol";
 import {
   applyFriendList,
@@ -41,7 +42,15 @@ const EMPTY_CONV: Conversation = {
   readUpTo: 0,
 };
 
-export function useSocial(gatewayFactory: () => Gateway = () => new NullGateway()): SocialApi {
+/** Default gateway: NullGateway in production; DemoGateway when `?demo` is set. */
+function defaultGateway(): Gateway {
+  if (typeof window !== "undefined" && window.location.search.includes("demo")) {
+    return new DemoGateway();
+  }
+  return new NullGateway();
+}
+
+export function useSocial(gatewayFactory: () => Gateway = defaultGateway): SocialApi {
   const [social, setSocial] = useState<SocialState>(initialSocialState);
   const [state, setState] = useState<GatewayState>("disconnected");
   const [selectedPeer, setSelectedPeer] = useState<number | null>(null);
