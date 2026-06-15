@@ -6,5 +6,7 @@
 // until then the model/protocol are exercised only by their unit tests.
 #![allow(dead_code)]
 
+pub mod backoff;
+pub mod endpoint;
 pub mod model;
 pub mod protocol;
