@@ -24,7 +24,34 @@ pub struct ManifestFile {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Manifest {
+    /// Content version (recorded for update checks). Empty if the server omits it.
+    pub version: String,
+    /// Install kind, e.g. `pc_archive` (a single archive to extract) vs a plain
+    /// file set. Mirrors the server's `install_type`.
+    pub install_type: String,
     pub files: Vec<ManifestFile>,
+}
+
+/// Whether `path` is the *primary* archive of a `pc_archive` install — i.e. the
+/// file the install should extract. Mirrors the server's `is_pc_primary_archive`
+/// exactly so both clients pick the same file: `.zip`/`.7z`/`.rar` (or the first
+/// part `*.zip|7z|rar.001`), excluding multi-part `*.partN` continuations (N>1).
+fn is_primary_archive(path: &str) -> bool {
+    let name_l = path.rsplit(['/', '\\']).next().unwrap_or(path).to_ascii_lowercase();
+    let ext = name_l.rsplit('.').next().unwrap_or("");
+    let is_archive_ext = matches!(ext, "zip" | "7z" | "rar");
+    let is_split_first = ext == "001"
+        && (name_l.ends_with(".7z.001") || name_l.ends_with(".zip.001") || name_l.ends_with(".rar.001"));
+    if !is_archive_ext && !is_split_first {
+        return false;
+    }
+    if let Some(idx) = name_l.find(".part") {
+        let digits: String = name_l[idx + 5..].chars().take_while(|c| c.is_ascii_digit()).collect();
+        if digits.parse::<u32>().map(|n| n > 1).unwrap_or(false) {
+            return false;
+        }
+    }
+    true
 }
 
 impl Manifest {
@@ -42,6 +69,22 @@ impl Manifest {
     /// Number of files in the install.
     pub fn file_count(&self) -> usize {
         self.files.len()
+    }
+
+    /// For a `pc_archive` install, the install-relative path of the archive to
+    /// extract after download (fed to `InstallContext.archive`). `None` for
+    /// plain file-set installs or when no archive file is present. Note: the
+    /// client only extracts `.zip` natively; non-zip archives are detected here
+    /// but their extraction step will report a clear failure.
+    pub fn archive_path(&self) -> Option<String> {
+        if self.install_type != "pc_archive" {
+            return None;
+        }
+        self.files
+            .iter()
+            .map(|f| f.path.as_str())
+            .find(|p| is_primary_archive(p))
+            .map(|p| p.to_string())
     }
 }
 
@@ -79,5 +122,53 @@ mod tests {
         let m = Manifest::parse(r#"{"files":[]}"#).unwrap();
         assert_eq!(m.file_count(), 0);
         assert_eq!(m.total_bytes(), 0);
+    }
+
+    #[test]
+    fn parses_version_and_install_type() {
+        let body = r#"{"version":"1.4.0","installType":"pc_archive","files":[]}"#;
+        let m = Manifest::parse(body).unwrap();
+        assert_eq!(m.version, "1.4.0");
+        assert_eq!(m.install_type, "pc_archive");
+    }
+
+    #[test]
+    fn archive_path_only_for_pc_archive() {
+        // Non-archive install kinds never extract.
+        let mut m = Manifest::parse(
+            r#"{"installType":"emulator","files":[{"path":"rom.zip","size":1}]}"#,
+        )
+        .unwrap();
+        assert_eq!(m.archive_path(), None);
+
+        // pc_archive picks the primary archive among the files.
+        m = Manifest::parse(
+            r#"{"installType":"pc_archive","files":[
+                {"path":"readme.txt","size":1},
+                {"path":"Game.zip","size":2}
+            ]}"#,
+        )
+        .unwrap();
+        assert_eq!(m.archive_path().as_deref(), Some("Game.zip"));
+
+        // No archive file present -> None (engine places files as-is).
+        m = Manifest::parse(
+            r#"{"installType":"pc_archive","files":[{"path":"game.exe","size":1}]}"#,
+        )
+        .unwrap();
+        assert_eq!(m.archive_path(), None);
+    }
+
+    #[test]
+    fn primary_archive_matches_server_rules() {
+        assert!(is_primary_archive("Game.zip"));
+        assert!(is_primary_archive("sub/dir/Game.7z"));
+        assert!(is_primary_archive("Game.rar"));
+        assert!(is_primary_archive("Game.7z.001"));
+        assert!(is_primary_archive("Game.part1.rar"));
+        // Continuations and non-archives are rejected.
+        assert!(!is_primary_archive("Game.exe"));
+        assert!(!is_primary_archive("Game.7z.002"));
+        assert!(!is_primary_archive("Game.part2.rar"));
     }
 }

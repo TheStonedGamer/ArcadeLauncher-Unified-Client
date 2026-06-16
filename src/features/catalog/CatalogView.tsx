@@ -17,13 +17,26 @@ import { groupVariants, type VariantGroup } from "./variants";
 import { useSettings } from "../settings/useSettings";
 import { useCatalogPrefs } from "./useCatalogPrefs";
 import { applyPrefs } from "./prefs";
+import { useSession } from "../session/SessionContext";
+import { installGame } from "../download/api";
 import type { Game } from "./types";
 
 export function CatalogView() {
   const { games, loading, error, status, load, launch, setCover } = useCatalog();
   const { draft: settings } = useSettings();
   const prefs = useCatalogPrefs();
+  const { session } = useSession();
   const hasIgdbCreds = settings.igdbClientId.trim() !== "" && settings.igdbClientSecret.trim() !== "";
+
+  // Install trigger (T4d-3): start the engine for a server game using the
+  // signed-in session's host + token. Disabled in the UI when no session.
+  const startInstall = useCallback(
+    async (game: Game) => {
+      if (!session) throw new Error("sign in to install");
+      await installGame(session.host, session.token, game.id);
+    },
+    [session],
+  );
 
   // Overlay the user's favorite/hidden/collection overrides onto the read-only
   // catalog before any querying; downstream code never sees raw library.json.
@@ -180,6 +193,8 @@ export function CatalogView() {
           onToggleHidden={prefs.toggleHidden}
           onAddCollection={prefs.addToCollection}
           onRemoveCollection={prefs.removeFromCollection}
+          onInstall={startInstall}
+          canInstall={!!session}
         />
       )}
     </section>

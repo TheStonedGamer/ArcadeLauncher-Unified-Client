@@ -84,6 +84,7 @@ pub fn run() {
             social::commands::social_disconnect,
             social::commands::social_fetch_friends,
             download::commands::download_start,
+            download::commands::download_install,
             download::commands::download_pause,
             download::commands::download_resume,
             download::commands::download_cancel,

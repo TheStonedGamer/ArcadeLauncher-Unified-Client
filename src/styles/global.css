@@ -259,6 +259,9 @@ body {
   padding: 10px 18px; border-radius: 9px; border: none;
   background: var(--on); color: #06210f; font-weight: 700; cursor: pointer; font-size: 14px;
 }
+.detail__install { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 10px; }
+.detail__install-btn { background: var(--accent); color: #06210f; }
+.detail__install-btn:disabled { opacity: .65; cursor: default; }
 
 /* ── Social ────────────────────────────────────────────────────────────── */
 .social { display: flex; flex-direction: column; height: 100%; }

@@ -82,10 +82,15 @@ full-file SHA-256 verify, `..` path-traversal rejection.
     `DownloadQueue` panel (per-install progress bar, status, speed, state-aware
     controls) + Downloads tab with active-count badge in the shell. Verified in
     the browser preview (badge + all six row states render).
-  - [ ] **T4d-3** Install trigger: `Install` button on the detail panel +
-    `download_fetch_manifest` command, wiring `download_start` with install
-    dir / records path / session host+token. Gated on the session/auth layer
-    (same deferral as the social NullGateway), so it lands when that exists.
+  - [x] **T4d-3** Install trigger. Pure manifest core grows `version`/
+    `installType` fields + `archive_path()` (mirrors the server's
+    `is_pc_primary_archive`; 4 new KATs). `download_install` command fetches
+    `GET /api/games/:id/manifest` (Bearer = session token), resolves the
+    per-user install dir (`app_data/games/<id>`) + records path
+    (`app_config/install_records.json`), reads the bandwidth cap from settings,
+    and hands off to the engine. Detail panel shows an `Install` button for
+    server-backed, not-yet-installed games (disabled → "Sign in to install"
+    when signed out); progress flows to the existing Downloads tab.
 - [ ] **T4e** Verify both-OS green; manual smoke against a real server file.
 
 ## Phase T5 — Art & metadata pipeline

@@ -20,6 +20,10 @@ interface Props {
   onToggleHidden?: (game: Game) => void;
   onAddCollection?: (game: Game, name: string) => void;
   onRemoveCollection?: (game: Game, name: string) => void;
+  /** Start installing the game from the server. Absent for non-server games. */
+  onInstall?: (game: Game) => Promise<void>;
+  /** Whether a session is available to authorize the install. */
+  canInstall?: boolean;
 }
 
 function playtimeStr(seconds: number): string {
@@ -48,10 +52,14 @@ export function GameDetail({
   onToggleHidden,
   onAddCollection,
   onRemoveCollection,
+  onInstall,
+  canInstall,
 }: Props) {
   const [pick, setPick] = useState<Game>(group.representative);
   const [fetching, setFetching] = useState(false);
   const [fetchMsg, setFetchMsg] = useState("");
+  const [installing, setInstalling] = useState(false);
+  const [installMsg, setInstallMsg] = useState("");
   const [coverPath, setCoverPath] = useState(group.representative.coverArtPath);
   const game = group.representative;
   const cover = coverPath ? convertFileSrc(coverPath) : game.coverArtUrl;
@@ -96,8 +104,24 @@ export function GameDetail({
       setFetchMsg("No cover found — check your IGDB credentials in Settings.");
     }
   };
+  const install = async () => {
+    if (!onInstall) return;
+    setInstalling(true);
+    setInstallMsg("");
+    try {
+      await onInstall(pick);
+      setInstallMsg("Install started — see the Downloads tab.");
+    } catch (e) {
+      setInstallMsg(`Couldn't start install: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setInstalling(false);
+    }
+  };
+
   const rating = game.igdbRating >= 1 ? `${Math.round(game.igdbRating)}/100` : "";
   const hasVariants = group.members.length > 1;
+  // Offer Install for server-backed games that aren't already installed.
+  const installable = !!onInstall && pick.serverBacked && pick.installState !== "installed";
 
   return (
     <div className="detail-backdrop" onClick={onClose}>
@@ -201,6 +225,20 @@ export function GameDetail({
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {installable && (
+            <div className="detail__install">
+              <button
+                className="detail__launch detail__install-btn"
+                onClick={install}
+                disabled={installing || !canInstall}
+                title={canInstall ? "" : "Sign in to install"}
+              >
+                {installing ? "Starting…" : canInstall ? "⬇ Install" : "⬇ Sign in to install"}
+              </button>
+              {installMsg && <span className="detail__fetchmsg">{installMsg}</span>}
             </div>
           )}
 
