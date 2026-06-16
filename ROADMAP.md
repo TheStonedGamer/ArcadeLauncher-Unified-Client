@@ -196,11 +196,22 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
     panel affordance for server-backed games (disabled → "Sign in to sync" when
     signed out). Reports N uploaded / N downloaded / conflicts; on a conflict,
     offers "Keep my saves" / "Keep server saves". host+token from `useSession()`.
+- [x] **T8b** Per-game save-folder mapping. `CatalogPrefs.save_paths` (game id →
+  absolute local save dir), client-local in `catalog_prefs.json` (never rewrites
+  `library.json`). `saves_plan`/`saves_sync` take an optional `save_path` (used
+  when set + absolute, else the managed `app_data/saves/<id>`). Pure TS
+  `effectiveSavePath`/`setSavePath` (2 vitest) + a "Save folder" input on the
+  detail panel (blank = managed folder).
 
 ## Phase T9 — Social depth (match native + server features 1.1b–1.6)
 
-- [ ] **T9a** Edit / delete / read receipts in the chat UI (reducer already
-  models read receipts; wire edit/delete actions).
+- [x] **T9a** Edit / delete / read receipts in the chat UI. The protocol
+  (`chat_edit`/`chat_delete`/`read`) and reducer already modeled these; this
+  wired the **actions**: pure `optimisticEdit`/`optimisticDelete` (4 vitest) so
+  the bubble updates before the server echo, exposed as `editMessage`/
+  `deleteMessage` on `useSocial`, and hover ✎/🗑 controls on my own messages in
+  `MessageRow` (Edit swaps the bubble for an inline input; Enter saves, Esc
+  cancels). Read receipts + "(edited)"/tombstone display already shipped in T3a.
 - [ ] **T9b** Reactions + replies.
 - [ ] **T9c** DM attachments (MinIO-backed upload + chips), paperclip control.
 - [ ] **T9d** User profiles (banner, bio, level/XP).

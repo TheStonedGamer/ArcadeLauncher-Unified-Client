@@ -132,6 +132,23 @@ function editMessage(
 }
 
 /**
+ * Optimistically apply a local edit of my own message before the server's
+ * `chat_edit` echo arrives, so the UI updates instantly. The echo (handled in
+ * `applyInbound`) later reconciles with the authoritative `editedAt`.
+ */
+export function optimisticEdit(state: SocialState, msgId: number, text: string, now: number): SocialState {
+  const trimmed = text.trim();
+  if (msgId === 0 || trimmed === "") return state;
+  return editMessage(state, msgId, (m) => ({ ...m, text: trimmed, editedAt: Math.floor(now / 1000), deleted: false }));
+}
+
+/** Optimistically tombstone my own message before the `chat_delete` echo. */
+export function optimisticDelete(state: SocialState, msgId: number): SocialState {
+  if (msgId === 0) return state;
+  return editMessage(state, msgId, (m) => ({ ...m, deleted: true }));
+}
+
+/**
  * Apply one inbound gateway frame, returning the next state. Pure: identical
  * input always yields identical output. `now` is injected (epoch ms) so typing
  * timeouts are deterministic in tests.

@@ -5,6 +5,8 @@ import {
   initialSocialState,
   localEcho,
   markConversationRead,
+  optimisticDelete,
+  optimisticEdit,
   setFavorite,
   setNickname,
   type SocialState,
@@ -153,6 +155,25 @@ describe("edit + delete", () => {
   it("chat_delete tombstones the message", () => {
     let s = applyInbound(baseState(), { type: "chat", messageId: 7, senderId: 2, receiverId: 42, text: "secret", attachmentId: 0, timestamp: 1 }, NOW);
     s = applyInbound(s, { type: "chat_delete", messageId: 7 }, NOW);
+    expect(s.conversations[2].messages[0].deleted).toBe(true);
+  });
+
+  it("optimisticEdit updates my message text and stamps editedAt before the echo", () => {
+    let s = applyInbound(baseState(), { type: "chat", messageId: 9, senderId: 42, receiverId: 2, text: "typo", attachmentId: 0, timestamp: 1 }, NOW);
+    s = optimisticEdit(s, 9, "  fixed  ", NOW);
+    expect(s.conversations[2].messages[0]).toMatchObject({ text: "fixed", deleted: false });
+    expect(s.conversations[2].messages[0].editedAt).toBeGreaterThan(0);
+  });
+
+  it("optimisticEdit ignores empty text and unsaved (id 0) messages", () => {
+    const s = applyInbound(baseState(), { type: "chat", messageId: 9, senderId: 42, receiverId: 2, text: "keep", attachmentId: 0, timestamp: 1 }, NOW);
+    expect(optimisticEdit(s, 9, "   ", NOW)).toBe(s);
+    expect(optimisticEdit(s, 0, "x", NOW)).toBe(s);
+  });
+
+  it("optimisticDelete tombstones my message before the echo", () => {
+    let s = applyInbound(baseState(), { type: "chat", messageId: 9, senderId: 42, receiverId: 2, text: "oops", attachmentId: 0, timestamp: 1 }, NOW);
+    s = optimisticDelete(s, 9);
     expect(s.conversations[2].messages[0].deleted).toBe(true);
   });
 });

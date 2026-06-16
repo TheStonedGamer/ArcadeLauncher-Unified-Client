@@ -14,6 +14,8 @@ import {
   initialSocialState,
   localEcho,
   markConversationRead,
+  optimisticDelete,
+  optimisticEdit,
   type SocialState,
 } from "./reducer";
 import { sortedFriends, totalUnread } from "./selectors";
@@ -32,6 +34,10 @@ export interface SocialApi {
   send: (text: string) => void;
   /** Tell the peer we're typing. */
   notifyTyping: () => void;
+  /** Edit one of my own messages (optimistic update + gateway send). */
+  editMessage: (msgId: number, text: string) => void;
+  /** Delete one of my own messages (optimistic tombstone + gateway send). */
+  deleteMessage: (msgId: number) => void;
 }
 
 const EMPTY_CONV: Conversation = {
@@ -119,6 +125,19 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     if (selectedPeer != null) gatewayRef.current?.send(outbound.typing(selectedPeer));
   }, [selectedPeer]);
 
+  const editMessage = useCallback((msgId: number, text: string) => {
+    const trimmed = text.trim();
+    if (!msgId || trimmed === "") return;
+    setSocial((prev) => optimisticEdit(prev, msgId, trimmed, Date.now()));
+    gatewayRef.current?.send(outbound.edit(msgId, trimmed));
+  }, []);
+
+  const deleteMessage = useCallback((msgId: number) => {
+    if (!msgId) return;
+    setSocial((prev) => optimisticDelete(prev, msgId));
+    gatewayRef.current?.send(outbound.delete(msgId));
+  }, []);
+
   const friends = useMemo(() => sortedFriends(social), [social]);
   const unreadTotal = useMemo(() => totalUnread(social), [social]);
   const conversation =
@@ -135,5 +154,7 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     unreadTotal,
     send,
     notifyTyping,
+    editMessage,
+    deleteMessage,
   };
 }

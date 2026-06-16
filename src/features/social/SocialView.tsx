@@ -46,6 +46,8 @@ export function SocialView() {
             connected={social.connected}
             onSend={social.send}
             onTyping={social.notifyTyping}
+            onEdit={social.editMessage}
+            onDelete={social.deleteMessage}
           />
         </section>
       </div>
