@@ -49,6 +49,26 @@ body {
 .app__navbtn:hover { color: var(--text); }
 .app__navbtn--active { background: var(--panel-2); color: var(--text); border-color: var(--border); }
 
+.app__account { display: flex; align-items: center; gap: 8px; margin-left: 12px; }
+.app__user { font-size: 13px; font-weight: 600; }
+.app__signbtn {
+  padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+}
+.app__signbtn:hover { border-color: var(--accent); }
+
+/* Sign-in modal (reuses .detail-backdrop). */
+.login {
+  width: min(420px, 92vw); background: var(--panel); color: var(--text);
+  border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.login__title { margin: 0 0 4px; font-size: 18px; }
+.login__cancel {
+  padding: 8px 14px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent; color: var(--muted);
+}
+
 /* ── Settings ──────────────────────────────────────────────────────────── */
 .settings { max-width: 540px; }
 .settings__heading { margin: 0 0 16px; font-size: 18px; }

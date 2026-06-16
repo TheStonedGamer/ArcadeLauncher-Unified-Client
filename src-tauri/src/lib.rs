@@ -8,6 +8,7 @@ mod error;
 mod hotkey;
 mod launch;
 mod presence;
+mod session;
 mod settings;
 mod social;
 mod tray;
@@ -91,6 +92,7 @@ pub fn run() {
             hotkey::commands::hotkey_apply,
             window::commands::set_fullscreen,
             window::commands::is_fullscreen,
+            session::commands::session_login,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

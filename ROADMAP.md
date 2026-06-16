@@ -137,6 +137,25 @@ full-file SHA-256 verify, `..` path-traversal rejection.
   builds the system tray (Show/Quit, left-click toggle), intercepts close to
   hide when close-to-tray is on, and hides at startup when launch-minimized.
 
+## Phase TS — Session & auth (unblocks T4d-3, social-live, T8)
+
+The recurring prerequisite: a login that yields a `{host, token}` session for
+the social/download features. Mirrors the server's `auth.rs`.
+
+- [x] **TSa** Pure challenge-response crypto core (`session::crypto`, 6 KATs):
+  `derive_auth_key` (SHA-256(lower(user)‖0x1f‖pass)), `challenge_proof`
+  (hex HMAC-SHA256 of the nonce), `hmac_ctr_xor` + `decrypt_token`
+  (HMAC-CTR, round-trips the server's encrypt). Plus the `session_login`
+  command: GET `/api/auth/challenge` → proof → POST `/api/auth/verify` →
+  decrypt token natively, with a `/api/login` password fallback; password
+  never persisted/logged. Frontend `SessionProvider` holds the session in
+  memory (host+username remembered, token in-memory only) + a `LoginPanel`
+  sign-in modal and header account chip.
+- [ ] **TSb** Token storage (secure per-user) + auto-restore on launch +
+  session-expiry handling.
+- [ ] **TSc** Wire the session host+token into the social live connection
+  (unblocks social-live) and the download install trigger (unblocks T4d-3).
+
 ## Phase T8 — Cloud saves
 
 - [ ] **T8a** Cloud-save sync v1 against the existing server endpoints

@@ -8,12 +8,16 @@ import { SettingsView } from "../features/settings/SettingsView";
 import { SocialView } from "../features/social/SocialView";
 import { DownloadQueue } from "../features/download/components/DownloadQueue";
 import { useDownloads } from "../features/download/useDownloads";
+import { useSession } from "../features/session/SessionContext";
+import { LoginPanel } from "../features/session/LoginPanel";
 
 type View = "library" | "friends" | "downloads" | "settings";
 
 export function AppShell() {
   const [view, setView] = useState<View>("library");
   const downloads = useDownloads();
+  const { session, logout } = useSession();
+  const [showLogin, setShowLogin] = useState(false);
 
   return (
     <div className="app">
@@ -47,8 +51,25 @@ export function AppShell() {
             Settings
           </button>
         </nav>
+        <div className="app__account">
+          {session ? (
+            <>
+              <span className="app__user" title={`Signed in to ${session.host}`}>
+                {session.username}
+              </span>
+              <button className="app__signbtn" onClick={logout}>
+                Sign out
+              </button>
+            </>
+          ) : (
+            <button className="app__signbtn" onClick={() => setShowLogin(true)}>
+              Sign in
+            </button>
+          )}
+        </div>
       </header>
       <UpdateBanner />
+      {showLogin && !session && <LoginPanel onClose={() => setShowLogin(false)} />}
       <main className="app__main">
         {view === "library" && <CatalogView />}
         {view === "friends" && <SocialView />}
