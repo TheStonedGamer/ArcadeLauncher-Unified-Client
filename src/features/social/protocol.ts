@@ -17,6 +17,9 @@ export type Inbound =
   | { type: "friend_request"; userId: number }
   | { type: "friend_accepted"; userId: number }
   | { type: "friend_removed"; userId: number }
+  // Voice (ROADMAP T9g): opaque WebRTC signaling relayed between friends. The
+  // `payload` is interpreted by voice.ts (parseSignal); we keep it untyped here.
+  | { type: "voice_signal"; fromId: number; payload: unknown }
   | { type: "unknown" };
 
 function num(v: unknown): number {
@@ -83,6 +86,8 @@ export function parseInbound(utf8: string): Inbound | null {
       return { type: "friend_accepted", userId: num(v.userId) };
     case "friend_removed":
       return { type: "friend_removed", userId: num(v.userId) };
+    case "voice_signal":
+      return { type: "voice_signal", fromId: num(v.fromId), payload: v.payload };
     default:
       return { type: "unknown" };
   }
@@ -111,4 +116,10 @@ export const outbound = {
   delete: (msgId: number): string => JSON.stringify({ type: "delete", msgId }),
   react: (msgId: number, emoji: string, on: boolean): string =>
     JSON.stringify({ type: "react", msgId, emoji, on }),
+  // Voice (ROADMAP T9g): relay an opaque WebRTC signaling payload to a friend.
+  // The server's voice_signal handler also gates the (caller,peer) pair on
+  // invite/accept/end, so `payload.kind` must carry those alongside offer/answer/
+  // ice (see voice.ts SignalPayload).
+  voiceSignal: (to: number, payload: unknown): string =>
+    JSON.stringify({ type: "voice_signal", to, payload }),
 };

@@ -53,7 +53,15 @@ describe("parseInbound", () => {
   });
 
   it("maps unknown frame types to unknown", () => {
-    expect(parseInbound('{"type":"voice_signal","to":1}')).toEqual({ type: "unknown" });
+    expect(parseInbound('{"type":"totally_new_frame","x":1}')).toEqual({ type: "unknown" });
+  });
+
+  it("parses voice_signal with an opaque payload", () => {
+    expect(parseInbound('{"type":"voice_signal","fromId":5,"payload":{"kind":"offer","sdp":"v=0"}}')).toEqual({
+      type: "voice_signal",
+      fromId: 5,
+      payload: { kind: "offer", sdp: "v=0" },
+    });
   });
 
   it("returns null for malformed json", () => {
@@ -75,5 +83,8 @@ describe("outbound", () => {
       '{"type":"presence","state":"busy","statusText":"heads down","dnd":true}',
     );
     expect(outbound.presenceInGame("g1")).toBe('{"type":"presence","state":"ingame","gameId":"g1"}');
+    expect(outbound.voiceSignal(8, { kind: "accept" })).toBe(
+      '{"type":"voice_signal","to":8,"payload":{"kind":"accept"}}',
+    );
   });
 });
