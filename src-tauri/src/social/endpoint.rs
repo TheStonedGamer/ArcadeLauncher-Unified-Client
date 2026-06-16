@@ -42,6 +42,16 @@ impl Endpoint {
         format!("https://{}/api/social/friends", self.host)
     }
 
+    /// REST URL to register a pending attachment and get a presigned PUT URL.
+    pub fn attachment_presign_url(&self) -> String {
+        format!("https://{}/api/social/attachments/presign", self.host)
+    }
+
+    /// REST URL for one attachment's presigned download (by attachment id).
+    pub fn attachment_url(&self, id: u64) -> String {
+        format!("https://{}/api/social/attachments/{}", self.host, id)
+    }
+
     /// The bearer token, for the `Authorization` header on REST calls.
     pub fn token(&self) -> &str {
         &self.token
@@ -72,6 +82,16 @@ mod tests {
         assert_eq!(e.ws_url(), "wss://arcade.example.com/ws/social?token=abc123");
         assert_eq!(e.friends_url(), "https://arcade.example.com/api/social/friends");
         assert_eq!(e.token(), "abc123");
+    }
+
+    #[test]
+    fn builds_attachment_urls() {
+        let e = Endpoint::new("arcade.example.com", "t");
+        assert_eq!(
+            e.attachment_presign_url(),
+            "https://arcade.example.com/api/social/attachments/presign"
+        );
+        assert_eq!(e.attachment_url(42), "https://arcade.example.com/api/social/attachments/42");
     }
 
     #[test]
