@@ -8,6 +8,7 @@ mod error;
 mod hotkey;
 mod launch;
 mod presence;
+mod saves;
 mod session;
 mod settings;
 mod social;
