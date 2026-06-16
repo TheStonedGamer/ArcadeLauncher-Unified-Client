@@ -96,6 +96,9 @@ pub struct Friend {
     pub relation: Relation,
     pub current_game_id: String,
     pub current_game_title: String,
+    /// Custom status text (ROADMAP 1.6); empty when unset. Passed through from
+    /// the server's `/friends` payload to the webview reducer.
+    pub status_text: String,
     pub last_online: i64,
 }
 

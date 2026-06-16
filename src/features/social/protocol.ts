@@ -7,7 +7,7 @@
 export type Inbound =
   | { type: "hello"; selfId: number }
   | { type: "pong" }
-  | { type: "presence"; userId: number; state: string; gameId: string; gameTitle: string }
+  | { type: "presence"; userId: number; state: string; gameId: string; gameTitle: string; statusText: string }
   | { type: "typing"; fromId: number }
   | { type: "chat"; messageId: number; senderId: number; receiverId: number; text: string; attachmentId: number; replyTo: number; timestamp: number }
   | { type: "read"; readerId: number; upToId: number }
@@ -48,6 +48,7 @@ export function parseInbound(utf8: string): Inbound | null {
         state: str(v.state),
         gameId: str(v.gameId),
         gameTitle: str(v.gameTitle),
+        statusText: str(v.statusText),
       };
     case "typing":
       return { type: "typing", fromId: num(v.fromId) };
@@ -91,7 +92,12 @@ export function parseInbound(utf8: string): Inbound | null {
 export const outbound = {
   ping: (): string => JSON.stringify({ type: "ping" }),
   resume: (afterMsgId: number): string => JSON.stringify({ type: "resume", afterMsgId }),
-  presence: (state: string): string => JSON.stringify({ type: "presence", state }),
+  presence: (state: string, statusText = "", dnd = false): string => {
+    const f: Record<string, unknown> = { type: "presence", state };
+    if (statusText) f.statusText = statusText;
+    if (dnd) f.dnd = true;
+    return JSON.stringify(f);
+  },
   presenceInGame: (gameId: string): string => JSON.stringify({ type: "presence", state: "ingame", gameId }),
   chat: (to: number, text: string, replyTo = 0, attachmentId = 0): string => {
     const f: Record<string, unknown> = { type: "chat", to, text };

@@ -24,6 +24,7 @@ function friend(over: Partial<Friend> = {}): Friend {
     relation: "accepted",
     currentGameId: "",
     currentGameTitle: "",
+    statusText: "",
     lastOnline: 0,
     favorite: false,
     nickname: "",
@@ -61,6 +62,7 @@ describe("presence", () => {
       state: "ingame",
       gameId: "g1",
       gameTitle: "Crystalis",
+      statusText: "",
     }, NOW);
     expect(s.friends[0]).toMatchObject({
       presence: "ingame",
@@ -71,9 +73,9 @@ describe("presence", () => {
   });
 
   it("going offline does not bump lastOnline", () => {
-    let s = applyInbound(baseState(), { type: "presence", userId: 2, state: "online", gameId: "", gameTitle: "" }, NOW);
+    let s = applyInbound(baseState(), { type: "presence", userId: 2, state: "online", gameId: "", gameTitle: "", statusText: "" }, NOW);
     const onlineStamp = s.friends[0].lastOnline;
-    s = applyInbound(s, { type: "presence", userId: 2, state: "offline", gameId: "", gameTitle: "" }, NOW + 5000);
+    s = applyInbound(s, { type: "presence", userId: 2, state: "offline", gameId: "", gameTitle: "", statusText: "" }, NOW + 5000);
     expect(s.friends[0].lastOnline).toBe(onlineStamp);
   });
 });

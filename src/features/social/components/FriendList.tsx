@@ -21,7 +21,10 @@ interface Props {
 
 function subline(f: Friend): { text: string; game: boolean } {
   const game = f.presence === "ingame" && !!f.currentGameTitle;
-  return { text: game ? f.currentGameTitle! : presenceLabel[f.presence], game };
+  if (game) return { text: f.currentGameTitle, game: true };
+  // A custom status takes precedence over the generic presence label.
+  if (f.statusText) return { text: f.statusText, game: false };
+  return { text: presenceLabel[f.presence], game: false };
 }
 
 function FriendRow({

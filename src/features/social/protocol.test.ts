@@ -25,8 +25,8 @@ describe("parseInbound", () => {
 
   it("parses presence with game", () => {
     expect(
-      parseInbound('{"type":"presence","userId":3,"state":"ingame","gameId":"g1","gameTitle":"Crystalis"}'),
-    ).toEqual({ type: "presence", userId: 3, state: "ingame", gameId: "g1", gameTitle: "Crystalis" });
+      parseInbound('{"type":"presence","userId":3,"state":"ingame","gameId":"g1","gameTitle":"Crystalis","statusText":"gg"}'),
+    ).toEqual({ type: "presence", userId: 3, state: "ingame", gameId: "g1", gameTitle: "Crystalis", statusText: "gg" });
   });
 
   it("parses typing using fromId", () => {
@@ -48,6 +48,7 @@ describe("parseInbound", () => {
       state: "",
       gameId: "",
       gameTitle: "",
+      statusText: "",
     });
   });
 
@@ -70,6 +71,9 @@ describe("outbound", () => {
     expect(outbound.chat(42, "", 0, 9)).toBe('{"type":"chat","to":42,"text":"","attachmentId":9}');
     expect(outbound.react(7, "👍", true)).toBe('{"type":"react","msgId":7,"emoji":"👍","on":true}');
     expect(outbound.presence("away")).toBe('{"type":"presence","state":"away"}');
+    expect(outbound.presence("busy", "heads down", true)).toBe(
+      '{"type":"presence","state":"busy","statusText":"heads down","dnd":true}',
+    );
     expect(outbound.presenceInGame("g1")).toBe('{"type":"presence","state":"ingame","gameId":"g1"}');
   });
 });

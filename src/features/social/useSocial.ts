@@ -23,6 +23,7 @@ import {
   type SocialState,
 } from "./reducer";
 import { sortedFriends, totalUnread } from "./selectors";
+import { presenceFrameInput, type SelfStatus } from "./statusMenu";
 import type { Conversation, Friend } from "./types";
 
 export interface SocialApi {
@@ -54,6 +55,12 @@ export interface SocialApi {
   sendAttachment: () => void;
   /** Resolve + open an attachment's download URL in the OS default handler. */
   openAttachment: (attachmentId: number) => void;
+  /** My currently chosen presence status (re-sent on each reconnect). */
+  myStatus: SelfStatus;
+  /** My custom status text ("" when unset). */
+  myStatusText: string;
+  /** Set my presence status + custom text (gateway send + persists locally). */
+  setStatus: (status: SelfStatus, statusText: string) => void;
 }
 
 const EMPTY_CONV: Conversation = {
@@ -94,7 +101,13 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
   const [state, setState] = useState<GatewayState>("disconnected");
   const [selectedPeer, setSelectedPeer] = useState<number | null>(null);
   const [replyTo, setReplyTo] = useState(0);
+  const [myStatus, setMyStatus] = useState<SelfStatus>("online");
+  const [myStatusText, setMyStatusText] = useState("");
   const gatewayRef = useRef<Gateway | null>(null);
+  // Latest chosen status, read on (re)connect to re-assert presence without
+  // re-subscribing the connect effect to status changes.
+  const statusRef = useRef({ status: myStatus, text: myStatusText });
+  statusRef.current = { status: myStatus, text: myStatusText };
   // Latest state, read by toggleReaction to decide add-vs-remove without
   // re-creating the callback on every frame.
   const socialRef = useRef(social);
@@ -109,9 +122,15 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     gw.onFrame((msg) => setSocial((prev) => applyInbound(prev, msg, Date.now())));
     gw.onState((s) => {
       setState(s);
-      // On (re)connect, pull the authoritative friend list.
+      // On (re)connect, pull the authoritative friend list and re-assert my
+      // chosen presence (the server resets to "online" on a fresh socket).
       if (s === "connected") {
         gw.fetchFriends().then((friends) => setSocial((prev) => applyFriendList(prev, friends)));
+        const { status, text } = statusRef.current;
+        if (status !== "online" || text) {
+          const f = presenceFrameInput(status, text);
+          gw.send(outbound.presence(f.state, f.statusText, f.dnd));
+        }
       }
     });
     gw.connect();
@@ -183,6 +202,13 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     [host, token],
   );
 
+  const setStatus = useCallback((status: SelfStatus, statusText: string) => {
+    const f = presenceFrameInput(status, statusText);
+    setMyStatus(status);
+    setMyStatusText(f.statusText);
+    gatewayRef.current?.send(outbound.presence(f.state, f.statusText, f.dnd));
+  }, []);
+
   const notifyTyping = useCallback(() => {
     if (selectedPeer != null) gatewayRef.current?.send(outbound.typing(selectedPeer));
   }, [selectedPeer]);
@@ -242,5 +268,8 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     attachEnabled,
     sendAttachment,
     openAttachment,
+    myStatus,
+    myStatusText,
+    setStatus,
   };
 }

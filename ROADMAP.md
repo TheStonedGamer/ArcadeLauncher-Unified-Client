@@ -238,7 +238,17 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
   own profile editable (banner/bio Save). Opened from a clickable peer name or a
   "My profile" button. No public per-user avatar endpoint, so initials are used.
   Green both OSes.
-- [ ] **T9e** Friend organization (groups, notes, search).
+- [x] **T9e** Friend organization (groups, notes, search). **T9e-3** (024e0d0,
+  CI 27654956625, both green) pure `friendMeta.ts` (parse/serialize groups,
+  add/remove/toggle, `organizeFriends` Pinned/group/Ungrouped sectioning; 14
+  vitest) + Rust `social_friendmeta_get`/`_set` + `social_user_search` (vs
+  GET/PUT `/api/social/friendmeta`, GET `/api/social/search`) + Endpoint
+  `friendmeta_url`/`search_url` KATs; `useFriendMeta` hook (optimistic note/pin/
+  group edits) → sectioned `FriendList` with group-filter chips + per-row inline
+  editor. **T9e-4** (596f479) Rust `social_friend_request` (POST
+  `/api/social/friends/request` by username, surfaces server reason) + Endpoint
+  `friend_request_url` KAT; `useUserSearch` (300ms-debounced) + `AddFriend`
+  search box atop the roster (marks existing friends, Add otherwise).
 - [ ] **T9f** Presence depth (custom status, DND, idle); DM privacy + ignore.
 
 ## Phase T10 — Cutover

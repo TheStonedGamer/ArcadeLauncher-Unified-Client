@@ -28,6 +28,7 @@ interface WireFriend {
   relation: string;
   currentGameId: string;
   currentGameTitle: string;
+  statusText?: string;
   lastOnline: number;
 }
 
@@ -39,6 +40,7 @@ function toFriend(w: WireFriend): Friend {
     relation: relationFromWire(w.relation) as Relation,
     currentGameId: w.currentGameId ?? "",
     currentGameTitle: w.currentGameTitle ?? "",
+    statusText: w.statusText ?? "",
     lastOnline: w.lastOnline ?? 0,
     // Client-local prefs default here; the reducer re-applies the user's saved
     // favorite/nickname/lastInteract over the top on each friend re-pull.

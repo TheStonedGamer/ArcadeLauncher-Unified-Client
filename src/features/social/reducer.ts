@@ -194,6 +194,7 @@ export function applyInbound(state: SocialState, msg: Inbound, now: number): Soc
         presence: presenceFromWire(msg.state),
         currentGameId: msg.gameId,
         currentGameTitle: msg.gameTitle,
+        statusText: msg.statusText,
         lastOnline: msg.state !== "offline" ? Math.floor(now / 1000) : f.lastOnline,
       }));
 

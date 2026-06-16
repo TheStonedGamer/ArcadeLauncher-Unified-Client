@@ -51,6 +51,8 @@ export interface Friend {
   relation: Relation;
   currentGameId: string;
   currentGameTitle: string;
+  /** Custom status text (ROADMAP 1.6), or "" when unset. Server-pushed. */
+  statusText: string;
   lastOnline: number;
   // Client-local personalization (never sent to the server). Mirrors the C++
   // social_prefs.json fields; the reducer keeps them across friend re-pulls.

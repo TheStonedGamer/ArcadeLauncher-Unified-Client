@@ -13,6 +13,7 @@ function friend(over: Partial<Friend>): Friend {
     relation: "accepted",
     currentGameId: "",
     currentGameTitle: "",
+    statusText: "",
     lastOnline: 0,
     favorite: false,
     nickname: "",

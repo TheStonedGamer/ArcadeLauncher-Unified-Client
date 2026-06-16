@@ -11,10 +11,10 @@ import type { Friend } from "./types";
 const SELF_ID = 42;
 
 const DEMO_FRIENDS: Friend[] = [
-  { accountId: 2, username: "ryu_dev", presence: "ingame", relation: "accepted", currentGameId: "sf2", currentGameTitle: "Street Fighter II", lastOnline: 0, favorite: true, nickname: "", lastInteract: 200 },
-  { accountId: 3, username: "pixelpat", presence: "online", relation: "accepted", currentGameId: "", currentGameTitle: "", lastOnline: 0, favorite: false, nickname: "Pat", lastInteract: 150 },
-  { accountId: 4, username: "n64kid", presence: "away", relation: "accepted", currentGameId: "", currentGameTitle: "", lastOnline: 0, favorite: false, nickname: "", lastInteract: 100 },
-  { accountId: 5, username: "ghost", presence: "offline", relation: "accepted", currentGameId: "", currentGameTitle: "", lastOnline: 0, favorite: false, nickname: "", lastInteract: 0 },
+  { accountId: 2, username: "ryu_dev", presence: "ingame", relation: "accepted", currentGameId: "sf2", currentGameTitle: "Street Fighter II", statusText: "", lastOnline: 0, favorite: true, nickname: "", lastInteract: 200 },
+  { accountId: 3, username: "pixelpat", presence: "online", relation: "accepted", currentGameId: "", currentGameTitle: "", statusText: "drawing sprites", lastOnline: 0, favorite: false, nickname: "Pat", lastInteract: 150 },
+  { accountId: 4, username: "n64kid", presence: "away", relation: "accepted", currentGameId: "", currentGameTitle: "", statusText: "brb", lastOnline: 0, favorite: false, nickname: "", lastInteract: 100 },
+  { accountId: 5, username: "ghost", presence: "offline", relation: "accepted", currentGameId: "", currentGameTitle: "", statusText: "", lastOnline: 0, favorite: false, nickname: "", lastInteract: 0 },
 ];
 
 export class DemoGateway implements Gateway {

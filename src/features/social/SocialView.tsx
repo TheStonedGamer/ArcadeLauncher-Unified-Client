@@ -7,6 +7,7 @@ import { useProfile } from "./useProfile";
 import { useFriendMeta } from "./useFriendMeta";
 import { FriendList } from "./components/FriendList";
 import { AddFriend } from "./components/AddFriend";
+import { StatusPicker } from "./components/StatusPicker";
 import { ChatPane } from "./components/ChatPane";
 import { ProfilePanel } from "./components/ProfilePanel";
 import type { GatewayState } from "./gateway";
@@ -36,9 +37,17 @@ export function SocialView() {
           <span className="social__status-note">— sign in to connect</span>
         )}
         {session && social.selfId > 0 && (
-          <button className="social__profile-btn" onClick={() => profile.open(social.selfId)}>
-            My profile
-          </button>
+          <>
+            <StatusPicker
+              status={social.myStatus}
+              statusText={social.myStatusText}
+              connected={social.connected}
+              onChange={social.setStatus}
+            />
+            <button className="social__profile-btn" onClick={() => profile.open(social.selfId)}>
+              My profile
+            </button>
+          </>
         )}
       </div>
 
