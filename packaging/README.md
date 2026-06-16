@@ -11,7 +11,7 @@ This directory documents the per-distro packaging story.
 | Debian / Ubuntu     | `.deb`                    | `tauri build` (bundled by default)         |
 | Fedora / RHEL       | `.rpm`                    | `tauri build` (bundled by default)         |
 | Any Linux           | AppImage                  | `tauri build` (bundled by default)         |
-| Arch / Manjaro      | AUR package (`PKGBUILD`)  | `packaging/arch/PKGBUILD`                  |
+| Arch / Manjaro      | AUR `-git` package        | `packaging/arch/PKGBUILD` (builds `main`)  |
 
 `bundle.targets` is `"all"`, so a Linux `tauri build` emits `.deb`, `.rpm`, and
 an AppImage in `src-tauri/target/release/bundle/`. The `.deb`/`.rpm` dependency
@@ -32,9 +32,12 @@ Build host requirements:
 
 ## Arch / AUR
 
-`packaging/arch/PKGBUILD` is a **source** package: it clones the tagged release,
-runs `tauri build --bundles none` to compile the release binary, and installs it
-with `arcadelauncher.desktop` and the hicolor icons.
+`packaging/arch/PKGBUILD` is a **source `-git` package** (`arcadelauncher-git`):
+it clones the `main` branch, runs `tauri build --bundles none` to compile the
+current release binary, and installs it with `arcadelauncher.desktop` and the
+hicolor icons. `pkgver()` derives the version straight from git
+(`<appver>.r<commits>.<hash>`), so reinstalling always rebuilds whatever is out
+right now — there is no tag or GitHub Release to manage.
 
 Local test build:
 
@@ -43,16 +46,28 @@ cd packaging/arch
 makepkg -si
 ```
 
-### Publishing to the AUR (later)
+### Publishing to the AUR (one-time, needs your AUR account)
 
-1. Bump `pkgver` to match the released tag (`vX.Y.Z`).
-2. `makepkg --printsrcinfo > .SRCINFO`.
-3. Push `PKGBUILD`, `.SRCINFO`, and `arcadelauncher.desktop` to the AUR git repo
-   `ssh://aur@aur.archlinux.org/arcadelauncher.git`.
+The `.SRCINFO` is committed alongside the PKGBUILD, so no regeneration is needed
+for a `-git` package (its `pkgver` is resolved at build time on the user's
+machine). To publish, from a machine with your AUR SSH key registered:
 
-Once GitHub Releases publish a `.deb`/AppImage, add an `arcadelauncher-bin`
-PKGBUILD that downloads and repackages the prebuilt artifact (no Rust/Node build
-on the user's machine) — the faster, more common AUR path.
+```sh
+git clone ssh://aur@aur.archlinux.org/arcadelauncher-git.git aur-arcadelauncher
+cp packaging/arch/PKGBUILD packaging/arch/.SRCINFO \
+   packaging/arch/arcadelauncher.desktop aur-arcadelauncher/
+cd aur-arcadelauncher
+git add PKGBUILD .SRCINFO arcadelauncher.desktop
+git commit -m "Initial import: arcadelauncher-git"
+git push
+```
+
+Arch users then install with `yay -S arcadelauncher-git` (or
+`paru -S arcadelauncher-git`), which rebuilds the current `main` each time.
+
+Later, once GitHub Releases publish a `.deb`/AppImage, an `arcadelauncher-bin`
+PKGBUILD can download and repackage the prebuilt artifact (no Rust/Node build on
+the user's machine) — the faster path for users who don't want to compile.
 
 > **Note:** the Tauri auto-updater (`createUpdaterArtifacts`) targets the
 > Windows and AppImage builds. Distro-packaged installs (`.deb`/`.rpm`/AUR)
