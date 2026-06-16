@@ -77,6 +77,16 @@ impl Endpoint {
         format!("https://{}/api/social/friends/request", self.host)
     }
 
+    /// REST URL for the caller's privacy policies (GET) / update (PUT).
+    pub fn privacy_url(&self) -> String {
+        format!("https://{}/api/social/privacy", self.host)
+    }
+
+    /// REST URL for the caller's ignore list (GET) / add-remove (POST).
+    pub fn ignores_url(&self) -> String {
+        format!("https://{}/api/social/ignores", self.host)
+    }
+
     /// The bearer token, for the `Authorization` header on REST calls.
     pub fn token(&self) -> &str {
         &self.token
@@ -133,6 +143,8 @@ mod tests {
         assert_eq!(e.search_url("a b"), "https://arcade.example.com/api/social/search?q=a%20b");
         assert_eq!(e.search_url("plain"), "https://arcade.example.com/api/social/search?q=plain");
         assert_eq!(e.friend_request_url(), "https://arcade.example.com/api/social/friends/request");
+        assert_eq!(e.privacy_url(), "https://arcade.example.com/api/social/privacy");
+        assert_eq!(e.ignores_url(), "https://arcade.example.com/api/social/ignores");
     }
 
     #[test]

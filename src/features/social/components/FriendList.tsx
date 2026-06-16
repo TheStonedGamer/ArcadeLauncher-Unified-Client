@@ -12,11 +12,17 @@ import { organizeFriends, allGroups, type FriendMeta } from "../friendMeta";
 import type { FriendMetaApi } from "../useFriendMeta";
 import { PresenceDot, presenceLabel } from "./PresenceDot";
 
+export interface IgnoreControl {
+  isIgnored: (userId: number) => boolean;
+  toggleIgnore: (userId: number) => void;
+}
+
 interface Props {
   friends: Friend[];
   selectedPeer: number | null;
   onSelect: (peerId: number) => void;
   meta?: FriendMetaApi;
+  ignore?: IgnoreControl;
 }
 
 function subline(f: Friend): { text: string; game: boolean } {
@@ -33,12 +39,14 @@ function FriendRow({
   onSelect,
   meta,
   fmeta,
+  ignore,
 }: {
   f: Friend;
   selected: boolean;
   onSelect: (id: number) => void;
   meta?: FriendMetaApi;
   fmeta: FriendMeta;
+  ignore?: IgnoreControl;
 }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState(fmeta.note);
@@ -71,9 +79,19 @@ function FriendRow({
 
       {meta && open && (
         <div className="friendmeta">
-          <button className="friendmeta__pin" onClick={() => meta.togglePin(f.accountId)}>
-            {fmeta.pinned ? "📌 Unpin" : "📌 Pin"}
-          </button>
+          <div className="friendmeta__actions">
+            <button className="friendmeta__pin" onClick={() => meta.togglePin(f.accountId)}>
+              {fmeta.pinned ? "📌 Unpin" : "📌 Pin"}
+            </button>
+            {ignore && (
+              <button
+                className={`friendmeta__ignore${ignore.isIgnored(f.accountId) ? " friendmeta__ignore--on" : ""}`}
+                onClick={() => ignore.toggleIgnore(f.accountId)}
+              >
+                {ignore.isIgnored(f.accountId) ? "🔔 Unignore" : "🔕 Ignore"}
+              </button>
+            )}
+          </div>
           <label className="friendmeta__note">
             <span>Note</span>
             <input
@@ -112,7 +130,7 @@ function FriendRow({
   );
 }
 
-export function FriendList({ friends, selectedPeer, onSelect, meta }: Props) {
+export function FriendList({ friends, selectedPeer, onSelect, meta, ignore }: Props) {
   if (friends.length === 0) {
     return <p className="social__empty">No friends yet.</p>;
   }
@@ -160,6 +178,7 @@ export function FriendList({ friends, selectedPeer, onSelect, meta }: Props) {
                 onSelect={onSelect}
                 meta={meta}
                 fmeta={w.meta}
+                ignore={ignore}
               />
             ))}
           </ul>

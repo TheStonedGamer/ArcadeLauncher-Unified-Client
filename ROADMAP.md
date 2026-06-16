@@ -249,7 +249,17 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
   `/api/social/friends/request` by username, surfaces server reason) + Endpoint
   `friend_request_url` KAT; `useUserSearch` (300ms-debounced) + `AddFriend`
   search box atop the roster (marks existing friends, Add otherwise).
-- [ ] **T9f** Presence depth (custom status, DND, idle); DM privacy + ignore.
+- [x] **T9f** Presence depth (custom status, DND) + DM privacy/ignore UI.
+  **T9f-1/2** (a25fb94) pure `statusMenu.ts` (Online/Away/DND/Invisible options,
+  clampStatusText, presenceFrameInput; 11 vitest); threaded `statusText` through
+  protocol in/out (presence frame + dnd), Friend type/reducer/REST mapping + Rust
+  Friend model; `useSocial.setStatus` (re-asserted on reconnect) + StatusPicker
+  popover; friend sublines show custom status. **T9f-3** pure `privacy.ts`
+  (friend/DM policy option lists + fromWire coercion + labels; 8 vitest) + Rust
+  `social_privacy_get`/`_set` + `social_ignores_get`/`social_ignore_set` +
+  Endpoint privacy/ignores URL KATs; `usePrivacy` hook → PrivacyPanel overlay
+  (friend-request + DM policy radios) and a per-friend Ignore toggle in the
+  roster editor.
 
 ## Phase T10 — Cutover
 

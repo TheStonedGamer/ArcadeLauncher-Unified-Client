@@ -6,6 +6,7 @@
 import { call } from "../../lib/ipc";
 import type { Profile } from "./profile";
 import type { RawFriendMeta } from "./friendMeta";
+import type { Privacy, FriendPolicy, DmPolicy } from "./privacy";
 
 /** Result of uploading a local file as a pending DM attachment. */
 export interface UploadedAttachment {
@@ -76,4 +77,28 @@ export function searchUsers(host: string, token: string, query: string): Promise
 /** Send a friend request by username; resolves to the server's status string. */
 export function sendFriendRequest(host: string, token: string, username: string): Promise<string> {
   return call("social_friend_request", { host, token, username });
+}
+
+/** Fetch the caller's friend-request + DM privacy policies. */
+export function fetchPrivacy(host: string, token: string): Promise<Privacy> {
+  return call("social_privacy_get", { host, token });
+}
+
+/** Update privacy policies; only supplied fields change. Returns the new state. */
+export function updatePrivacy(
+  host: string,
+  token: string,
+  fields: { friendPolicy?: FriendPolicy; dmPolicy?: DmPolicy },
+): Promise<Privacy> {
+  return call("social_privacy_set", { host, token, ...fields });
+}
+
+/** Fetch the account ids the caller is ignoring. */
+export function fetchIgnores(host: string, token: string): Promise<number[]> {
+  return call("social_ignores_get", { host, token });
+}
+
+/** Add or remove a persistent ignore on another account. */
+export function setIgnore(host: string, token: string, userId: number, ignore: boolean): Promise<void> {
+  return call("social_ignore_set", { host, token, userId, ignore });
 }

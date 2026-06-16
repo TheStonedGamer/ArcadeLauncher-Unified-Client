@@ -5,11 +5,13 @@
 import { useSocial } from "./useSocial";
 import { useProfile } from "./useProfile";
 import { useFriendMeta } from "./useFriendMeta";
+import { usePrivacy } from "./usePrivacy";
 import { FriendList } from "./components/FriendList";
 import { AddFriend } from "./components/AddFriend";
 import { StatusPicker } from "./components/StatusPicker";
 import { ChatPane } from "./components/ChatPane";
 import { ProfilePanel } from "./components/ProfilePanel";
+import { PrivacyPanel } from "./components/PrivacyPanel";
 import type { GatewayState } from "./gateway";
 import { useSession } from "../session/SessionContext";
 
@@ -26,6 +28,7 @@ export function SocialView() {
   const social = useSocial(auth);
   const profile = useProfile(auth, social.selfId);
   const friendMeta = useFriendMeta(auth);
+  const privacy = usePrivacy(auth);
   const peer = social.friends.find((f) => f.accountId === social.selectedPeer) ?? null;
 
   return (
@@ -47,6 +50,9 @@ export function SocialView() {
             <button className="social__profile-btn" onClick={() => profile.open(social.selfId)}>
               My profile
             </button>
+            <button className="social__profile-btn" onClick={() => privacy.setOpen(true)}>
+              Privacy
+            </button>
           </>
         )}
       </div>
@@ -64,6 +70,7 @@ export function SocialView() {
             selectedPeer={social.selectedPeer}
             onSelect={social.select}
             meta={auth ? friendMeta : undefined}
+            ignore={auth ? { isIgnored: privacy.isIgnored, toggleIgnore: privacy.toggleIgnore } : undefined}
           />
         </aside>
         <section className="social__chat">
@@ -88,6 +95,7 @@ export function SocialView() {
       </div>
 
       <ProfilePanel panel={profile} />
+      <PrivacyPanel privacy={privacy} />
     </div>
   );
 }

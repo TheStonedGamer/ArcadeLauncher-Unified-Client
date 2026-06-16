@@ -399,11 +399,37 @@ body {
   display: flex; flex-direction: column; gap: 8px; padding: 8px 10px 10px;
   margin: 2px 4px 6px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
 }
-.friendmeta__pin {
-  align-self: flex-start; padding: 3px 10px; border-radius: 7px;
+.friendmeta__actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.friendmeta__pin, .friendmeta__ignore {
+  padding: 3px 10px; border-radius: 7px;
   border: 1px solid var(--border); background: var(--panel); color: var(--text); cursor: pointer; font-size: 12px;
 }
-.friendmeta__pin:hover { border-color: var(--accent); }
+.friendmeta__pin:hover, .friendmeta__ignore:hover { border-color: var(--accent); }
+.friendmeta__ignore--on { border-color: var(--error); color: var(--error); }
+
+/* Privacy settings overlay (T9f) */
+.privacy__overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+}
+.privacy {
+  position: relative; width: min(440px, 92vw); background: var(--panel);
+  border: 1px solid var(--border); border-radius: 14px; padding: 22px;
+}
+.privacy__close {
+  position: absolute; top: 12px; right: 12px; border: none; background: transparent;
+  color: var(--muted); font-size: 16px; cursor: pointer;
+}
+.privacy__title { margin: 0 0 14px; font-size: 18px; }
+.privacy__error { color: var(--error); font-size: 12px; margin: 0 0 12px; }
+.privacy__group { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 0 0 14px; }
+.privacy__group legend { padding: 0 6px; font-size: 12px; color: var(--muted); }
+.privacy__opt {
+  display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 8px;
+  padding: 6px 2px; cursor: pointer;
+}
+.privacy__opt-label { font-size: 13px; font-weight: 600; }
+.privacy__opt-hint { font-size: 11px; color: var(--muted); }
 .friendmeta__note { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); }
 .friendmeta__note input {
   padding: 6px 8px; border-radius: 7px; border: 1px solid var(--border);

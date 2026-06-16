@@ -471,3 +471,120 @@ pub async fn social_friend_request(host: String, token: String, username: String
         .map_err(|e| AppError::msg(format!("invalid friend-request response: {e}")))?;
     Ok(if r.status.is_empty() { "request_sent".to_string() } else { r.status })
 }
+
+/// The caller's privacy policies (ROADMAP T9f / 1.1b). `friend_policy` ∈
+/// everyone|mutual|nobody; `dm_policy` ∈ everyone|friends|nobody.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Privacy {
+    pub friend_policy: String,
+    pub dm_policy: String,
+}
+
+/// Fetch the caller's friend-request + DM privacy policies.
+#[tauri::command]
+pub async fn social_privacy_get(host: String, token: String) -> AppResult<Privacy> {
+    let endpoint = Endpoint::new(host, token);
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(endpoint.privacy_url())
+        .bearer_auth(endpoint.token())
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("privacy request failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("privacy lookup failed (HTTP {})", resp.status())));
+    }
+    resp.json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid privacy response: {e}")))
+}
+
+/// Update the caller's privacy policies; only supplied fields change.
+#[tauri::command]
+pub async fn social_privacy_set(
+    host: String,
+    token: String,
+    friend_policy: Option<String>,
+    dm_policy: Option<String>,
+) -> AppResult<Privacy> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Body {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        friend_policy: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        dm_policy: Option<String>,
+    }
+
+    let endpoint = Endpoint::new(host, token);
+    let client = reqwest::Client::new();
+    let resp = client
+        .put(endpoint.privacy_url())
+        .bearer_auth(endpoint.token())
+        .json(&Body { friend_policy, dm_policy })
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("privacy update failed: {e}")))?;
+    if !resp.status().is_success() {
+        let st = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        let reason = if body.trim().is_empty() { st.to_string() } else { body };
+        return Err(AppError::msg(format!("privacy update failed: {reason}")));
+    }
+    resp.json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid privacy response: {e}")))
+}
+
+/// Fetch the account ids the caller is ignoring.
+#[tauri::command]
+pub async fn social_ignores_get(host: String, token: String) -> AppResult<Vec<u64>> {
+    #[derive(Deserialize)]
+    struct Resp {
+        #[serde(default)]
+        ignored: Vec<u64>,
+    }
+
+    let endpoint = Endpoint::new(host, token);
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(endpoint.ignores_url())
+        .bearer_auth(endpoint.token())
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("ignores request failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("ignores lookup failed (HTTP {})", resp.status())));
+    }
+    let r: Resp = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid ignores response: {e}")))?;
+    Ok(r.ignored)
+}
+
+/// Add or remove a persistent ignore on another account.
+#[tauri::command]
+pub async fn social_ignore_set(host: String, token: String, user_id: u64, ignore: bool) -> AppResult<()> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Body {
+        user_id: u64,
+        ignore: bool,
+    }
+
+    let endpoint = Endpoint::new(host, token);
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(endpoint.ignores_url())
+        .bearer_auth(endpoint.token())
+        .json(&Body { user_id, ignore })
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("ignore update failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("ignore update failed (HTTP {})", resp.status())));
+    }
+    Ok(())
+}
