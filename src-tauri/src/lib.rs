@@ -88,6 +88,8 @@ pub fn run() {
             social::commands::social_fetch_friends,
             social::commands::social_attachment_upload,
             social::commands::social_attachment_url,
+            social::commands::social_profile_get,
+            social::commands::social_profile_update,
             download::commands::download_start,
             download::commands::download_install,
             download::commands::download_pause,

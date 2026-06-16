@@ -52,6 +52,16 @@ impl Endpoint {
         format!("https://{}/api/social/attachments/{}", self.host, id)
     }
 
+    /// REST URL for another account's public profile (by id).
+    pub fn profile_url(&self, id: u64) -> String {
+        format!("https://{}/api/social/profile/{}", self.host, id)
+    }
+
+    /// REST URL to update the caller's own profile (banner/bio).
+    pub fn profile_self_url(&self) -> String {
+        format!("https://{}/api/social/profile", self.host)
+    }
+
     /// The bearer token, for the `Authorization` header on REST calls.
     pub fn token(&self) -> &str {
         &self.token
@@ -92,6 +102,13 @@ mod tests {
             "https://arcade.example.com/api/social/attachments/presign"
         );
         assert_eq!(e.attachment_url(42), "https://arcade.example.com/api/social/attachments/42");
+    }
+
+    #[test]
+    fn builds_profile_urls() {
+        let e = Endpoint::new("arcade.example.com", "t");
+        assert_eq!(e.profile_url(7), "https://arcade.example.com/api/social/profile/7");
+        assert_eq!(e.profile_self_url(), "https://arcade.example.com/api/social/profile");
     }
 
     #[test]

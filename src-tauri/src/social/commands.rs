@@ -192,3 +192,99 @@ pub async fn social_attachment_url(host: String, token: String, attachment_id: u
         .await
         .map_err(|e| AppError::msg(format!("invalid attachment response: {e}")))
 }
+
+/// A user's public profile (ROADMAP T9d). `banner`/`bio` are normalized to empty
+/// strings (the server stores them nullable). `level` is server-computed from
+/// `xp`; the client mirrors the same formula for the progress bar.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Profile {
+    pub user_id: u64,
+    pub username: String,
+    pub avatar_version: i64,
+    pub banner: String,
+    pub bio: String,
+    pub level: i64,
+    pub xp: i64,
+}
+
+/// Fetch any account's public profile. Bearer-authed (the endpoint is gated to
+/// signed-in callers, but any signed-in user may view any profile).
+#[tauri::command]
+pub async fn social_profile_get(host: String, token: String, user_id: u64) -> AppResult<Profile> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Resp {
+        #[serde(default)]
+        user_id: u64,
+        #[serde(default)]
+        username: String,
+        #[serde(default)]
+        avatar_version: i64,
+        #[serde(default)]
+        banner: Option<String>,
+        #[serde(default)]
+        bio: Option<String>,
+        #[serde(default)]
+        level: i64,
+        #[serde(default)]
+        xp: i64,
+    }
+
+    let endpoint = Endpoint::new(host, token);
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(endpoint.profile_url(user_id))
+        .bearer_auth(endpoint.token())
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("profile request failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("profile lookup failed (HTTP {})", resp.status())));
+    }
+    let r: Resp = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid profile response: {e}")))?;
+    Ok(Profile {
+        user_id: r.user_id,
+        username: r.username,
+        avatar_version: r.avatar_version,
+        banner: r.banner.unwrap_or_default(),
+        bio: r.bio.unwrap_or_default(),
+        level: r.level,
+        xp: r.xp,
+    })
+}
+
+/// Update the caller's own profile. Only the supplied fields are sent (and the
+/// server updates only those), so banner and bio can change independently.
+#[tauri::command]
+pub async fn social_profile_update(
+    host: String,
+    token: String,
+    banner: Option<String>,
+    bio: Option<String>,
+) -> AppResult<()> {
+    #[derive(Serialize)]
+    struct Body {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        banner: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        bio: Option<String>,
+    }
+
+    let endpoint = Endpoint::new(host, token);
+    let client = reqwest::Client::new();
+    let resp = client
+        .put(endpoint.profile_self_url())
+        .bearer_auth(endpoint.token())
+        .json(&Body { banner, bio })
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("profile update failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("profile update failed (HTTP {})", resp.status())));
+    }
+    Ok(())
+}
