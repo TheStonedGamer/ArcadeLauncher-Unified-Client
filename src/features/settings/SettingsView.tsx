@@ -57,6 +57,31 @@ export function SettingsView() {
         />
       </label>
 
+      <h2 className="settings__heading">Cover art (IGDB)</h2>
+      <p className="catalog__status">
+        Optional. Create a Twitch application to get a client id/secret, then ArcadeLauncher can fetch
+        missing covers from IGDB.
+      </p>
+      <label className="settings__field">
+        <span className="settings__label">Twitch client id</span>
+        <input
+          className="settings__input"
+          value={draft.igdbClientId}
+          onChange={(e) => set("igdbClientId", e.target.value)}
+          spellCheck={false}
+        />
+      </label>
+      <label className="settings__field">
+        <span className="settings__label">Twitch client secret</span>
+        <input
+          className="settings__input"
+          type="password"
+          value={draft.igdbClientSecret}
+          onChange={(e) => set("igdbClientSecret", e.target.value)}
+          spellCheck={false}
+        />
+      </label>
+
       <div className="settings__actions">
         <button className="settings__save" onClick={save}>
           Save

@@ -21,6 +21,10 @@ pub struct General {
     pub concurrent_downloads: u32,
     /// UI theme id.
     pub theme: String,
+    /// Twitch/IGDB API client id (empty = cover-art fetch disabled).
+    pub igdb_client_id: String,
+    /// Twitch/IGDB API client secret (empty = cover-art fetch disabled).
+    pub igdb_client_secret: String,
 }
 
 impl Default for General {
@@ -33,6 +37,8 @@ impl Default for General {
             download_limit_kbps: 0,
             concurrent_downloads: 3,
             theme: "dark".to_string(),
+            igdb_client_id: String::new(),
+            igdb_client_secret: String::new(),
         }
     }
 }

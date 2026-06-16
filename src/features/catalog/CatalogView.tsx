@@ -7,11 +7,22 @@ import { useCatalog } from "./useCatalog";
 import { CatalogGrid } from "./components/CatalogGrid";
 import { Sidebar } from "./components/Sidebar";
 import { GameDetail } from "./components/GameDetail";
+import { fetchCoverArt } from "./api";
 import { applyQuery, buildSidebar, DEFAULT_QUERY, SORT_LABELS, type Filter, type Query, type SortMode } from "./query";
 import { groupVariants, type VariantGroup } from "./variants";
+import { useSettings } from "../settings/useSettings";
+import type { Game } from "./types";
 
 export function CatalogView() {
-  const { games, loading, error, status, load, launch } = useCatalog();
+  const { games, loading, error, status, load, launch, setCover } = useCatalog();
+  const { draft: settings } = useSettings();
+  const hasIgdbCreds = settings.igdbClientId.trim() !== "" && settings.igdbClientSecret.trim() !== "";
+
+  const fetchCover = async (game: Game): Promise<string | null> => {
+    const path = await fetchCoverArt(game, settings.igdbClientId, settings.igdbClientSecret);
+    if (path) setCover(game.id, path);
+    return path;
+  };
   const [path, setPath] = useState("");
   const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
   const [selected, setSelected] = useState<VariantGroup | null>(null);
@@ -85,6 +96,7 @@ export function CatalogView() {
             setSelected(null);
           }}
           onClose={() => setSelected(null)}
+          onFetchCover={hasIgdbCreds ? fetchCover : undefined}
         />
       )}
     </section>

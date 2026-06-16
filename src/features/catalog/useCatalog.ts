@@ -22,6 +22,8 @@ export interface CatalogState {
   status: string | null;
   load: (path: string) => Promise<void>;
   launch: (game: Game) => Promise<void>;
+  /** Update one game's cover path in-memory (after a cover fetch). */
+  setCover: (id: string, coverArtPath: string) => void;
 }
 
 export function useCatalog(): CatalogState {
@@ -75,5 +77,9 @@ export function useCatalog(): CatalogState {
     }
   }, []);
 
-  return { games, loading, error, status, load, launch };
+  const setCover = useCallback((id: string, coverArtPath: string) => {
+    setGames((prev) => prev.map((g) => (g.id === id ? { ...g, coverArtPath } : g)));
+  }, []);
+
+  return { games, loading, error, status, load, launch, setCover };
 }

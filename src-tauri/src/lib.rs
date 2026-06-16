@@ -26,6 +26,7 @@ pub fn run() {
         .manage(download::engine::DownloadManager::default())
         .invoke_handler(tauri::generate_handler![
             catalog::commands::load_catalog,
+            catalog::art_commands::fetch_cover_art,
             launch::commands::launch_game,
             settings::commands::load_settings,
             settings::commands::save_settings,

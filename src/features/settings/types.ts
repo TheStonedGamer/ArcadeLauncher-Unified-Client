@@ -9,4 +9,6 @@ export interface GeneralSettings {
   downloadLimitKbps: number;
   concurrentDownloads: number;
   theme: string;
+  igdbClientId: string;
+  igdbClientSecret: string;
 }

@@ -13,6 +13,8 @@ const DEFAULTS: GeneralSettings = {
   downloadLimitKbps: 0,
   concurrentDownloads: 3,
   theme: "dark",
+  igdbClientId: "",
+  igdbClientSecret: "",
 };
 
 export function useSettings() {

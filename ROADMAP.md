@@ -90,11 +90,19 @@ full-file SHA-256 verify, `..` path-traversal rejection.
 
 ## Phase T5 — Art & metadata pipeline
 
-- [ ] **T5a** IGDB cover/hero art fetch + on-disk cache (client-local cache
-  dir); fall back to catalog-provided paths/URLs.
-- [ ] **T5b** Screenshots / hero art on the detail panel.
-- [ ] **T5c** Re-arm art fetch for games missing both cover URL and local path
-  (the native client's missing-cover mitigation).
+- [x] **T5a** IGDB cover art fetch + on-disk cache. Pure `catalog::art`
+  (cover_url, apicalypse search_query, twitch token_body, cache_file_name; 5
+  KATs) + `fetch_cover_art` command (twitch client-credentials auth → IGDB
+  search → cover download into the per-user cache dir; creds-gated no-op when
+  unset; cached covers reused). Creds (Twitch client id/secret) added to General
+  settings + Settings UI. Mirrors the C++ `IgdbClient` so both clients pull
+  identical art. (Note: `library.json` carries no screenshot/hero field — the
+  contract is cover-only, so "screenshots/hero" below is dropped, not deferred.)
+- [x] **T5c** Re-arm: `needs_art` predicate (Rust + TS `needsArt`) drives a
+  "Fetch cover from IGDB" button on the detail panel, shown only for games
+  missing both a local cover path and a cover URL.
+- [n/a] **T5b** Screenshots/hero on the detail panel — not in the `library.json`
+  contract (cover-only); folded away rather than shipped as dead fields.
 
 ## Phase T6 — Library personalization
 

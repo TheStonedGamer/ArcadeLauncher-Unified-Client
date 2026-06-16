@@ -6,12 +6,16 @@ import { useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Game } from "../types";
 import { yearOf, collectionsOf } from "../query";
+import { needsArt } from "../api";
 import { variantLabel, type VariantGroup } from "../variants";
 
 interface Props {
   group: VariantGroup;
   onLaunch: (game: Game) => void;
   onClose: () => void;
+  /** Fetch a cover for the game; resolves to the new path or null. Absent when
+   *  IGDB credentials aren't configured. */
+  onFetchCover?: (game: Game) => Promise<string | null>;
 }
 
 function playtimeStr(seconds: number): string {
@@ -31,10 +35,27 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function GameDetail({ group, onLaunch, onClose }: Props) {
+export function GameDetail({ group, onLaunch, onClose, onFetchCover }: Props) {
   const [pick, setPick] = useState<Game>(group.representative);
+  const [fetching, setFetching] = useState(false);
+  const [fetchMsg, setFetchMsg] = useState("");
+  const [coverPath, setCoverPath] = useState(group.representative.coverArtPath);
   const game = group.representative;
-  const cover = game.coverArtPath ? convertFileSrc(game.coverArtPath) : game.coverArtUrl;
+  const cover = coverPath ? convertFileSrc(coverPath) : game.coverArtUrl;
+
+  const fetchCover = async () => {
+    if (!onFetchCover) return;
+    setFetching(true);
+    setFetchMsg("");
+    const path = await onFetchCover(game).catch(() => null);
+    setFetching(false);
+    if (path) {
+      setCoverPath(path);
+      setFetchMsg("Cover updated ✓");
+    } else {
+      setFetchMsg("No cover found — check your IGDB credentials in Settings.");
+    }
+  };
   const rating = game.igdbRating >= 1 ? `${Math.round(game.igdbRating)}/100` : "";
   const hasVariants = group.members.length > 1;
 
@@ -61,6 +82,15 @@ export function GameDetail({ group, onLaunch, onClose }: Props) {
             <Row label="Collections" value={collectionsOf(game).join(", ")} />
           </div>
           {game.summary && <p className="detail__summary">{game.summary}</p>}
+
+          {onFetchCover && needsArt(game) && (
+            <div className="detail__art">
+              <button className="detail__fetch" onClick={fetchCover} disabled={fetching}>
+                {fetching ? "Fetching…" : "Fetch cover from IGDB"}
+              </button>
+              {fetchMsg && <span className="detail__fetchmsg">{fetchMsg}</span>}
+            </div>
+          )}
 
           {hasVariants && (
             <div className="detail__variants">

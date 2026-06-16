@@ -188,6 +188,14 @@ body {
   background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 12px;
 }
 .detail__variant--active { border-color: var(--accent); background: var(--accent); color: #fff; }
+.detail__art { display: flex; align-items: center; gap: 10px; margin: 6px 0 2px; flex-wrap: wrap; }
+.detail__fetch {
+  padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 13px;
+}
+.detail__fetch:hover { border-color: var(--accent); }
+.detail__fetch:disabled { opacity: .6; cursor: default; }
+.detail__fetchmsg { font-size: 12px; color: var(--muted); }
 .detail__launch {
   padding: 10px 18px; border-radius: 9px; border: none;
   background: var(--on); color: #06210f; font-weight: 700; cursor: pointer; font-size: 14px;
