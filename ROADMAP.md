@@ -220,7 +220,16 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
   `outbound.react` never sent `on`. **T9b-2** (21c42e2, CI 27642555502):
   `replyTo` on messages/localEcho, `replyTo` reply bar + quoted-parent preview
   in ChatPane/MessageRow. Both green on windows-latest + ubuntu-22.04.
-- [ ] **T9c** DM attachments (MinIO-backed upload + chips), paperclip control.
+- [x] **T9c** DM attachments (MinIO-backed upload + chips), paperclip control.
+  Built against the server's presign → PUT-to-MinIO → presigned-GET contract.
+  **T9c-1** (f08ffc7): `outbound.chat` carries an `attachmentId`; `localEcho`
+  stamps attachment id/name so a sent file echoes optimistically (TS + Rust
+  KATs). **T9c-2** (6dd4d32): Rust `social_attachment_upload` (presign + PUT,
+  bytes never touch the webview, 25 MiB cap) and `social_attachment_url`
+  (presigned download); pure `social::attach` + Endpoint URL KATs. **T9c-3**
+  (a3f76b3): `tauri-plugin-dialog` file picker, Composer paperclip, clickable
+  attachment chips in `MessageRow`, hook `sendAttachment`/`openAttachment`.
+  Green both OSes (CI 27653114962).
 - [ ] **T9d** User profiles (banner, bio, level/XP).
 - [ ] **T9e** Friend organization (groups, notes, search).
 - [ ] **T9f** Presence depth (custom status, DND, idle); DM privacy + ignore.
