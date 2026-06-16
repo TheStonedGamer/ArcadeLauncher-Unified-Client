@@ -1,11 +1,17 @@
+/* Palette mirrors the native C++ client (Renderer.cpp C_* constants) so the
+   unified client reads as the same product: GitHub-dark base, darker sidebar
+   than the top bar, #21262D cards, GitHub link-blue (#58A6FF) accent. */
 :root {
-  --bg: #0d1117;
-  --panel: #161b22;
-  --panel-2: #1c2230;
-  --border: #2a3140;
-  --text: #e6edf3;
-  --muted: #8b949e;
-  --accent: #3b82f6;
+  --bg: #0d1117;        /* C_BG */
+  --panel: #161b22;     /* C_TOPBAR */
+  --sidebar: #13181e;   /* C_SIDEBAR (darker than the top bar) */
+  --panel-2: #21262d;   /* C_CARD */
+  --card-hover: #30363d;/* C_CARD_HOV */
+  --border: #30363d;    /* faint card/panel edge */
+  --text: #c9d1d9;      /* C_TEXT */
+  --muted: #8b949e;     /* C_SUBTEXT */
+  --accent: #58a6ff;    /* C_ACCENT */
+  --selected: #388bfd;  /* C_SELECTED */
   --star: #f5c518;
   --on: #3fb950;
   --off: #6e7681;
@@ -20,7 +26,7 @@ html, body, #root { height: 100%; margin: 0; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
   font-size: 14px;
 }
 
@@ -125,7 +131,7 @@ body {
   cursor: pointer; text-align: left;
 }
 .game-card__art {
-  position: relative; aspect-ratio: 3 / 4; border-radius: 10px; overflow: hidden;
+  position: relative; aspect-ratio: 3 / 4; border-radius: 6px; overflow: hidden;
   background: var(--panel-2); border: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center;
   transition: transform .08s ease, border-color .08s ease;
@@ -143,7 +149,7 @@ body {
 .game-card--focused .game-card__art {
   transform: translateY(-2px);
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 /* Big Picture toggle button + mode. */
@@ -162,14 +168,19 @@ body {
 /* ── Layout: sidebar + content ─────────────────────────────────────────── */
 .catalog__layout { display: grid; grid-template-columns: 210px 1fr; gap: 16px; align-items: start; }
 
-.sidebar { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; }
+/* Sidebar is a distinct darker panel, like the native client's C_SIDEBAR. */
+.sidebar {
+  display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0;
+  background: var(--sidebar); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px;
+}
 .sidebar__item {
   display: flex; align-items: center; gap: 8px;
-  padding: 7px 10px; border: none; border-radius: 7px;
+  padding: 7px 10px; border: none; border-radius: 6px;
   background: transparent; color: var(--text); cursor: pointer; text-align: left;
 }
 .sidebar__item:hover { background: var(--panel); }
-.sidebar__item--active { background: var(--panel-2); }
+.sidebar__item--active { background: var(--panel-2); color: #fff; }
 .sidebar__label { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar__count { font-size: 11px; color: var(--muted); }
 
