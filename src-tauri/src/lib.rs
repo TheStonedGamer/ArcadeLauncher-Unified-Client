@@ -93,6 +93,9 @@ pub fn run() {
             window::commands::set_fullscreen,
             window::commands::is_fullscreen,
             session::commands::session_login,
+            session::store::session_save,
+            session::store::session_restore,
+            session::store::session_clear,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

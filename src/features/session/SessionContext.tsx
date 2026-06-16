@@ -3,12 +3,22 @@
 // place. The token is kept in memory only (never persisted); the host and
 // username are remembered in localStorage so the login form pre-fills.
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import { sessionLogin } from "./api";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import { sessionLogin, sessionSave, sessionRestore, sessionClear } from "./api";
 import type { Session } from "./types";
 
 interface SessionContextValue {
   session: Session | null;
+  /** True until the on-disk session has been checked at launch. */
+  restoring: boolean;
   /** Last-used host/username for pre-filling the login form. */
   lastHost: string;
   lastUsername: string;
@@ -31,8 +41,32 @@ function readLS(key: string): string {
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [restoring, setRestoring] = useState(true);
   const [lastHost, setLastHost] = useState(() => readLS(HOST_KEY));
   const [lastUsername, setLastUsername] = useState(() => readLS(USER_KEY));
+
+  // On launch, restore a remembered (obfuscated-at-rest, non-expired) session
+  // so the user stays signed in across restarts. Best-effort: any failure just
+  // leaves them signed out.
+  useEffect(() => {
+    let active = true;
+    sessionRestore()
+      .then((stored) => {
+        if (active && stored) {
+          const { savedUnix: _s, expiresUnix: _e, ...s } = stored;
+          setSession(s);
+        }
+      })
+      .catch(() => {
+        /* no remembered session */
+      })
+      .finally(() => {
+        if (active) setRestoring(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const login = useCallback(
     async (host: string, username: string, password: string, totpCode: string) => {
@@ -46,15 +80,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       } catch {
         /* non-fatal */
       }
+      // Remember the session for next launch (best-effort; token obfuscated).
+      void sessionSave(s).catch(() => {});
     },
     [],
   );
 
-  const logout = useCallback(() => setSession(null), []);
+  const logout = useCallback(() => {
+    setSession(null);
+    void sessionClear().catch(() => {});
+  }, []);
 
   const value = useMemo<SessionContextValue>(
-    () => ({ session, lastHost, lastUsername, login, logout }),
-    [session, lastHost, lastUsername, login, logout],
+    () => ({ session, restoring, lastHost, lastUsername, login, logout }),
+    [session, restoring, lastHost, lastUsername, login, logout],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
