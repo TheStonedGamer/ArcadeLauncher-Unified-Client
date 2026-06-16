@@ -77,9 +77,15 @@ full-file SHA-256 verify, `..` path-traversal rejection.
     events into a per-game item map with an EMA speed estimate, plus selectors
     (percent/activeCount/queueList/hasPending/formatSpeed/formatBytes). 13
     vitest KATs.
-  - [ ] **T4d-2** `useDownloads` hook (listen to the two events, expose
-    start/pause/resume/cancel) + queue panel + Install button on the detail
-    panel + active-count badge.
+  - [x] **T4d-2** `useDownloads` hook (listens to the two events, exposes
+    pause/resume/cancel/dismiss/clearDone; `?downloads-demo` seeds rows) +
+    `DownloadQueue` panel (per-install progress bar, status, speed, state-aware
+    controls) + Downloads tab with active-count badge in the shell. Verified in
+    the browser preview (badge + all six row states render).
+  - [ ] **T4d-3** Install trigger: `Install` button on the detail panel +
+    `download_fetch_manifest` command, wiring `download_start` with install
+    dir / records path / session host+token. Gated on the session/auth layer
+    (same deferral as the social NullGateway), so it lands when that exists.
 - [ ] **T4e** Verify both-OS green; manual smoke against a real server file.
 
 ## Phase T5 — Art & metadata pipeline

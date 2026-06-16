@@ -6,11 +6,14 @@ import { UpdateBanner } from "../features/updater/UpdateBanner";
 import { CatalogView } from "../features/catalog/CatalogView";
 import { SettingsView } from "../features/settings/SettingsView";
 import { SocialView } from "../features/social/SocialView";
+import { DownloadQueue } from "../features/download/components/DownloadQueue";
+import { useDownloads } from "../features/download/useDownloads";
 
-type View = "library" | "friends" | "settings";
+type View = "library" | "friends" | "downloads" | "settings";
 
 export function AppShell() {
   const [view, setView] = useState<View>("library");
+  const downloads = useDownloads();
 
   return (
     <div className="app">
@@ -31,6 +34,13 @@ export function AppShell() {
             Friends
           </button>
           <button
+            className={`app__navbtn${view === "downloads" ? " app__navbtn--active" : ""}`}
+            onClick={() => setView("downloads")}
+          >
+            Downloads
+            {downloads.activeCount > 0 && <span className="app__badge">{downloads.activeCount}</span>}
+          </button>
+          <button
             className={`app__navbtn${view === "settings" ? " app__navbtn--active" : ""}`}
             onClick={() => setView("settings")}
           >
@@ -42,6 +52,7 @@ export function AppShell() {
       <main className="app__main">
         {view === "library" && <CatalogView />}
         {view === "friends" && <SocialView />}
+        {view === "downloads" && <DownloadQueue api={downloads} />}
         {view === "settings" && <SettingsView />}
       </main>
     </div>

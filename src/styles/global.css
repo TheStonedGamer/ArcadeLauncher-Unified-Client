@@ -37,8 +37,14 @@ body {
 .app__main { flex: 1; overflow: auto; padding: 18px 20px; }
 .app__nav { display: flex; gap: 4px; margin-left: auto; }
 .app__navbtn {
+  position: relative;
   padding: 6px 14px; border: 1px solid transparent; border-radius: 8px;
   background: transparent; color: var(--muted); cursor: pointer; font-size: 13px;
+}
+.app__badge {
+  margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 11px;
+  font-weight: 600; background: var(--accent); color: #fff; line-height: 18px;
+  display: inline-block; min-width: 8px; text-align: center;
 }
 .app__navbtn:hover { color: var(--text); }
 .app__navbtn--active { background: var(--panel-2); color: var(--text); border-color: var(--border); }
@@ -272,3 +278,32 @@ body {
   background: var(--accent); color: #fff; font-weight: 600; cursor: pointer;
 }
 .composer__send:disabled { opacity: .5; cursor: default; }
+
+/* ── Downloads panel ──────────────────────────────────────────────────────── */
+.dl { max-width: 760px; margin: 0 auto; }
+.dl__bar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.dl__title { font-size: 18px; margin: 0; }
+.dl__empty { color: var(--muted); }
+.dl__list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.dl__row {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+}
+.dl__row--failed { border-color: var(--error); }
+.dl__head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.dl__name { font-weight: 600; }
+.dl__status { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.dl__bar { height: 8px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
+.dl__fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width .2s ease; }
+.dl__fill--paused { background: var(--off); }
+.dl__fill--verifying, .dl__fill--extracting { background: #a371f7; }
+.dl__fill--done { background: #3fb950; }
+.dl__fill--failed { background: var(--error); }
+.dl__foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; gap: 12px; }
+.dl__sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl__controls { display: flex; gap: 8px; flex-shrink: 0; }
+.dl__btn {
+  padding: 5px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 12px;
+}
+.dl__btn:hover { border-color: var(--accent); }
+.dl__btn--danger:hover { border-color: var(--error); color: var(--error); }
