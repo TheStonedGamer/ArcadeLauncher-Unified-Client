@@ -59,14 +59,17 @@ full-file SHA-256 verify, `..` path-traversal rejection.
   settings); pause/resume/cancel; emits `download://progress`+`download://status`
   events. Pure tested core: file-URL endpoint + throttle math (9 new KATs);
   thin async engine glue on top.
-- [~] **T4c** Extraction phase for `pc_archive` installs; install-state
+- [x] **T4c** Extraction phase for `pc_archive` installs; install-state
   transitions written back to client-local install records (not `library.json`).
   - [x] **T4c-1** Install-records core: `InstallState` + `InstallRecord` +
     `InstallRecords` collection (get/state_of/upsert/set_state/remove/
     installed_ids) + non-destructive atomic load/save to a separate per-user
     `install_records.json`. (6 KATs)
-  - [ ] **T4c-2** Extraction glue (safe unzip for `pc_archive`) + engine writes
-    install-state transitions into the records on start/done/fail.
+  - [x] **T4c-2** Zip-slip-guarded extraction (`extract_zip`, reuses the
+    `resolve_target` path guard; pure-Rust deflate, no system deps; 3 KATs) +
+    engine writes Installing→Extracting→Installed / Failed / cleared-on-cancel
+    into the records (serialized load-modify-save), and the install command
+    takes `records_path`/`version`/`archive`.
 - [ ] **T4d** Download UI: install button on detail panel + queue/status panel
   (speed graph, queue list, pause/resume/cancel, active-count badge).
 - [ ] **T4e** Verify both-OS green; manual smoke against a real server file.

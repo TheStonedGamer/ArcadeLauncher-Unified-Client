@@ -28,6 +28,10 @@ futures-util = { version = "0.3", default-features = false, features = ["sink"] 
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
 sha2 = "0.10"
 
+# Archive extraction for pc_archive installs (T4c). Pure-Rust deflate only (no
+# bzip2/zstd system deps) so the Windows + Linux CI build stays identical.
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
 # Desktop-only plugins (updater/process are not built for mobile targets).
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

@@ -21,6 +21,7 @@ use crate::download::manifest::{Manifest, ManifestFile};
 use crate::download::paths::resolve_target;
 use crate::download::queue::{DownloadStatus, Progress};
 use crate::download::rate::Throttle;
+use crate::download::records::{self, InstallRecord, InstallState};
 use crate::download::verify::Hasher;
 use futures_util::StreamExt;
 use serde::Serialize;
@@ -60,6 +61,9 @@ struct DownloadHandle {
 pub struct DownloadManager {
     active: Mutex<HashMap<String, Arc<DownloadHandle>>>,
     permits: Arc<Semaphore>,
+    /// Serializes load-modify-save of the install-records file so concurrent
+    /// installs can't clobber each other's record updates.
+    record_io: Mutex<()>,
 }
 
 impl Default for DownloadManager {
@@ -67,6 +71,7 @@ impl Default for DownloadManager {
         DownloadManager {
             active: Mutex::new(HashMap::new()),
             permits: Arc::new(Semaphore::new(MAX_CONCURRENT)),
+            record_io: Mutex::new(()),
         }
     }
 }
@@ -107,6 +112,55 @@ impl DownloadManager {
             h.control.store(CANCELLED, Ordering::SeqCst);
         }
     }
+
+    /// Write `state` for this install into the client-local records file
+    /// (load-modify-save under the record lock). Non-destructive: it only
+    /// touches `install_records.json`, never the catalog.
+    fn persist_record(&self, ctx: &InstallContext, state: InstallState) {
+        let _guard = self.record_io.lock().unwrap();
+        let mut recs = records::load(&ctx.records_path).unwrap_or_default();
+        recs.upsert(InstallRecord {
+            game_id: ctx.game_id.clone(),
+            state,
+            version: ctx.version.clone(),
+            install_dir: ctx.install_dir.to_string_lossy().into_owned(),
+            total_bytes: ctx.manifest.total_bytes(),
+            updated_at: now_secs(),
+        });
+        let _ = records::save(&ctx.records_path, &recs);
+    }
+
+    /// Drop this install's record (used on cancel, so it reverts to
+    /// not-installed).
+    fn clear_record(&self, ctx: &InstallContext) {
+        let _guard = self.record_io.lock().unwrap();
+        let mut recs = records::load(&ctx.records_path).unwrap_or_default();
+        if recs.remove(&ctx.game_id) {
+            let _ = records::save(&ctx.records_path, &recs);
+        }
+    }
+}
+
+/// Current Unix time in whole seconds (0 if the clock is before the epoch).
+fn now_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// Persist `state` for `ctx`'s install if the manager is reachable.
+fn record_state(ctx: &InstallContext, state: InstallState) {
+    if let Some(mgr) = ctx.app.try_state::<DownloadManager>() {
+        mgr.persist_record(ctx, state);
+    }
+}
+
+/// Clear `ctx`'s install record if the manager is reachable.
+fn record_clear(ctx: &InstallContext) {
+    if let Some(mgr) = ctx.app.try_state::<DownloadManager>() {
+        mgr.clear_record(ctx);
+    }
 }
 
 /// Everything one install task needs. Built by the command from frontend args.
@@ -118,6 +172,14 @@ pub struct InstallContext {
     pub token: String,
     pub manifest: Manifest,
     pub cap_kbps: u64,
+    /// Path to the client-local `install_records.json` to update.
+    pub records_path: PathBuf,
+    /// Installed content version recorded for update checks.
+    pub version: String,
+    /// For `pc_archive` installs, the install-relative path of the downloaded
+    /// archive to extract after verification (then deleted). `None` = the files
+    /// are the install as-is (no extraction step).
+    pub archive: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -162,6 +224,7 @@ async fn run_install(ctx: InstallContext, handle: Arc<DownloadHandle>, permits: 
 
     progress.set_status(DownloadStatus::Downloading);
     emit_status(&ctx.app, &ctx.game_id, DownloadStatus::Downloading, None);
+    record_state(&ctx, InstallState::Installing);
 
     let client = reqwest::Client::new();
     let mut done_bytes: u64 = 0;
@@ -174,12 +237,14 @@ async fn run_install(ctx: InstallContext, handle: Arc<DownloadHandle>, permits: 
                 progress.set_status(DownloadStatus::Failed);
                 emit_status(&ctx.app, &ctx.game_id, DownloadStatus::Failed, Some("cancelled".into()));
                 discard_parts(&ctx);
+                record_clear(&ctx);
                 deregister(&ctx);
                 return;
             }
             Outcome::Failed(e) => {
                 progress.set_status(DownloadStatus::Failed);
                 emit_status(&ctx.app, &ctx.game_id, DownloadStatus::Failed, Some(e));
+                record_state(&ctx, InstallState::Failed);
                 deregister(&ctx);
                 return;
             }
@@ -189,11 +254,37 @@ async fn run_install(ctx: InstallContext, handle: Arc<DownloadHandle>, permits: 
     // Every file was fetched and individually SHA-256-verified on finalize.
     progress.set_status(DownloadStatus::Verifying);
     emit_status(&ctx.app, &ctx.game_id, DownloadStatus::Verifying, None);
+
+    // pc_archive installs: unpack the downloaded archive into the install dir.
+    if let Some(rel) = &ctx.archive {
+        progress.set_status(DownloadStatus::Extracting);
+        emit_status(&ctx.app, &ctx.game_id, DownloadStatus::Extracting, None);
+        if let Err(e) = run_extraction(&ctx, rel) {
+            progress.set_status(DownloadStatus::Failed);
+            emit_status(&ctx.app, &ctx.game_id, DownloadStatus::Failed, Some(e));
+            record_state(&ctx, InstallState::Failed);
+            deregister(&ctx);
+            return;
+        }
+    }
+
     progress.set_status(DownloadStatus::Done);
     progress.downloaded_bytes = total;
     emit_progress(&ctx.app, &ctx.game_id, &progress);
     emit_status(&ctx.app, &ctx.game_id, DownloadStatus::Done, None);
+    record_state(&ctx, InstallState::Installed);
     deregister(&ctx);
+}
+
+/// Extract `rel` (relative to the install dir) and delete the archive on
+/// success. Returns a human-readable error string on failure.
+fn run_extraction(ctx: &InstallContext, rel: &str) -> Result<(), String> {
+    let archive = resolve_target(&ctx.install_dir, rel)
+        .ok_or_else(|| format!("unsafe archive path: {rel}"))?;
+    crate::download::extract::extract_zip(&archive, &ctx.install_dir)
+        .map_err(|e| format!("extract failed: {e}"))?;
+    let _ = std::fs::remove_file(&archive); // archive consumed; reclaim the space
+    Ok(())
 }
 
 /// Download a single manifest file with resume, throttle, and SHA-256 verify.

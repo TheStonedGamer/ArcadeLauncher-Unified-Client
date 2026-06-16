@@ -12,6 +12,7 @@
 pub mod commands;
 pub mod endpoint;
 pub mod engine;
+pub mod extract;
 pub mod manifest;
 pub mod paths;
 pub mod queue;

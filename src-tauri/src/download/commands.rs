@@ -12,6 +12,7 @@ use tauri::State;
 /// Begin installing `game_id` into `install_dir` from `manifest`. A no-op if an
 /// install for this id is already active.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn download_start(
     app: tauri::AppHandle,
     manager: State<'_, DownloadManager>,
@@ -21,6 +22,9 @@ pub fn download_start(
     token: String,
     manifest: Manifest,
     cap_kbps: u64,
+    records_path: String,
+    version: String,
+    archive: Option<String>,
 ) {
     manager.start(InstallContext {
         app,
@@ -30,6 +34,9 @@ pub fn download_start(
         token,
         manifest,
         cap_kbps,
+        records_path: PathBuf::from(records_path),
+        version,
+        archive,
     });
 }
 
