@@ -140,6 +140,38 @@ fn decide(local: Option<&SaveFile>, remote: Option<&SaveFile>) -> SyncAction {
     }
 }
 
+/// How to settle a `Conflict` (same mtime, different size) when the user has
+/// chosen a side. The default leaves conflicts untouched so nothing is clobbered
+/// without an explicit decision.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ConflictPolicy {
+    /// Leave conflicts as `Conflict` — the user must pick per file (default).
+    #[default]
+    Skip,
+    /// Resolve every conflict by uploading the local copy.
+    PreferLocal,
+    /// Resolve every conflict by downloading the remote copy.
+    PreferRemote,
+}
+
+/// Rewrite a plan's `Conflict` items according to `policy`. Non-conflict items
+/// are returned unchanged. With `Skip` the plan is returned as-is. Pure.
+pub fn apply_conflict_policy(plan: Vec<SyncItem>, policy: ConflictPolicy) -> Vec<SyncItem> {
+    plan.into_iter()
+        .map(|mut item| {
+            if item.action == SyncAction::Conflict {
+                item.action = match policy {
+                    ConflictPolicy::Skip => SyncAction::Conflict,
+                    ConflictPolicy::PreferLocal => SyncAction::Upload,
+                    ConflictPolicy::PreferRemote => SyncAction::Download,
+                };
+            }
+            item
+        })
+        .collect()
+}
+
 /// Counts of each action in a plan, for a quick "12 to upload, 3 to download,
 /// 1 conflict" summary in the UI without re-scanning the plan elsewhere.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -266,6 +298,30 @@ mod tests {
         assert!(plan.is_empty());
         let s = SyncSummary::of(&plan);
         assert!(!s.has_work());
+    }
+
+    #[test]
+    fn conflict_policy_skip_leaves_conflicts() {
+        let plan = plan_sync(&[f("c.sav", 5, 1)], &[f("c.sav", 5, 2)]);
+        let out = apply_conflict_policy(plan, ConflictPolicy::Skip);
+        assert_eq!(out[0].action, SyncAction::Conflict);
+    }
+
+    #[test]
+    fn conflict_policy_prefer_local_uploads_only_conflicts() {
+        // One conflict + one already-decided download; only the conflict flips.
+        let local = vec![f("c.sav", 5, 1)];
+        let remote = vec![f("c.sav", 5, 2), f("d.sav", 9, 1)];
+        let plan = plan_sync(&local, &remote);
+        let out = apply_conflict_policy(plan, ConflictPolicy::PreferLocal);
+        assert_eq!(actions(&out), vec![("c.sav", SyncAction::Upload), ("d.sav", SyncAction::Download)]);
+    }
+
+    #[test]
+    fn conflict_policy_prefer_remote_downloads_conflicts() {
+        let plan = plan_sync(&[f("c.sav", 5, 1)], &[f("c.sav", 5, 2)]);
+        let out = apply_conflict_policy(plan, ConflictPolicy::PreferRemote);
+        assert_eq!(out[0].action, SyncAction::Download);
     }
 
     #[test]

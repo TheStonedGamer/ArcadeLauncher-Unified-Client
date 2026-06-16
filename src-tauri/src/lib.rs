@@ -98,6 +98,8 @@ pub fn run() {
             session::store::session_save,
             session::store::session_restore,
             session::store::session_clear,
+            saves::commands::saves_plan,
+            saves::commands::saves_sync,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

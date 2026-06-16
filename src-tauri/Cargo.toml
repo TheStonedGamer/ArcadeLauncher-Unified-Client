@@ -32,6 +32,11 @@ sha2 = "0.10"
 hmac = "0.12"
 hex = "0.4"
 
+# Cloud saves (T8): set a downloaded save file's mtime to the server's, so the
+# next sync sees it as in-sync instead of re-uploading. Pure-Rust, cross-platform,
+# no system deps — keeps Windows + Linux identical.
+filetime = "0.2"
+
 # Archive extraction for pc_archive installs (T4c). Pure-Rust deflate only (no
 # bzip2/zstd system deps) so the Windows + Linux CI build stays identical.
 zip = { version = "2", default-features = false, features = ["deflate"] }

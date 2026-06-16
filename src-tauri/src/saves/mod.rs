@@ -9,4 +9,7 @@
 // exercised only by its unit tests.
 #![allow(dead_code)]
 
+pub mod commands;
+pub mod paths;
+pub mod scan;
 pub mod sync;

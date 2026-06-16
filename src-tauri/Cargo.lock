@@ -61,6 +61,7 @@ name = "arcade_launcher"
 version = "0.1.0"
 dependencies = [
  "discord-rich-presence",
+ "filetime",
  "futures-util",
  "hex",
  "hmac",
