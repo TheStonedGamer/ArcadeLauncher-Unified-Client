@@ -120,10 +120,22 @@ full-file SHA-256 verify, `..` path-traversal rejection.
 
 ## Phase T7 — Platform polish & desktop integration
 
-- [ ] **T7a** Discord Rich Presence (now-playing).
-- [ ] **T7b** Global hotkey to summon/hide the launcher.
-- [ ] **T7c** Gamepad navigation + Big Picture mode.
-- [ ] **T7d** Close-to-tray / launch-minimized wired to the real window/tray.
+- [x] **T7a** Discord Rich Presence (now-playing). Pure `presence::activity`
+  (build details/state/timestamp/asset from a now-playing state; 5 KATs) +
+  settings-gated IPC connector over the pure-Rust `discord-rich-presence`
+  crate. Catalog hook announces playing on launch, idle on exit; best-effort.
+- [x] **T7b** Global hotkey to summon/hide the launcher. Pure
+  `hotkey::shortcut` (canonicalise accelerator + window-toggle decision; 8
+  KATs) + `tauri-plugin-global-shortcut` glue; registered at startup and
+  re-applied live via `hotkey_apply` on Save.
+- [x] **T7c** Gamepad navigation + Big Picture mode. Pure `gamepad/input`
+  (snapshot diff → intents; 7 vitest) + `gamepad/navigate` (grid index math;
+  8 vitest); `useGamepad` polls the webview Gamepad API; CatalogView drives a
+  focus index + Big Picture fullscreen (Rust `set_fullscreen`/`is_fullscreen`).
+- [x] **T7d** Close-to-tray / launch-minimized wired to the real window/tray.
+  Pure `tray::behavior` (close/start-hidden decisions; 2 KATs) + `tray::setup`
+  builds the system tray (Show/Quit, left-click toggle), intercepts close to
+  hide when close-to-tray is on, and hides at startup when launch-minimized.
 
 ## Phase T8 — Cloud saves
 
