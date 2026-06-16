@@ -32,6 +32,11 @@ sha2 = "0.10"
 # bzip2/zstd system deps) so the Windows + Linux CI build stays identical.
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
+# Discord Rich Presence (T7a). Pure-Rust IPC over the local Discord socket
+# (unix socket on Linux, named pipe on Windows) — no system deps, identical on
+# both CI runners. Presence is best-effort and gated by a setting.
+discord-rich-presence = "0.2"
+
 # Desktop-only plugins (updater/process are not built for mobile targets).
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

@@ -82,6 +82,30 @@ export function SettingsView() {
         />
       </label>
 
+      <h2 className="settings__heading">Discord Rich Presence</h2>
+      <p className="catalog__status">
+        Show the game you're playing in your Discord status. Create a Discord application to get an
+        application id, then turn this on.
+      </p>
+      <label className="settings__check">
+        <input
+          type="checkbox"
+          checked={draft.discordRichPresence}
+          onChange={(e) => set("discordRichPresence", e.target.checked)}
+        />
+        Show current game in Discord
+      </label>
+      <label className="settings__field">
+        <span className="settings__label">Discord application id</span>
+        <input
+          className="settings__input"
+          value={draft.discordAppId}
+          onChange={(e) => set("discordAppId", e.target.value)}
+          placeholder="Discord application (client) id"
+          spellCheck={false}
+        />
+      </label>
+
       <div className="settings__actions">
         <button className="settings__save" onClick={save}>
           Save

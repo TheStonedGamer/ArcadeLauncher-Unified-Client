@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { loadCatalog, launchGame } from "./api";
+import { setIdle, setPlaying } from "../presence/api";
 import type { Game } from "./types";
 
 // Emitted by Rust when a launched game exits (see launch/session.rs).
@@ -46,6 +47,8 @@ export function useCatalog(): CatalogState {
       );
       const mins = Math.max(1, Math.round(playtimeSeconds / 60));
       setStatus(`"${title}" exited — +${mins} min playtime`);
+      // Game over → drop Discord presence back to idle.
+      void setIdle();
     });
     return () => {
       unlisten.then((off) => off());
@@ -72,6 +75,8 @@ export function useCatalog(): CatalogState {
     try {
       const pid = await launchGame(game);
       setStatus(`Launched "${game.title}" (pid ${pid})`);
+      // Announce now-playing to Discord (best-effort, settings-gated in Rust).
+      void setPlaying(game.title);
     } catch (e) {
       setError(String(e));
     }

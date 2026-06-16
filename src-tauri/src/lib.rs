@@ -6,6 +6,7 @@ mod catalog;
 mod download;
 mod error;
 mod launch;
+mod presence;
 mod settings;
 mod social;
 
@@ -24,6 +25,8 @@ pub fn run() {
         .manage(social::transport::SocialTransport::default())
         // Active game-install downloads (one manager per app instance).
         .manage(download::engine::DownloadManager::default())
+        // Discord Rich Presence connection (best-effort, settings-gated).
+        .manage(presence::client::PresenceManager::default())
         .invoke_handler(tauri::generate_handler![
             catalog::commands::load_catalog,
             catalog::art_commands::fetch_cover_art,
@@ -40,6 +43,8 @@ pub fn run() {
             download::commands::download_pause,
             download::commands::download_resume,
             download::commands::download_cancel,
+            presence::commands::presence_set_playing,
+            presence::commands::presence_set_idle,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

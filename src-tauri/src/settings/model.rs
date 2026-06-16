@@ -25,6 +25,11 @@ pub struct General {
     pub igdb_client_id: String,
     /// Twitch/IGDB API client secret (empty = cover-art fetch disabled).
     pub igdb_client_secret: String,
+    /// Show the current game in Discord via Rich Presence.
+    pub discord_rich_presence: bool,
+    /// Discord application id for Rich Presence (empty = disabled even if the
+    /// toggle is on). The app's art assets live under this application.
+    pub discord_app_id: String,
 }
 
 impl Default for General {
@@ -39,6 +44,8 @@ impl Default for General {
             theme: "dark".to_string(),
             igdb_client_id: String::new(),
             igdb_client_secret: String::new(),
+            discord_rich_presence: false,
+            discord_app_id: String::new(),
         }
     }
 }

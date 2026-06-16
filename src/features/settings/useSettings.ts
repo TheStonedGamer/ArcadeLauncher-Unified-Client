@@ -15,6 +15,8 @@ const DEFAULTS: GeneralSettings = {
   theme: "dark",
   igdbClientId: "",
   igdbClientSecret: "",
+  discordRichPresence: false,
+  discordAppId: "",
 };
 
 export function useSettings() {

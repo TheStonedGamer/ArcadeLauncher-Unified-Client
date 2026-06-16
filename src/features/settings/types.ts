@@ -11,4 +11,6 @@ export interface GeneralSettings {
   theme: string;
   igdbClientId: string;
   igdbClientSecret: string;
+  discordRichPresence: boolean;
+  discordAppId: string;
 }
