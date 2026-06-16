@@ -10,6 +10,7 @@ mod launch;
 mod presence;
 mod settings;
 mod social;
+mod tray;
 mod window;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -47,9 +48,27 @@ pub fn run() {
                     ) {
                         eprintln!("global hotkey not registered: {e}");
                     }
+
+                    // System tray (Show/Quit) + launch-minimized.
+                    if let Err(e) = tray::setup::build(handle) {
+                        eprintln!("tray not built: {e}");
+                    }
+                    tray::setup::apply_launch_minimized(handle, cfg.launch_minimized);
                 }
             }
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            // Close-to-tray: hide instead of quitting when enabled.
+            #[cfg(desktop)]
+            {
+                use tauri::Manager;
+                tray::setup::on_window_event(window.app_handle(), event);
+            }
+            #[cfg(not(desktop))]
+            {
+                let _ = (window, event);
+            }
         })
         .invoke_handler(tauri::generate_handler![
             catalog::commands::load_catalog,
