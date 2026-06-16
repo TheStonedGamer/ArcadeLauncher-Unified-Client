@@ -183,12 +183,19 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
     → sorted per-file `SyncItem` with `Upload`/`Download`/`InSync`/`Conflict`
     by mtime last-write-wins (equal mtime + different size = conflict);
     `SyncSummary` tallies a plan. No IO.
-  - [ ] **T8a-2** Local save-folder scan + transport glue: scan a per-game save
-    dir into `Vec<SaveFile>`, list the server side, run `plan_sync`, then
-    execute (GET→write / read→PUT) honoring the Bearer session token. Pure
-    path/scan helpers tested; thin async glue on top.
-  - [ ] **T8a-3** Sync UI: per-game "Sync saves" affordance + summary
-    (N up / N down / conflicts), conflict resolution choice.
+  - [x] **T8a-2** Local save-folder scan + transport glue. `saves::paths` (5
+    KATs): `valid_save_path` mirrors the server; `to_rel_save_path` turns an
+    on-disk file under a base into a safe `/`-joined wire path. `saves::scan`
+    (2 KATs): walk `app_data/saves/<id>` into `Vec<SaveFile>`.
+    `sync::apply_conflict_policy` (3 KATs): skip/preferLocal/preferRemote.
+    `saves::commands`: `saves_plan` (preview summary) + `saves_sync` (list →
+    scan → `plan_sync` → GET-download / PUT-upload with the Bearer token; atomic
+    temp+rename writes; downloaded files stamped with the server mtime via
+    `filetime` so they don't re-upload; reuses the install traversal guard).
+  - [x] **T8a-3** Sync UI: `saves/api.ts` wrappers + a "☁ Sync saves" detail-
+    panel affordance for server-backed games (disabled → "Sign in to sync" when
+    signed out). Reports N uploaded / N downloaded / conflicts; on a conflict,
+    offers "Keep my saves" / "Keep server saves". host+token from `useSession()`.
 
 ## Phase T9 — Social depth (match native + server features 1.1b–1.6)
 
