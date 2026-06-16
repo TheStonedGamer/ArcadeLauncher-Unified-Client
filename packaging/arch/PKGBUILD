@@ -40,8 +40,8 @@ build() {
   cd "$srcdir/$_repo"
   export RUSTUP_TOOLCHAIN=stable
   npm ci
-  # --bundles none: produce only the release binary; Arch handles packaging.
-  npm run tauri build -- --bundles none
+  # --no-bundle: produce only the release binary; Arch handles packaging.
+  npm run tauri build -- --no-bundle
 }
 
 package() {

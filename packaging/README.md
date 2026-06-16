@@ -33,7 +33,7 @@ Build host requirements:
 ## Arch / AUR
 
 `packaging/arch/PKGBUILD` is a **source `-git` package** (`arcadelauncher-git`):
-it clones the `main` branch, runs `tauri build --bundles none` to compile the
+it clones the `main` branch, runs `tauri build --no-bundle` to compile the
 current release binary, and installs it with `arcadelauncher.desktop` and the
 hicolor icons. `pkgver()` derives the version straight from git
 (`<appver>.r<commits>.<hash>`), so reinstalling always rebuilds whatever is out
