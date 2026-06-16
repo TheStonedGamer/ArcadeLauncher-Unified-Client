@@ -4,6 +4,7 @@
 
 import { useSocial } from "./useSocial";
 import { useProfile } from "./useProfile";
+import { useFriendMeta } from "./useFriendMeta";
 import { FriendList } from "./components/FriendList";
 import { ChatPane } from "./components/ChatPane";
 import { ProfilePanel } from "./components/ProfilePanel";
@@ -22,6 +23,7 @@ export function SocialView() {
   const auth = session ? { host: session.host, token: session.token } : null;
   const social = useSocial(auth);
   const profile = useProfile(auth, social.selfId);
+  const friendMeta = useFriendMeta(auth);
   const peer = social.friends.find((f) => f.accountId === social.selectedPeer) ?? null;
 
   return (
@@ -45,6 +47,7 @@ export function SocialView() {
             friends={social.friends}
             selectedPeer={social.selectedPeer}
             onSelect={social.select}
+            meta={auth ? friendMeta : undefined}
           />
         </aside>
         <section className="social__chat">

@@ -288,3 +288,147 @@ pub async fn social_profile_update(
     }
     Ok(())
 }
+
+/// One friend's organization metadata (ROADMAP T9e). `groups` stays the raw
+/// comma-separated wire string; the TS core (friendMeta.ts) parses it.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FriendMeta {
+    pub user_id: u64,
+    pub note: String,
+    pub groups: String,
+    pub pinned: bool,
+}
+
+/// Fetch all the caller's friend-meta rows (notes/groups/pinned).
+#[tauri::command]
+pub async fn social_friendmeta_get(host: String, token: String) -> AppResult<Vec<FriendMeta>> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Row {
+        #[serde(default)]
+        user_id: u64,
+        #[serde(default)]
+        note: Option<String>,
+        #[serde(default)]
+        groups: Option<String>,
+        #[serde(default)]
+        pinned: bool,
+    }
+    #[derive(Deserialize)]
+    struct Resp {
+        #[serde(default)]
+        meta: Vec<Row>,
+    }
+
+    let endpoint = Endpoint::new(host, token);
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(endpoint.friendmeta_url())
+        .bearer_auth(endpoint.token())
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("friend-meta request failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("friend-meta lookup failed (HTTP {})", resp.status())));
+    }
+    let r: Resp = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid friend-meta response: {e}")))?;
+    Ok(r
+        .meta
+        .into_iter()
+        .map(|row| FriendMeta {
+            user_id: row.user_id,
+            note: row.note.unwrap_or_default(),
+            groups: row.groups.unwrap_or_default(),
+            pinned: row.pinned,
+        })
+        .collect())
+}
+
+/// Upsert note/groups/pinned for one friend. Only supplied fields change
+/// server-side. `groups` is the comma-separated wire string.
+#[tauri::command]
+pub async fn social_friendmeta_set(
+    host: String,
+    token: String,
+    user_id: u64,
+    note: Option<String>,
+    groups: Option<String>,
+    pinned: Option<bool>,
+) -> AppResult<()> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Body {
+        user_id: u64,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        note: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        groups: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pinned: Option<bool>,
+    }
+
+    let endpoint = Endpoint::new(host, token);
+    let client = reqwest::Client::new();
+    let resp = client
+        .put(endpoint.friendmeta_url())
+        .bearer_auth(endpoint.token())
+        .json(&Body { user_id, note, groups, pinned })
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("friend-meta update failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("friend-meta update failed (HTTP {})", resp.status())));
+    }
+    Ok(())
+}
+
+/// One username-search hit (ROADMAP T9e).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchHit {
+    pub user_id: u64,
+    pub username: String,
+}
+
+/// Search accounts by username (server: LIKE, ≤20, excludes self and blocks).
+#[tauri::command]
+pub async fn social_user_search(host: String, token: String, query: String) -> AppResult<Vec<SearchHit>> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Hit {
+        #[serde(default)]
+        user_id: u64,
+        #[serde(default)]
+        username: String,
+    }
+    #[derive(Deserialize)]
+    struct Resp {
+        #[serde(default)]
+        users: Vec<Hit>,
+    }
+
+    let endpoint = Endpoint::new(host, token);
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(endpoint.search_url(&query))
+        .bearer_auth(endpoint.token())
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("search request failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("search failed (HTTP {})", resp.status())));
+    }
+    let r: Resp = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid search response: {e}")))?;
+    Ok(r
+        .users
+        .into_iter()
+        .map(|h| SearchHit { user_id: h.user_id, username: h.username })
+        .collect())
+}

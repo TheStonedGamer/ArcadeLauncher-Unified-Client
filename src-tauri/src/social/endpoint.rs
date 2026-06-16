@@ -62,6 +62,16 @@ impl Endpoint {
         format!("https://{}/api/social/profile", self.host)
     }
 
+    /// REST URL for the caller's friend-meta rows (GET) / upsert (PUT).
+    pub fn friendmeta_url(&self) -> String {
+        format!("https://{}/api/social/friendmeta", self.host)
+    }
+
+    /// REST URL for a username search; `q` is percent-encoded into the query.
+    pub fn search_url(&self, q: &str) -> String {
+        format!("https://{}/api/social/search?q={}", self.host, encode_query(q))
+    }
+
     /// The bearer token, for the `Authorization` header on REST calls.
     pub fn token(&self) -> &str {
         &self.token
@@ -109,6 +119,14 @@ mod tests {
         let e = Endpoint::new("arcade.example.com", "t");
         assert_eq!(e.profile_url(7), "https://arcade.example.com/api/social/profile/7");
         assert_eq!(e.profile_self_url(), "https://arcade.example.com/api/social/profile");
+    }
+
+    #[test]
+    fn builds_friendmeta_and_search_urls() {
+        let e = Endpoint::new("arcade.example.com", "t");
+        assert_eq!(e.friendmeta_url(), "https://arcade.example.com/api/social/friendmeta");
+        assert_eq!(e.search_url("a b"), "https://arcade.example.com/api/social/search?q=a%20b");
+        assert_eq!(e.search_url("plain"), "https://arcade.example.com/api/social/search?q=plain");
     }
 
     #[test]

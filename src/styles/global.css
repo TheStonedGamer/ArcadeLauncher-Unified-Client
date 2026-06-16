@@ -303,18 +303,67 @@ body {
 .social__chat { min-width: 0; display: flex; }
 
 /* Friend roster */
-.friendlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.friendlist { display: flex; flex-direction: column; gap: 2px; }
+.friendlist__items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.friendlist__section { margin-bottom: 4px; }
+.friendlist__heading {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted); padding: 8px 10px 4px;
+}
+.friendlist__filter { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px; }
+.friendlist__tag {
+  padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--panel); color: var(--muted); font-size: 11px; cursor: pointer;
+}
+.friendlist__tag--active { border-color: var(--accent); color: var(--accent); }
 .friendlist__row {
-  width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
-  padding: 8px 10px; border: none; border-radius: 8px; background: transparent;
-  color: var(--text); cursor: pointer; text-align: left;
+  width: 100%; display: flex; align-items: center; border-radius: 8px;
 }
 .friendlist__row:hover { background: var(--panel-2); }
 .friendlist__row--active { background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
+.friendlist__main {
+  flex: 1; min-width: 0; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
+  padding: 8px 10px; border: none; background: transparent; color: var(--text); cursor: pointer; text-align: left;
+}
+.friendlist__edit {
+  border: none; background: transparent; color: var(--muted); cursor: pointer;
+  padding: 4px 8px; font-size: 16px; line-height: 1; border-radius: 6px;
+}
+.friendlist__edit:hover { color: var(--text); background: var(--panel); }
 .friendlist__name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .friendlist__star { color: var(--star); margin-right: 5px; }
+.friendlist__pin { margin-right: 4px; font-size: 11px; }
 .friendlist__sub { font-size: 11px; color: var(--muted); justify-self: end; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .friendlist__sub--game { color: var(--on); }
+
+/* Friend-meta inline editor (T9e) */
+.friendmeta {
+  display: flex; flex-direction: column; gap: 8px; padding: 8px 10px 10px;
+  margin: 2px 4px 6px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+}
+.friendmeta__pin {
+  align-self: flex-start; padding: 3px 10px; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--panel); color: var(--text); cursor: pointer; font-size: 12px;
+}
+.friendmeta__pin:hover { border-color: var(--accent); }
+.friendmeta__note { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); }
+.friendmeta__note input {
+  padding: 6px 8px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--panel); color: var(--text); font-size: 12px;
+}
+.friendmeta__groups { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.friendmeta__chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 9px;
+  border-radius: 999px; background: var(--panel); border: 1px solid var(--border); font-size: 11px;
+}
+.friendmeta__chip button {
+  border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; line-height: 1; padding: 0 2px;
+}
+.friendmeta__chip button:hover { color: var(--error); }
+.friendmeta__add {
+  flex: 1; min-width: 70px; padding: 4px 8px; border-radius: 999px;
+  border: 1px dashed var(--border); background: transparent; color: var(--text); font-size: 11px;
+}
 
 /* Presence dot */
 .presence-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--off); box-shadow: 0 0 0 2px var(--panel); }

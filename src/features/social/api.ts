@@ -5,6 +5,7 @@
 
 import { call } from "../../lib/ipc";
 import type { Profile } from "./profile";
+import type { RawFriendMeta } from "./friendMeta";
 
 /** Result of uploading a local file as a pending DM attachment. */
 export interface UploadedAttachment {
@@ -44,4 +45,30 @@ export function updateProfile(
   bio: string | null,
 ): Promise<void> {
   return call("social_profile_update", { host, token, banner, bio });
+}
+
+/** One username-search hit. */
+export interface SearchHit {
+  userId: number;
+  username: string;
+}
+
+/** Fetch all of the caller's friend-meta rows (notes/groups/pinned). */
+export function fetchFriendMeta(host: string, token: string): Promise<RawFriendMeta[]> {
+  return call("social_friendmeta_get", { host, token });
+}
+
+/** Upsert note/groups/pinned for one friend; only supplied fields change. */
+export function setFriendMeta(
+  host: string,
+  token: string,
+  userId: number,
+  fields: { note?: string; groups?: string; pinned?: boolean },
+): Promise<void> {
+  return call("social_friendmeta_set", { host, token, userId, ...fields });
+}
+
+/** Search accounts by username (server LIKE, ≤20, excludes self/blocks). */
+export function searchUsers(host: string, token: string, query: string): Promise<SearchHit[]> {
+  return call("social_user_search", { host, token, query });
 }
