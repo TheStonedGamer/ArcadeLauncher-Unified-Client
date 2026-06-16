@@ -437,6 +437,60 @@ body {
 .composer__attach:hover:not(:disabled) { background: var(--card-hover); }
 .composer__attach:disabled { opacity: .5; cursor: default; }
 
+/* ── Profile panel (T9d) ──────────────────────────────────────────────────── */
+.chatpane__name--link {
+  background: none; border: none; padding: 0; color: inherit; font: inherit;
+  cursor: pointer; text-decoration: underline transparent; transition: text-decoration-color .15s;
+}
+.chatpane__name--link:hover { text-decoration-color: currentColor; }
+.social__profile-btn {
+  margin-left: auto; padding: 4px 12px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--card); color: var(--text); cursor: pointer; font-size: 12px;
+}
+.social__profile-btn:hover { background: var(--card-hover); }
+.profile__overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; z-index: 50;
+}
+.profile {
+  position: relative; width: min(440px, 92vw); max-height: 88vh; overflow: auto;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.5);
+}
+.profile__close {
+  position: absolute; top: 8px; right: 8px; z-index: 2; width: 28px; height: 28px; border-radius: 7px;
+  border: none; background: rgba(0,0,0,.35); color: #fff; cursor: pointer; font-size: 13px;
+}
+.profile__close:hover { background: rgba(0,0,0,.55); }
+.profile__banner {
+  height: 110px; background: linear-gradient(135deg, var(--accent), #7c5cff); border-radius: 14px 14px 0 0;
+}
+.profile__head { display: flex; align-items: center; gap: 12px; padding: 0 18px; margin-top: -28px; }
+.profile__avatar {
+  width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(135deg, #4cc2ff, #7c5cff); color: #041019; font-weight: 800; font-size: 22px;
+  border: 3px solid var(--bg); flex: 0 0 auto;
+}
+.profile__name { font-weight: 700; font-size: 17px; }
+.profile__level { color: var(--muted); font-size: 12px; }
+.profile__xp { padding: 12px 18px 0; }
+.profile__xp-bar { height: 8px; border-radius: 5px; background: var(--card); overflow: hidden; }
+.profile__xp-fill { height: 100%; background: var(--accent); border-radius: 5px; transition: width .3s; }
+.profile__xp-text { color: var(--muted); font-size: 11px; margin-top: 4px; }
+.profile__bio { padding: 12px 18px 18px; color: var(--text); white-space: pre-wrap; }
+.profile__edit { display: flex; flex-direction: column; gap: 10px; padding: 14px 18px 18px; }
+.profile__field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.profile__field input, .profile__field textarea {
+  padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg);
+  color: var(--text); font: inherit; resize: vertical;
+}
+.profile__save {
+  align-self: flex-start; padding: 8px 16px; border-radius: 8px; border: none;
+  background: var(--accent); color: #fff; font-weight: 600; cursor: pointer;
+}
+.profile__save:disabled { opacity: .5; cursor: default; }
+.profile__loading, .profile__error { padding: 28px 18px; text-align: center; color: var(--muted); }
+.profile__error { color: #ff8b8b; }
+
 /* ── Downloads panel ──────────────────────────────────────────────────────── */
 .dl { max-width: 760px; margin: 0 auto; }
 .dl__bar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }

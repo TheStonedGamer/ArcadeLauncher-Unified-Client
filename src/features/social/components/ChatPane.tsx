@@ -27,6 +27,8 @@ interface Props {
   onAttach?: () => void;
   /** Open an attachment by id (absent → attachment chips are inert). */
   onOpenAttachment?: (attachmentId: number) => void;
+  /** View an account's profile (absent → peer name is not clickable). */
+  onViewProfile?: (userId: number) => void;
 }
 
 /** Shorten a parent message to a one-line reply quote. */
@@ -37,7 +39,7 @@ function snippet(text: string): string {
 
 export function ChatPane({
   peer, conversation, selfId, connected, onSend, onTyping, onEdit, onDelete, onReact, onReply, replyTo, onCancelReply,
-  onAttach, onOpenAttachment,
+  onAttach, onOpenAttachment, onViewProfile,
 }: Props) {
   const endRef = useRef<HTMLDivElement>(null);
   const msgCount = conversation?.messages.length ?? 0;
@@ -65,7 +67,13 @@ export function ChatPane({
     <div className="chatpane">
       <header className="chatpane__head">
         <PresenceDot presence={peer.presence} />
-        <span className="chatpane__name">{displayName(peer)}</span>
+        {onViewProfile ? (
+          <button className="chatpane__name chatpane__name--link" onClick={() => onViewProfile(peer.accountId)} title="View profile">
+            {displayName(peer)}
+          </button>
+        ) : (
+          <span className="chatpane__name">{displayName(peer)}</span>
+        )}
         <span className="chatpane__sub">
           {peer.presence === "ingame" && peer.currentGameTitle
             ? peer.currentGameTitle

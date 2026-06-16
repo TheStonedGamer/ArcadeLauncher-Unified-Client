@@ -4,6 +4,7 @@
 // transit the webview. These wrappers are the thin frontend seam.
 
 import { call } from "../../lib/ipc";
+import type { Profile } from "./profile";
 
 /** Result of uploading a local file as a pending DM attachment. */
 export interface UploadedAttachment {
@@ -28,4 +29,19 @@ export function uploadAttachment(host: string, token: string, filePath: string):
 /** Resolve a presigned download URL (+ metadata) for an attachment id. */
 export function attachmentLink(host: string, token: string, attachmentId: number): Promise<AttachmentLink> {
   return call("social_attachment_url", { host, token, attachmentId });
+}
+
+/** Fetch any account's public profile (banner/bio/level/xp). */
+export function fetchProfile(host: string, token: string, userId: number): Promise<Profile> {
+  return call("social_profile_get", { host, token, userId });
+}
+
+/** Update the caller's own profile; only supplied fields change. */
+export function updateProfile(
+  host: string,
+  token: string,
+  banner: string | null,
+  bio: string | null,
+): Promise<void> {
+  return call("social_profile_update", { host, token, banner, bio });
 }
