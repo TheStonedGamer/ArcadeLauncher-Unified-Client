@@ -170,8 +170,25 @@ the social/download features. Mirrors the server's `auth.rs`.
 
 ## Phase T8 — Cloud saves
 
+Server contract (already live): a save file is `{path, mtime, size}` (path
+relative, `/`-separated; mtime Unix secs; size bytes, ≤50 MB). Endpoints, all
+Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
+/api/saves/:id/file?path=` → raw bytes, `PUT /api/saves/:id/file?path=&mtime=`
+→ upsert. Server rejects traversal paths (`valid_save_path`).
+
 - [ ] **T8a** Cloud-save sync v1 against the existing server endpoints
   (upload/download save sets, conflict handling).
+  - [x] **T8a-1** Pure sync-decision core (`saves::sync`, 11 KATs): `SaveFile`
+    `{path,mtime,size}` mirrors the server contract; `plan_sync(local, remote)`
+    → sorted per-file `SyncItem` with `Upload`/`Download`/`InSync`/`Conflict`
+    by mtime last-write-wins (equal mtime + different size = conflict);
+    `SyncSummary` tallies a plan. No IO.
+  - [ ] **T8a-2** Local save-folder scan + transport glue: scan a per-game save
+    dir into `Vec<SaveFile>`, list the server side, run `plan_sync`, then
+    execute (GET→write / read→PUT) honoring the Bearer session token. Pure
+    path/scan helpers tested; thin async glue on top.
+  - [ ] **T8a-3** Sync UI: per-game "Sync saves" affordance + summary
+    (N up / N down / conflicts), conflict resolution choice.
 
 ## Phase T9 — Social depth (match native + server features 1.1b–1.6)
 
