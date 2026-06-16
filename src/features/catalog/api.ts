@@ -4,6 +4,17 @@
 import { appCacheDir, join } from "@tauri-apps/api/path";
 import { call } from "../../lib/ipc";
 import type { Game } from "./types";
+import type { CatalogPrefs } from "./prefs";
+
+/** Load the user's client-local catalog prefs (favorites/hidden/collections). */
+export function loadCatalogPrefs(): Promise<CatalogPrefs> {
+  return call<CatalogPrefs>("load_catalog_prefs");
+}
+
+/** Persist the whole prefs object. */
+export function saveCatalogPrefs(prefs: CatalogPrefs): Promise<void> {
+  return call("save_catalog_prefs", { prefs });
+}
 
 /** Load games from a library.json path. */
 export function loadCatalog(path: string): Promise<Game[]> {

@@ -16,6 +16,10 @@ interface Props {
   /** Fetch a cover for the game; resolves to the new path or null. Absent when
    *  IGDB credentials aren't configured. */
   onFetchCover?: (game: Game) => Promise<string | null>;
+  onToggleFavorite?: (game: Game) => void;
+  onToggleHidden?: (game: Game) => void;
+  onAddCollection?: (game: Game, name: string) => void;
+  onRemoveCollection?: (game: Game, name: string) => void;
 }
 
 function playtimeStr(seconds: number): string {
@@ -35,13 +39,49 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function GameDetail({ group, onLaunch, onClose, onFetchCover }: Props) {
+export function GameDetail({
+  group,
+  onLaunch,
+  onClose,
+  onFetchCover,
+  onToggleFavorite,
+  onToggleHidden,
+  onAddCollection,
+  onRemoveCollection,
+}: Props) {
   const [pick, setPick] = useState<Game>(group.representative);
   const [fetching, setFetching] = useState(false);
   const [fetchMsg, setFetchMsg] = useState("");
   const [coverPath, setCoverPath] = useState(group.representative.coverArtPath);
   const game = group.representative;
   const cover = coverPath ? convertFileSrc(coverPath) : game.coverArtUrl;
+
+  // Local mirrors of the overridable bits so toggles reflect immediately in the
+  // open modal (the grid re-derives from prefs on close).
+  const [favorite, setFavorite] = useState(game.favorite);
+  const [hidden, setHidden] = useState(game.hidden);
+  const [collections, setCollections] = useState<string[]>(collectionsOf(game));
+  const [newCollection, setNewCollection] = useState("");
+
+  const toggleFavorite = () => {
+    onToggleFavorite?.(game);
+    setFavorite((v) => !v);
+  };
+  const toggleHidden = () => {
+    onToggleHidden?.(game);
+    setHidden((v) => !v);
+  };
+  const addCollection = () => {
+    const name = newCollection.trim();
+    if (!name || collections.includes(name)) return;
+    onAddCollection?.(game, name);
+    setCollections((c) => [...c, name]);
+    setNewCollection("");
+  };
+  const removeCollection = (name: string) => {
+    onRemoveCollection?.(game, name);
+    setCollections((c) => c.filter((x) => x !== name));
+  };
 
   const fetchCover = async () => {
     if (!onFetchCover) return;
@@ -70,6 +110,25 @@ export function GameDetail({ group, onLaunch, onClose, onFetchCover }: Props) {
         </div>
         <div className="detail__body">
           <h2 className="detail__title">{game.title}</h2>
+
+          {(onToggleFavorite || onToggleHidden) && (
+            <div className="detail__actions">
+              {onToggleFavorite && (
+                <button
+                  className={`detail__toggle${favorite ? " detail__toggle--on" : ""}`}
+                  onClick={toggleFavorite}
+                >
+                  {favorite ? "★ Favorited" : "☆ Favorite"}
+                </button>
+              )}
+              {onToggleHidden && (
+                <button className="detail__toggle" onClick={toggleHidden}>
+                  {hidden ? "🙈 Hidden" : "Hide"}
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="detail__meta">
             <Row label="Platform" value={game.platform} />
             <Row label="Developer" value={game.developer} />
@@ -79,9 +138,42 @@ export function GameDetail({ group, onLaunch, onClose, onFetchCover }: Props) {
             <Row label="Year" value={yearOf(game.releaseDate)} />
             <Row label="Rating" value={rating} />
             <Row label="Playtime" value={playtimeStr(game.playtimeSeconds)} />
-            <Row label="Collections" value={collectionsOf(game).join(", ")} />
           </div>
           {game.summary && <p className="detail__summary">{game.summary}</p>}
+
+          {onAddCollection && (
+            <div className="detail__collections">
+              <span className="settings__label">Collections</span>
+              <div className="detail__chips">
+                {collections.map((c) => (
+                  <span key={c} className="detail__chip">
+                    {c}
+                    <button
+                      className="detail__chip-x"
+                      onClick={() => removeCollection(c)}
+                      aria-label={`Remove from ${c}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                {collections.length === 0 && <span className="detail__fetchmsg">None yet</span>}
+              </div>
+              <div className="detail__collection-add">
+                <input
+                  className="settings__input"
+                  value={newCollection}
+                  onChange={(e) => setNewCollection(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addCollection()}
+                  placeholder="Add to collection…"
+                  spellCheck={false}
+                />
+                <button className="detail__fetch" onClick={addCollection} disabled={!newCollection.trim()}>
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
 
           {onFetchCover && needsArt(game) && (
             <div className="detail__art">

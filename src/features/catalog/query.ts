@@ -18,6 +18,7 @@ export const SORT_LABELS: Record<SortMode, string> = {
 export type Filter =
   | { kind: "all" }
   | { kind: "favorites" }
+  | { kind: "hidden" }
   | { kind: "platform"; value: string }
   | { kind: "collection"; value: string };
 
@@ -72,6 +73,8 @@ function matchesFilter(game: Game, filter: Filter): boolean {
       return true;
     case "favorites":
       return game.favorite;
+    case "hidden":
+      return game.hidden;
     case "platform":
       return game.platform === filter.value;
     case "collection":
@@ -96,10 +99,12 @@ function comparator(mode: SortMode): (a: Game, b: Game) => number {
   }
 }
 
-/** Apply search + filter + sort. Hidden games are always excluded. */
+/** Apply search + filter + sort. Hidden games are excluded from every scope
+ *  except the dedicated "Hidden" scope, which shows only hidden games. */
 export function applyQuery(games: Game[], query: Query): Game[] {
+  const showHidden = query.filter.kind === "hidden";
   return games
-    .filter((g) => !g.hidden)
+    .filter((g) => (showHidden ? g.hidden : !g.hidden))
     .filter((g) => matchesFilter(g, query.filter))
     .filter((g) => matchesSearch(g, query.search))
     .sort(comparator(query.sort));
@@ -116,6 +121,7 @@ export interface SidebarEntry {
  *  in the (non-hidden) library, each with a count. */
 export function buildSidebar(games: Game[]): SidebarEntry[] {
   const visible = games.filter((g) => !g.hidden);
+  const hiddenCount = games.length - visible.length;
   const platforms = new Map<string, number>();
   const collections = new Map<string, number>();
   let favorites = 0;
@@ -132,6 +138,9 @@ export function buildSidebar(games: Game[]): SidebarEntry[] {
     { id: "all", label: "All Games", filter: { kind: "all" }, count: visible.length },
     { id: "favorites", label: "Favorites", filter: { kind: "favorites" }, count: favorites },
   ];
+  if (hiddenCount > 0) {
+    entries.push({ id: "hidden", label: "Hidden", filter: { kind: "hidden" }, count: hiddenCount });
+  }
   for (const [value, count] of [...platforms].sort((a, b) => a[0].localeCompare(b[0]))) {
     entries.push({ id: `platform:${value}`, label: value, filter: { kind: "platform", value }, count });
   }

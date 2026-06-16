@@ -7,3 +7,5 @@ pub mod art_commands;
 pub mod commands;
 pub mod loader;
 pub mod model;
+pub mod prefs;
+pub mod prefs_commands;

@@ -106,10 +106,17 @@ full-file SHA-256 verify, `..` path-traversal rejection.
 
 ## Phase T6 — Library personalization
 
-- [ ] **T6a** Favorites + hidden games: toggle UI (detail panel + grid context),
-  client-local persistence (`catalog_prefs.json`), "Hidden" sidebar scope.
-  (Query layer already filters favorites/hidden; this adds toggle + persist.)
-- [ ] **T6b** Collections management: add/remove a game to/from a collection.
+- [x] **T6a** Favorites + hidden games: detail-panel toggles, client-local
+  persistence in a separate `catalog_prefs.json` (Rust `CatalogPrefs` model +
+  non-destructive atomic store + load/save commands; never rewrites
+  `library.json`), pure TS overlay (`applyPrefs` + `toggleFavorite`/
+  `toggleHidden`) that merges overrides onto the catalog before query, and a
+  "Hidden" sidebar scope (shows only hidden games). 3 Rust KATs + vitest for
+  overlay + the hidden-scope query.
+- [x] **T6b** Collections management: add/remove a game to/from a collection via
+  chips + an add field on the detail panel, persisted in the same prefs file
+  (`addToCollection`/`removeFromCollection`, seeded from the catalog's existing
+  collections). Sidebar collection scopes reflect the merged result.
 
 ## Phase T7 — Platform polish & desktop integration
 

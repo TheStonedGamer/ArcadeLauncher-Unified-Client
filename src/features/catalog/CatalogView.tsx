@@ -11,12 +11,19 @@ import { fetchCoverArt } from "./api";
 import { applyQuery, buildSidebar, DEFAULT_QUERY, SORT_LABELS, type Filter, type Query, type SortMode } from "./query";
 import { groupVariants, type VariantGroup } from "./variants";
 import { useSettings } from "../settings/useSettings";
+import { useCatalogPrefs } from "./useCatalogPrefs";
+import { applyPrefs } from "./prefs";
 import type { Game } from "./types";
 
 export function CatalogView() {
   const { games, loading, error, status, load, launch, setCover } = useCatalog();
   const { draft: settings } = useSettings();
+  const prefs = useCatalogPrefs();
   const hasIgdbCreds = settings.igdbClientId.trim() !== "" && settings.igdbClientSecret.trim() !== "";
+
+  // Overlay the user's favorite/hidden/collection overrides onto the read-only
+  // catalog before any querying; downstream code never sees raw library.json.
+  const merged = useMemo(() => applyPrefs(games, prefs.prefs), [games, prefs.prefs]);
 
   const fetchCover = async (game: Game): Promise<string | null> => {
     const path = await fetchCoverArt(game, settings.igdbClientId, settings.igdbClientSecret);
@@ -27,8 +34,8 @@ export function CatalogView() {
   const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
   const [selected, setSelected] = useState<VariantGroup | null>(null);
 
-  const sidebar = useMemo(() => buildSidebar(games), [games]);
-  const groups = useMemo(() => groupVariants(applyQuery(games, query)), [games, query]);
+  const sidebar = useMemo(() => buildSidebar(merged), [merged]);
+  const groups = useMemo(() => groupVariants(applyQuery(merged, query)), [merged, query]);
 
   const setFilter = (filter: Filter) => setQuery((q) => ({ ...q, filter }));
 
@@ -97,6 +104,10 @@ export function CatalogView() {
           }}
           onClose={() => setSelected(null)}
           onFetchCover={hasIgdbCreds ? fetchCover : undefined}
+          onToggleFavorite={prefs.toggleFavorite}
+          onToggleHidden={prefs.toggleHidden}
+          onAddCollection={prefs.addToCollection}
+          onRemoveCollection={prefs.removeFromCollection}
         />
       )}
     </section>

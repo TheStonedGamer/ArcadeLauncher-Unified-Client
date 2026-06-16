@@ -196,6 +196,26 @@ body {
 .detail__fetch:hover { border-color: var(--accent); }
 .detail__fetch:disabled { opacity: .6; cursor: default; }
 .detail__fetchmsg { font-size: 12px; color: var(--muted); }
+.detail__actions { display: flex; gap: 8px; margin: 2px 0 10px; flex-wrap: wrap; }
+.detail__toggle {
+  padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 13px;
+}
+.detail__toggle:hover { border-color: var(--accent); }
+.detail__toggle--on { border-color: var(--accent); color: var(--accent); }
+.detail__collections { margin: 10px 0; display: flex; flex-direction: column; gap: 8px; }
+.detail__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.detail__chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px 3px 10px;
+  border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); font-size: 12px;
+}
+.detail__chip-x {
+  border: none; background: transparent; color: var(--muted); cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0 2px;
+}
+.detail__chip-x:hover { color: var(--error); }
+.detail__collection-add { display: flex; gap: 8px; }
+.detail__collection-add .settings__input { flex: 1; }
 .detail__launch {
   padding: 10px 18px; border-radius: 9px; border: none;
   background: var(--on); color: #06210f; font-weight: 700; cursor: pointer; font-size: 14px;

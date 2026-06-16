@@ -87,6 +87,10 @@ describe("applyQuery", () => {
     const out = applyQuery(games, DEFAULT_QUERY);
     expect(out.find((g) => g.id === "4")).toBeUndefined();
   });
+  it("hidden scope shows only hidden games", () => {
+    const out = applyQuery(games, { ...DEFAULT_QUERY, filter: { kind: "hidden" } });
+    expect(out.map((g) => g.id)).toEqual(["4"]);
+  });
   it("sorts by title by default", () => {
     expect(applyQuery(games, DEFAULT_QUERY).map((g) => g.title)).toEqual(["Crystalis", "Halo", "Zelda"]);
   });
