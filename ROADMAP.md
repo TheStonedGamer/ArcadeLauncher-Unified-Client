@@ -70,8 +70,16 @@ full-file SHA-256 verify, `..` path-traversal rejection.
     engine writes Installing→Extracting→Installed / Failed / cleared-on-cancel
     into the records (serialized load-modify-save), and the install command
     takes `records_path`/`version`/`archive`.
-- [ ] **T4d** Download UI: install button on detail panel + queue/status panel
+- [~] **T4d** Download UI: install button on detail panel + queue/status panel
   (speed graph, queue list, pause/resume/cancel, active-count badge).
+  - [x] **T4d-1** Pure download-queue reducer (`applyProgress`/`applyStatus`/
+    `removeItem`/`clearCompleted`) consuming the `download://progress`+`status`
+    events into a per-game item map with an EMA speed estimate, plus selectors
+    (percent/activeCount/queueList/hasPending/formatSpeed/formatBytes). 13
+    vitest KATs.
+  - [ ] **T4d-2** `useDownloads` hook (listen to the two events, expose
+    start/pause/resume/cancel) + queue panel + Install button on the detail
+    panel + active-count badge.
 - [ ] **T4e** Verify both-OS green; manual smoke against a real server file.
 
 ## Phase T5 — Art & metadata pipeline
