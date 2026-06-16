@@ -3,8 +3,10 @@ import {
   addToCollection,
   applyPrefs,
   effectiveCollections,
+  effectiveSavePath,
   emptyPrefs,
   removeFromCollection,
+  setSavePath,
   toggleFavorite,
   toggleHidden,
   type CatalogPrefs,
@@ -57,7 +59,7 @@ describe("catalog prefs overlay", () => {
 
   it("overrides favorite and hidden when set", () => {
     const g = game({ id: "a", favorite: false, hidden: false });
-    const prefs: CatalogPrefs = { favorites: { a: true }, hidden: { a: true }, collections: {} };
+    const prefs: CatalogPrefs = { favorites: { a: true }, hidden: { a: true }, collections: {}, savePaths: {} };
     const [merged] = applyPrefs([g], prefs);
     expect(merged.favorite).toBe(true);
     expect(merged.hidden).toBe(true);
@@ -98,5 +100,22 @@ describe("catalog prefs overlay", () => {
     const prefs = addToCollection(emptyPrefs, g, "Co-op");
     const [merged] = applyPrefs([g], prefs);
     expect(merged.collections).toBe("RPGs\nCo-op");
+  });
+
+  it("save-path override defaults to empty and round-trips", () => {
+    const g = game({ id: "a" });
+    expect(effectiveSavePath(emptyPrefs, g)).toBe("");
+    const prefs = setSavePath(emptyPrefs, g, "  /home/u/saves/a  ");
+    // Trimmed on the way in.
+    expect(effectiveSavePath(prefs, g)).toBe("/home/u/saves/a");
+    expect(prefs.savePaths["a"]).toBe("/home/u/saves/a");
+  });
+
+  it("setSavePath with a blank value clears the override", () => {
+    const g = game({ id: "a" });
+    const set = setSavePath(emptyPrefs, g, "/x");
+    const cleared = setSavePath(set, g, "   ");
+    expect(effectiveSavePath(cleared, g)).toBe("");
+    expect("a" in cleared.savePaths).toBe(false);
   });
 });

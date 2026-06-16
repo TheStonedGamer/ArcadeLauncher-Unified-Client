@@ -47,7 +47,17 @@ fn normalize_host(host: &str) -> String {
     s.trim_end_matches('/').to_string()
 }
 
-fn save_base(app: &tauri::AppHandle, game_id: &str) -> AppResult<PathBuf> {
+/// The local save folder for a game. When the user has configured a real save
+/// directory (`save_path`, an absolute path) we use it; otherwise we fall back
+/// to the managed per-user folder `app_data/saves/<id>`, which is always safe.
+fn save_base(app: &tauri::AppHandle, game_id: &str, save_path: Option<&str>) -> AppResult<PathBuf> {
+    if let Some(p) = save_path.map(str::trim).filter(|p| !p.is_empty()) {
+        let path = PathBuf::from(p);
+        if !path.is_absolute() {
+            return Err(AppError::msg("save folder must be an absolute path"));
+        }
+        return Ok(path);
+    }
     let dir = app
         .path()
         .app_data_dir()
@@ -77,11 +87,17 @@ async fn list_remote(client: &reqwest::Client, host: &str, token: &str, game_id:
 /// so the UI can show "3 to upload, 1 to download, 1 conflict" before the user
 /// commits.
 #[tauri::command]
-pub async fn saves_plan(app: tauri::AppHandle, host: String, token: String, game_id: String) -> AppResult<SyncSummary> {
+pub async fn saves_plan(
+    app: tauri::AppHandle,
+    host: String,
+    token: String,
+    game_id: String,
+    save_path: Option<String>,
+) -> AppResult<SyncSummary> {
     let host = normalize_host(&host);
     let client = reqwest::Client::new();
     let remote = list_remote(&client, &host, &token, &game_id).await?;
-    let base = save_base(&app, &game_id)?;
+    let base = save_base(&app, &game_id, save_path.as_deref())?;
     let local = scan_save_dir(&base).map_err(|e| AppError::msg(format!("save scan failed: {e}")))?;
     let plan = plan_sync(&local, &remote);
     Ok(SyncSummary::of(&plan))
@@ -97,6 +113,7 @@ pub async fn saves_sync(
     token: String,
     game_id: String,
     policy: Option<String>,
+    save_path: Option<String>,
 ) -> AppResult<SyncReport> {
     let host = normalize_host(&host);
     let policy = match policy.as_deref() {
@@ -105,7 +122,7 @@ pub async fn saves_sync(
         _ => ConflictPolicy::Skip,
     };
     let client = reqwest::Client::new();
-    let base = save_base(&app, &game_id)?;
+    let base = save_base(&app, &game_id, save_path.as_deref())?;
 
     let remote = list_remote(&client, &host, &token, &game_id).await?;
     let local = scan_save_dir(&base).map_err(|e| AppError::msg(format!("save scan failed: {e}")))?;

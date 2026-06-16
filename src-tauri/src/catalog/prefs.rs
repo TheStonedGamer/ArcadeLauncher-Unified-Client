@@ -25,6 +25,10 @@ pub struct CatalogPrefs {
     pub hidden: BTreeMap<String, bool>,
     /// game id → full replacement collection list (present only when edited).
     pub collections: BTreeMap<String, Vec<String>>,
+    /// game id → absolute local save folder for cloud-save sync (present only
+    /// when the user has pointed this game at a real save directory). Empty /
+    /// absent means the managed `app_data/saves/<id>` folder is used.
+    pub save_paths: BTreeMap<String, String>,
 }
 
 /// Load prefs from `path`. A missing or empty file yields empty prefs, so a
@@ -77,6 +81,7 @@ mod tests {
         prefs.favorites.insert("zelda".into(), true);
         prefs.hidden.insert("e.t.".into(), true);
         prefs.collections.insert("zelda".into(), vec!["Favorites".into(), "RPGs".into()]);
+        prefs.save_paths.insert("zelda".into(), "/home/u/saves/zelda".into());
         save(&p, &prefs).unwrap();
         assert_eq!(load(&p).unwrap(), prefs);
         let _ = std::fs::remove_file(&p);

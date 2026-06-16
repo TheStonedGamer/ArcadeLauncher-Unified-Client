@@ -275,6 +275,8 @@ body {
 .detail__install-btn:disabled { opacity: .65; cursor: default; }
 .detail__saves { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; align-items: flex-start; }
 .detail__saves-resolve { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.detail__saves-folder { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.detail__saves-folder .settings__input { width: 100%; }
 
 /* ── Social ────────────────────────────────────────────────────────────── */
 .social { display: flex; flex-direction: column; height: 100%; }

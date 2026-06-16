@@ -44,9 +44,10 @@ export function CatalogView() {
   const runSaveSync = useCallback(
     async (game: Game, policy: ConflictPolicy): Promise<SyncReport> => {
       if (!session) throw new Error("sign in to sync saves");
-      return syncSaves(session.host, session.token, game.id, policy);
+      const savePath = prefs.prefs.savePaths[game.id] ?? "";
+      return syncSaves(session.host, session.token, game.id, policy, savePath);
     },
-    [session],
+    [session, prefs],
   );
 
   // Overlay the user's favorite/hidden/collection overrides onto the read-only
@@ -208,6 +209,8 @@ export function CatalogView() {
           canInstall={!!session}
           onSyncSaves={runSaveSync}
           canSync={!!session}
+          onSetSavePath={prefs.setSavePath}
+          savePathFor={(g) => prefs.prefs.savePaths[g.id] ?? ""}
         />
       )}
     </section>

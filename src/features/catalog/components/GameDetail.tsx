@@ -30,6 +30,10 @@ interface Props {
   onSyncSaves?: (game: Game, policy: ConflictPolicy) => Promise<SyncReport>;
   /** Whether a session is available to authorize a save sync. */
   canSync?: boolean;
+  /** Persist the game's local save-folder override (blank clears it). */
+  onSetSavePath?: (game: Game, path: string) => void;
+  /** The currently-configured save folder for a game (blank = managed folder). */
+  savePathFor?: (game: Game) => string;
 }
 
 function playtimeStr(seconds: number): string {
@@ -62,6 +66,8 @@ export function GameDetail({
   canInstall,
   onSyncSaves,
   canSync,
+  onSetSavePath,
+  savePathFor,
 }: Props) {
   const [pick, setPick] = useState<Game>(group.representative);
   const [fetching, setFetching] = useState(false);
@@ -71,6 +77,7 @@ export function GameDetail({
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
   const [syncConflicts, setSyncConflicts] = useState(0);
+  const [savePath, setSavePathState] = useState(savePathFor ? savePathFor(group.representative) : "");
   const [coverPath, setCoverPath] = useState(group.representative.coverArtPath);
   const game = group.representative;
   const cover = coverPath ? convertFileSrc(coverPath) : game.coverArtUrl;
@@ -277,6 +284,19 @@ export function GameDetail({
 
           {syncable && (
             <div className="detail__saves">
+              {onSetSavePath && (
+                <div className="detail__saves-folder">
+                  <span className="settings__label">Save folder</span>
+                  <input
+                    className="settings__input"
+                    value={savePath}
+                    onChange={(e) => setSavePathState(e.target.value)}
+                    onBlur={() => onSetSavePath(game, savePath)}
+                    placeholder="Leave blank to use the managed folder"
+                    spellCheck={false}
+                  />
+                </div>
+              )}
               <button
                 className="detail__fetch"
                 onClick={() => syncSaves("skip")}

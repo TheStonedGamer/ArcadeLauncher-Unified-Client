@@ -26,17 +26,20 @@ export interface SyncReport {
 /** How to settle same-time/different-size conflicts. */
 export type ConflictPolicy = "skip" | "preferLocal" | "preferRemote";
 
-/** Preview the sync (no transfer): how many files would upload/download/conflict. */
-export function planSaves(host: string, token: string, gameId: string): Promise<SyncSummary> {
-  return call("saves_plan", { host, token, gameId });
+/** Preview the sync (no transfer): how many files would upload/download/conflict.
+ *  `savePath` is the configured local save folder (blank → managed folder). */
+export function planSaves(host: string, token: string, gameId: string, savePath = ""): Promise<SyncSummary> {
+  return call("saves_plan", { host, token, gameId, savePath: savePath || null });
 }
 
-/** Run the sync. `policy` decides conflict handling (defaults to "skip"). */
+/** Run the sync. `policy` decides conflict handling (defaults to "skip");
+ *  `savePath` is the configured local save folder (blank → managed folder). */
 export function syncSaves(
   host: string,
   token: string,
   gameId: string,
   policy: ConflictPolicy = "skip",
+  savePath = "",
 ): Promise<SyncReport> {
-  return call("saves_sync", { host, token, gameId, policy });
+  return call("saves_sync", { host, token, gameId, policy, savePath: savePath || null });
 }

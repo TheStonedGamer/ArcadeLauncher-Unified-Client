@@ -10,6 +10,7 @@ import {
   addToCollection,
   emptyPrefs,
   removeFromCollection,
+  setSavePath,
   toggleFavorite,
   toggleHidden,
   type CatalogPrefs,
@@ -22,6 +23,7 @@ export interface CatalogPrefsApi {
   toggleHidden: (game: Game) => void;
   addToCollection: (game: Game, name: string) => void;
   removeFromCollection: (game: Game, name: string) => void;
+  setSavePath: (game: Game, path: string) => void;
 }
 
 export function useCatalogPrefs(): CatalogPrefsApi {
@@ -51,5 +53,6 @@ export function useCatalogPrefs(): CatalogPrefsApi {
     toggleHidden: (game) => mutate((p) => toggleHidden(p, game)),
     addToCollection: (game, name) => mutate((p) => addToCollection(p, game, name)),
     removeFromCollection: (game, name) => mutate((p) => removeFromCollection(p, game, name)),
+    setSavePath: (game, path) => mutate((p) => setSavePath(p, game, path)),
   };
 }

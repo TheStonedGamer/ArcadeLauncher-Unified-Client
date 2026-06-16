@@ -14,9 +14,12 @@ export interface CatalogPrefs {
   hidden: Record<string, boolean>;
   /** game id → full replacement collection list (present only when edited). */
   collections: Record<string, string[]>;
+  /** game id → absolute local save folder for cloud-save sync (present only
+   *  when set). Absent/empty means the managed app_data/saves/<id> folder. */
+  savePaths: Record<string, string>;
 }
 
-export const emptyPrefs: CatalogPrefs = { favorites: {}, hidden: {}, collections: {} };
+export const emptyPrefs: CatalogPrefs = { favorites: {}, hidden: {}, collections: {}, savePaths: {} };
 
 /** Effective favorite for a game: the override if set, else the catalog value. */
 export function effectiveFavorite(prefs: CatalogPrefs, game: Game): boolean {
@@ -52,6 +55,21 @@ export function applyPrefs(games: Game[], prefs: CatalogPrefs): Game[] {
       collections: cols !== undefined ? cols.join("\n") : g.collections,
     };
   });
+}
+
+/** Effective save folder for a game: the override if set, else "" (meaning the
+ *  managed folder is used). */
+export function effectiveSavePath(prefs: CatalogPrefs, game: Game): string {
+  return prefs.savePaths[game.id] ?? "";
+}
+
+/** Set (or clear, when blank) a game's save-folder override. */
+export function setSavePath(prefs: CatalogPrefs, game: Game, path: string): CatalogPrefs {
+  const trimmed = path.trim();
+  const next = { ...prefs.savePaths };
+  if (trimmed) next[game.id] = trimmed;
+  else delete next[game.id];
+  return { ...prefs, savePaths: next };
 }
 
 /** Toggle a game's favorite override to the opposite of its effective value. */
