@@ -151,8 +151,15 @@ the social/download features. Mirrors the server's `auth.rs`.
   never persisted/logged. Frontend `SessionProvider` holds the session in
   memory (host+username remembered, token in-memory only) + a `LoginPanel`
   sign-in modal and header account chip.
-- [ ] **TSb** Token storage (secure per-user) + auto-restore on launch +
-  session-expiry handling.
+- [x] **TSb** Token storage (per-user) + auto-restore on launch + expiry.
+  Pure `session::storage` (6 KATs): `StoredSession` model, `encode`/`decode`
+  obfuscating the token at rest with the existing HMAC-CTR keystream (no
+  plaintext token on disk; no OS-keychain dep, so Win/Linux stay identical),
+  and an `is_expired` decision. Thin `session::store` glue: atomic
+  `session_save`/`session_restore` (drops stale/expired/corrupt files)/
+  `session_clear`, keyed by a stable per-install seed (the app-config dir).
+  `SessionProvider` auto-restores a non-expired session on launch, saves on
+  login, clears on sign-out; token never touches localStorage.
 - [ ] **TSc** Wire the session host+token into the social live connection
   (unblocks social-live) and the download install trigger (unblocks T4d-3).
 
