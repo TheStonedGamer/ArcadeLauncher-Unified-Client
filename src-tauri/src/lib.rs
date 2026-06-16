@@ -3,6 +3,7 @@
 //! in `catalog/` and `launch/` so this file never grows.
 
 mod catalog;
+mod download;
 mod error;
 mod launch;
 mod settings;

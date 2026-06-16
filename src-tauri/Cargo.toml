@@ -25,7 +25,8 @@ thiserror = "2"
 tokio = { version = "1", features = ["sync", "time", "macros"] }
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
+sha2 = "0.10"
 
 # Desktop-only plugins (updater/process are not built for mobile targets).
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]

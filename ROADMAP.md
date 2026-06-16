@@ -50,10 +50,10 @@ verification, extraction, and a Steam-style queue. Server contract is the
 existing `/files/<id>/<rel>` ranged GET with `Authorization: Bearer` (+ `Range`),
 full-file SHA-256 verify, `..` path-traversal rejection.
 
-- [ ] **T4a** Pure download/manifest core (TS + Rust KATs): manifest model,
+- [x] **T4a** Pure download/manifest core (Rust KATs): manifest model,
   per-file target path resolution, path-traversal rejection, SHA-256 verify
   helper, progress/percent math, queue state machine (queued→downloading→
-  verifying→extracting→done/failed/paused). No IO.
+  verifying→extracting→done/failed/paused). No IO. (18 KATs)
 - [ ] **T4b** Rust transport: single resumable ranged GET per file → `.part` →
   verify → finalize; concurrency cap; bandwidth cap (KB/s from settings);
   emits progress events. NullSink-style seam so the core is testable.
