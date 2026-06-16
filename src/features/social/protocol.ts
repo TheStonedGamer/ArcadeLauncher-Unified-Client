@@ -97,5 +97,6 @@ export const outbound = {
   read: (to: number): string => JSON.stringify({ type: "read", to }),
   edit: (msgId: number, text: string): string => JSON.stringify({ type: "edit", msgId, text }),
   delete: (msgId: number): string => JSON.stringify({ type: "delete", msgId }),
-  react: (msgId: number, emoji: string): string => JSON.stringify({ type: "react", msgId, emoji }),
+  react: (msgId: number, emoji: string, on: boolean): string =>
+    JSON.stringify({ type: "react", msgId, emoji, on }),
 };

@@ -11,6 +11,7 @@ import { outbound } from "./protocol";
 import {
   applyFriendList,
   applyInbound,
+  applyReaction,
   initialSocialState,
   localEcho,
   markConversationRead,
@@ -38,6 +39,8 @@ export interface SocialApi {
   editMessage: (msgId: number, text: string) => void;
   /** Delete one of my own messages (optimistic tombstone + gateway send). */
   deleteMessage: (msgId: number) => void;
+  /** Toggle my reaction with `emoji` on a message (optimistic + gateway send). */
+  toggleReaction: (msgId: number, emoji: string) => void;
 }
 
 const EMPTY_CONV: Conversation = {
@@ -78,6 +81,10 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
   const [state, setState] = useState<GatewayState>("disconnected");
   const [selectedPeer, setSelectedPeer] = useState<number | null>(null);
   const gatewayRef = useRef<Gateway | null>(null);
+  // Latest state, read by toggleReaction to decide add-vs-remove without
+  // re-creating the callback on every frame.
+  const socialRef = useRef(social);
+  socialRef.current = social;
 
   const host = auth?.host ?? null;
   const token = auth?.token ?? null;
@@ -138,6 +145,24 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     gatewayRef.current?.send(outbound.delete(msgId));
   }, []);
 
+  const toggleReaction = useCallback((msgId: number, emoji: string) => {
+    if (!msgId || emoji === "") return;
+    const prev = socialRef.current;
+    const self = prev.selfId;
+    // Find the message to decide whether I'm toggling on or off.
+    let mine = false;
+    for (const conv of Object.values(prev.conversations)) {
+      const m = conv.messages.find((x) => x.messageId === msgId);
+      if (m) {
+        mine = m.reactions.some((r) => r.userId === self && r.emoji === emoji);
+        break;
+      }
+    }
+    const on = !mine;
+    setSocial((s) => applyReaction(s, msgId, self, emoji, on));
+    gatewayRef.current?.send(outbound.react(msgId, emoji, on));
+  }, []);
+
   const friends = useMemo(() => sortedFriends(social), [social]);
   const unreadTotal = useMemo(() => totalUnread(social), [social]);
   const conversation =
@@ -156,5 +181,6 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     notifyTyping,
     editMessage,
     deleteMessage,
+    toggleReaction,
   };
 }

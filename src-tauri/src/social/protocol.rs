@@ -146,8 +146,8 @@ pub mod outbound {
         json!({ "type": "delete", "msgId": msg_id }).to_string()
     }
 
-    pub fn react(msg_id: u64, emoji: &str) -> String {
-        json!({ "type": "react", "msgId": msg_id, "emoji": emoji }).to_string()
+    pub fn react(msg_id: u64, emoji: &str, on: bool) -> String {
+        json!({ "type": "react", "msgId": msg_id, "emoji": emoji, "on": on }).to_string()
     }
 }
 
@@ -253,7 +253,7 @@ mod tests {
         assert_eq!(outbound::chat(42, "hi"), r#"{"text":"hi","to":42,"type":"chat"}"#);
         assert_eq!(outbound::typing(42), r#"{"to":42,"type":"typing"}"#);
         assert_eq!(outbound::read(42), r#"{"to":42,"type":"read"}"#);
-        assert_eq!(outbound::react(7, "👍"), r#"{"emoji":"👍","msgId":7,"type":"react"}"#);
+        assert_eq!(outbound::react(7, "👍", true), r#"{"emoji":"👍","msgId":7,"on":true,"type":"react"}"#);
         assert_eq!(outbound::presence("away"), r#"{"state":"away","type":"presence"}"#);
     }
 }

@@ -361,6 +361,29 @@ body {
   width: 100%; min-width: 180px; background: var(--bg); color: var(--text);
   border: 1px solid var(--accent); border-radius: 6px; padding: 4px 6px; font-size: 13px;
 }
+/* Reaction picker popup (anchored under the "＋" action). */
+.msg__picker {
+  position: absolute; top: 20px; right: 0; z-index: 5; display: inline-flex; gap: 2px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 3px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.3);
+}
+.msg__picker-emoji {
+  border: none; background: transparent; cursor: pointer; font-size: 15px;
+  line-height: 1; padding: 3px 4px; border-radius: 5px;
+}
+.msg__picker-emoji:hover { background: var(--card-hover); }
+/* Reaction chips below the bubble. */
+.msg__reactions { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 4px 0; }
+.msg--mine .msg__reactions { justify-content: flex-end; }
+.msg__chip {
+  display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
+  background: var(--card); border: 1px solid var(--border); border-radius: 11px;
+  padding: 1px 7px; font-size: 12px; color: var(--text);
+}
+.msg__chip:hover { background: var(--card-hover); }
+.msg__chip--mine { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.msg__chip-count { color: var(--muted); font-size: 11px; }
+.msg__chip:disabled { cursor: default; }
 .msg--mine .msg__bubble { background: var(--accent); border-color: var(--accent); color: #fff; }
 .msg--pending .msg__bubble { opacity: .6; }
 .msg__deleted { color: var(--muted); font-style: italic; }

@@ -17,9 +17,10 @@ interface Props {
   onTyping: () => void;
   onEdit: (msgId: number, text: string) => void;
   onDelete: (msgId: number) => void;
+  onReact: (msgId: number, emoji: string) => void;
 }
 
-export function ChatPane({ peer, conversation, selfId, connected, onSend, onTyping, onEdit, onDelete }: Props) {
+export function ChatPane({ peer, conversation, selfId, connected, onSend, onTyping, onEdit, onDelete, onReact }: Props) {
   const endRef = useRef<HTMLDivElement>(null);
   const msgCount = conversation?.messages.length ?? 0;
 
@@ -57,8 +58,10 @@ export function ChatPane({ peer, conversation, selfId, connected, onSend, onTypi
               message={m}
               mine={m.senderId === selfId}
               read={m.messageId !== 0 && m.messageId <= conversation.readUpTo}
+              selfId={selfId}
               onEdit={onEdit}
               onDelete={onDelete}
+              onReact={onReact}
             />
           ))
         )}

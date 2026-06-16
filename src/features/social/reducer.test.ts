@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyFriendList,
   applyInbound,
+  applyReaction,
   initialSocialState,
   localEcho,
   markConversationRead,
@@ -178,14 +179,53 @@ describe("edit + delete", () => {
   });
 });
 
+describe("reactions", () => {
+  function withMsg(): SocialState {
+    return applyInbound(baseState(), { type: "chat", messageId: 7, senderId: 2, receiverId: 42, text: "hi", attachmentId: 0, timestamp: 1 }, NOW);
+  }
+
+  it("a reaction frame adds an (emoji,user) entry", () => {
+    const s = applyReaction(withMsg(), 7, 42, "👍", true);
+    expect(s.conversations[2].messages[0].reactions).toEqual([{ emoji: "👍", userId: 42 }]);
+  });
+
+  it("toggling the same reaction on is idempotent", () => {
+    let s = applyReaction(withMsg(), 7, 42, "👍", true);
+    s = applyReaction(s, 7, 42, "👍", true);
+    expect(s.conversations[2].messages[0].reactions).toHaveLength(1);
+  });
+
+  it("off removes only the matching (emoji,user)", () => {
+    let s = applyReaction(withMsg(), 7, 42, "👍", true);
+    s = applyReaction(s, 7, 2, "👍", true);
+    s = applyReaction(s, 7, 42, "👍", false);
+    expect(s.conversations[2].messages[0].reactions).toEqual([{ emoji: "👍", userId: 2 }]);
+  });
+
+  it("removing an absent reaction leaves the list empty", () => {
+    const s = applyReaction(withMsg(), 7, 42, "❤️", false);
+    expect(s.conversations[2].messages[0].reactions).toEqual([]);
+  });
+
+  it("ignores msgId 0 and empty emoji", () => {
+    const s = withMsg();
+    expect(applyReaction(s, 0, 42, "👍", true)).toBe(s);
+    expect(applyReaction(s, 7, 42, "", true)).toBe(s);
+  });
+
+  it("the inbound reaction frame routes through applyReaction", () => {
+    const s = applyInbound(withMsg(), { type: "reaction", messageId: 7, userId: 2, emoji: "🎉", on: true }, NOW);
+    expect(s.conversations[2].messages[0].reactions).toEqual([{ emoji: "🎉", userId: 2 }]);
+  });
+});
+
 describe("no-op frames", () => {
-  it("friend_* / reaction / pong / unknown return the same state reference", () => {
+  it("friend_* / pong / unknown return the same state reference", () => {
     const s = baseState();
     for (const msg of [
       { type: "friend_request", userId: 5 },
       { type: "friend_accepted", userId: 5 },
       { type: "friend_removed", userId: 5 },
-      { type: "reaction", messageId: 7, userId: 2, emoji: "👍", on: true },
       { type: "pong" },
       { type: "unknown" },
     ] as const) {

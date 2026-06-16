@@ -59,6 +59,13 @@ export interface Friend {
   lastInteract: number;
 }
 
+/** One emoji reaction by one user on one message (mirrors the server's
+ * social_message_reactions rows: { emoji, userId }). */
+export interface Reaction {
+  emoji: string;
+  userId: number;
+}
+
 export interface ChatMessage {
   messageId: number;
   senderId: number;
@@ -72,6 +79,8 @@ export interface ChatMessage {
   deleted: boolean;
   attachmentId: number;
   attachmentName: string;
+  /** Emoji reactions, one entry per (emoji,user). Server is authoritative. */
+  reactions: Reaction[];
 }
 
 export interface Conversation {

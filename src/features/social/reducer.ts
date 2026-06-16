@@ -97,6 +97,7 @@ export function localEcho(
     deleted: false,
     attachmentId: 0,
     attachmentName: "",
+    reactions: [],
   };
   const c = convOf(state, peerId);
   const conv = { ...c, messages: [...c.messages, message], peerTyping: false };
@@ -149,6 +150,31 @@ export function optimisticDelete(state: SocialState, msgId: number): SocialState
 }
 
 /**
+ * Toggle one (emoji,user) reaction on a message. `on` true adds it (idempotent —
+ * a duplicate is ignored), `on` false removes it. Used both for the server's
+ * authoritative `reaction` frame and for optimistic local echoes; replaying the
+ * same frame is a no-op so the two can't fight. Returns a possibly-new state.
+ */
+export function applyReaction(
+  state: SocialState,
+  msgId: number,
+  userId: number,
+  emoji: string,
+  on: boolean,
+): SocialState {
+  if (msgId === 0 || emoji === "") return state;
+  return editMessage(state, msgId, (m) => {
+    const has = m.reactions.some((r) => r.userId === userId && r.emoji === emoji);
+    if (on) {
+      return has ? m : { ...m, reactions: [...m.reactions, { emoji, userId }] };
+    }
+    return has
+      ? { ...m, reactions: m.reactions.filter((r) => !(r.userId === userId && r.emoji === emoji)) }
+      : m;
+  });
+}
+
+/**
  * Apply one inbound gateway frame, returning the next state. Pure: identical
  * input always yields identical output. `now` is injected (epoch ms) so typing
  * timeouts are deterministic in tests.
@@ -187,6 +213,7 @@ export function applyInbound(state: SocialState, msg: Inbound, now: number): Soc
         deleted: false,
         attachmentId: msg.attachmentId,
         attachmentName: "",
+        reactions: [],
       };
       const c = convOf(state, peer);
       // Resolve a pending echo (matched on sender+text+attachment) if present,
@@ -201,7 +228,7 @@ export function applyInbound(state: SocialState, msg: Inbound, now: number): Soc
           m.attachmentId === incoming.attachmentId
         ) {
           replaced = true;
-          return { ...incoming, attachmentName: m.attachmentName || incoming.attachmentName };
+          return { ...incoming, attachmentName: m.attachmentName || incoming.attachmentName, reactions: m.reactions };
         }
         return m;
       });
@@ -236,13 +263,15 @@ export function applyInbound(state: SocialState, msg: Inbound, now: number): Soc
     case "chat_delete":
       return editMessage(state, msg.messageId, (m) => ({ ...m, deleted: true }));
 
+    case "reaction":
+      return applyReaction(state, msg.messageId, msg.userId, msg.emoji, msg.on);
+
     // friend_* frames mean "re-pull /api/social/friends" — the hook handles the
-    // REST refresh; the pure reducer has nothing to mutate. reaction/pong/unknown
-    // carry no T3a state. All no-ops:
+    // REST refresh; the pure reducer has nothing to mutate. pong/unknown carry no
+    // T3a state. All no-ops:
     case "friend_request":
     case "friend_accepted":
     case "friend_removed":
-    case "reaction":
     case "pong":
     case "unknown":
       return state;

@@ -48,6 +48,7 @@ export function SocialView() {
             onTyping={social.notifyTyping}
             onEdit={social.editMessage}
             onDelete={social.deleteMessage}
+            onReact={social.toggleReaction}
           />
         </section>
       </div>

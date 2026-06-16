@@ -10,10 +10,14 @@ interface Props {
   message: ChatMessage;
   mine: boolean;
   read: boolean;
+  /** My own account id, so we can tell which reactions are mine. */
+  selfId: number;
   /** Save an edit to this message (absent → no edit affordance). */
   onEdit?: (msgId: number, text: string) => void;
   /** Delete this message (absent → no delete affordance). */
   onDelete?: (msgId: number) => void;
+  /** Toggle my reaction with `emoji` on this message (absent → no react UI). */
+  onReact?: (msgId: number, emoji: string) => void;
 }
 
 function clockTime(epochSecs: number): string {
@@ -21,13 +25,42 @@ function clockTime(epochSecs: number): string {
   return new Date(epochSecs * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export function MessageRow({ message, mine, read, onEdit, onDelete }: Props) {
+/** The small fixed palette offered by the "＋" reaction picker. */
+const REACTION_PALETTE = ["👍", "❤️", "😂", "🎉", "😮", "😢"];
+
+/** Group a message's reactions into { emoji, count, mine } for chip rendering. */
+function groupReactions(message: ChatMessage, selfId: number) {
+  const order: string[] = [];
+  const by = new Map<string, { count: number; mine: boolean }>();
+  for (const r of message.reactions) {
+    let e = by.get(r.emoji);
+    if (!e) {
+      e = { count: 0, mine: false };
+      by.set(r.emoji, e);
+      order.push(r.emoji);
+    }
+    e.count += 1;
+    if (r.userId === selfId) e.mine = true;
+  }
+  return order.map((emoji) => ({ emoji, ...by.get(emoji)! }));
+}
+
+export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onReact }: Props) {
   const [editing, setEditing] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [draft, setDraft] = useState(message.text);
 
   const cls = `msg${mine ? " msg--mine" : ""}${message.pending ? " msg--pending" : ""}`;
   // Only my own saved (id != 0), non-deleted messages can be mutated.
   const canMutate = mine && !message.pending && !message.deleted && message.messageId !== 0;
+  // Any saved, non-deleted message can be reacted to (mine or the peer's).
+  const reactable = !!onReact && !message.pending && !message.deleted && message.messageId !== 0;
+  const chips = groupReactions(message, selfId);
+
+  const react = (emoji: string) => {
+    onReact?.(message.messageId, emoji);
+    setPicking(false);
+  };
 
   const startEdit = () => {
     setDraft(message.text);
@@ -62,22 +95,51 @@ export function MessageRow({ message, mine, read, onEdit, onDelete }: Props) {
           <span className="msg__text">{message.text}</span>
         )}
         {message.editedAt > 0 && !message.deleted && !editing && <span className="msg__edited">(edited)</span>}
-        {canMutate && !editing && (onEdit || onDelete) && (
+        {!editing && (canMutate || reactable) && (
           <span className="msg__actions">
-            {onEdit && (
+            {reactable && (
+              <button className="msg__action" onClick={() => setPicking((p) => !p)} aria-label="Add reaction">
+                ＋
+              </button>
+            )}
+            {canMutate && onEdit && (
               <button className="msg__action" onClick={startEdit} aria-label="Edit message">
                 ✎
               </button>
             )}
-            {onDelete && (
-              // onMouseDown so it fires before the input's onBlur in edit mode.
+            {canMutate && onDelete && (
               <button className="msg__action" onClick={() => onDelete(message.messageId)} aria-label="Delete message">
                 🗑
               </button>
             )}
+            {picking && (
+              <span className="msg__picker">
+                {REACTION_PALETTE.map((emoji) => (
+                  <button key={emoji} className="msg__picker-emoji" onClick={() => react(emoji)} aria-label={`React ${emoji}`}>
+                    {emoji}
+                  </button>
+                ))}
+              </span>
+            )}
           </span>
         )}
       </div>
+      {chips.length > 0 && (
+        <div className="msg__reactions">
+          {chips.map((c) => (
+            <button
+              key={c.emoji}
+              className={`msg__chip${c.mine ? " msg__chip--mine" : ""}`}
+              onClick={() => onReact?.(message.messageId, c.emoji)}
+              disabled={!onReact}
+              aria-label={`${c.emoji} ${c.count}`}
+            >
+              <span className="msg__chip-emoji">{c.emoji}</span>
+              <span className="msg__chip-count">{c.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="msg__meta">
         <span className="msg__time">{clockTime(message.timestamp)}</span>
         {message.pending && <span className="msg__status">sending…</span>}
