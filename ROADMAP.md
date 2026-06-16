@@ -263,7 +263,13 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
 
 ## Phase T10 — Cutover
 
-- [ ] **T10a** Feature-parity audit against the native client checklist.
+- [x] **T10a** Feature-parity audit against the native client checklist — see
+  `PARITY.md`. Result: full parity **except voice chat** (only `voice_signal`
+  protocol stubs exist; no webview capture/playback/RTCPeerConnection). Voice is
+  the single gap → tracked as **T9g** below; does not block T10b since the C++
+  client stays live until T10c.
+- [ ] **T9g** Voice chat: `voice/` feature using getUserMedia + RTCPeerConnection
+  over the existing server `voice_signal` relay + audio gating.
 - [ ] **T10b** First signed release on both OSes (user adds signing secrets);
   publish `.deb`/AppImage/NSIS + `latest.json`.
 - [ ] **T10c** Switch users from the C++ client to the unified client; retire
