@@ -19,6 +19,7 @@ import { useCatalogPrefs } from "./useCatalogPrefs";
 import { applyPrefs } from "./prefs";
 import { useSession } from "../session/SessionContext";
 import { installGame } from "../download/api";
+import { syncSaves, type ConflictPolicy, type SyncReport } from "../saves/api";
 import type { Game } from "./types";
 
 export function CatalogView() {
@@ -34,6 +35,16 @@ export function CatalogView() {
     async (game: Game) => {
       if (!session) throw new Error("sign in to install");
       await installGame(session.host, session.token, game.id);
+    },
+    [session],
+  );
+
+  // Cloud-save sync (T8): diff the per-user save folder against the server and
+  // upload/download as needed, authed with the session token.
+  const runSaveSync = useCallback(
+    async (game: Game, policy: ConflictPolicy): Promise<SyncReport> => {
+      if (!session) throw new Error("sign in to sync saves");
+      return syncSaves(session.host, session.token, game.id, policy);
     },
     [session],
   );
@@ -195,6 +206,8 @@ export function CatalogView() {
           onRemoveCollection={prefs.removeFromCollection}
           onInstall={startInstall}
           canInstall={!!session}
+          onSyncSaves={runSaveSync}
+          canSync={!!session}
         />
       )}
     </section>

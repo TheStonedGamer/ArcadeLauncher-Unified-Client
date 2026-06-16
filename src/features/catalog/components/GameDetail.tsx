@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Game } from "../types";
+import type { ConflictPolicy, SyncReport } from "../../saves/api";
 import { yearOf, collectionsOf } from "../query";
 import { needsArt } from "../api";
 import { variantLabel, type VariantGroup } from "../variants";
@@ -24,6 +25,11 @@ interface Props {
   onInstall?: (game: Game) => Promise<void>;
   /** Whether a session is available to authorize the install. */
   canInstall?: boolean;
+  /** Sync this game's cloud saves with the chosen conflict policy. Absent for
+   *  non-server games. Resolves to a report of what was transferred. */
+  onSyncSaves?: (game: Game, policy: ConflictPolicy) => Promise<SyncReport>;
+  /** Whether a session is available to authorize a save sync. */
+  canSync?: boolean;
 }
 
 function playtimeStr(seconds: number): string {
@@ -54,12 +60,17 @@ export function GameDetail({
   onRemoveCollection,
   onInstall,
   canInstall,
+  onSyncSaves,
+  canSync,
 }: Props) {
   const [pick, setPick] = useState<Game>(group.representative);
   const [fetching, setFetching] = useState(false);
   const [fetchMsg, setFetchMsg] = useState("");
   const [installing, setInstalling] = useState(false);
   const [installMsg, setInstallMsg] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
+  const [syncConflicts, setSyncConflicts] = useState(0);
   const [coverPath, setCoverPath] = useState(group.representative.coverArtPath);
   const game = group.representative;
   const cover = coverPath ? convertFileSrc(coverPath) : game.coverArtUrl;
@@ -118,10 +129,32 @@ export function GameDetail({
     }
   };
 
+  const syncSaves = async (policy: ConflictPolicy) => {
+    if (!onSyncSaves) return;
+    setSyncing(true);
+    setSyncMsg("");
+    try {
+      const r = await onSyncSaves(game, policy);
+      setSyncConflicts(r.conflicts.length);
+      const parts: string[] = [];
+      if (r.uploaded) parts.push(`${r.uploaded} uploaded`);
+      if (r.downloaded) parts.push(`${r.downloaded} downloaded`);
+      if (r.conflicts.length) parts.push(`${r.conflicts.length} conflict${r.conflicts.length > 1 ? "s" : ""}`);
+      if (r.errors.length) parts.push(`${r.errors.length} failed`);
+      setSyncMsg(parts.length ? `Saves synced — ${parts.join(", ")}.` : "Saves already up to date ✓");
+    } catch (e) {
+      setSyncMsg(`Couldn't sync saves: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const rating = game.igdbRating >= 1 ? `${Math.round(game.igdbRating)}/100` : "";
   const hasVariants = group.members.length > 1;
   // Offer Install for server-backed games that aren't already installed.
   const installable = !!onInstall && pick.serverBacked && pick.installState !== "installed";
+  // Offer cloud-save sync for any server-backed game.
+  const syncable = !!onSyncSaves && pick.serverBacked;
 
   return (
     <div className="detail-backdrop" onClick={onClose}>
@@ -239,6 +272,31 @@ export function GameDetail({
                 {installing ? "Starting…" : canInstall ? "⬇ Install" : "⬇ Sign in to install"}
               </button>
               {installMsg && <span className="detail__fetchmsg">{installMsg}</span>}
+            </div>
+          )}
+
+          {syncable && (
+            <div className="detail__saves">
+              <button
+                className="detail__fetch"
+                onClick={() => syncSaves("skip")}
+                disabled={syncing || !canSync}
+                title={canSync ? "" : "Sign in to sync saves"}
+              >
+                {syncing ? "Syncing…" : canSync ? "☁ Sync saves" : "☁ Sign in to sync saves"}
+              </button>
+              {syncConflicts > 0 && !syncing && (
+                <div className="detail__saves-resolve">
+                  <span className="detail__fetchmsg">Conflict — pick a side:</span>
+                  <button className="detail__fetch" onClick={() => syncSaves("preferLocal")} disabled={syncing}>
+                    Keep my saves
+                  </button>
+                  <button className="detail__fetch" onClick={() => syncSaves("preferRemote")} disabled={syncing}>
+                    Keep server saves
+                  </button>
+                </div>
+              )}
+              {syncMsg && <span className="detail__fetchmsg">{syncMsg}</span>}
             </div>
           )}
 
