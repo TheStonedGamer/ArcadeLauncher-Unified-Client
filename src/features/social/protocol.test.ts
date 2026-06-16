@@ -9,7 +9,7 @@ describe("parseInbound", () => {
   it("parses a chat frame", () => {
     expect(
       parseInbound(
-        '{"type":"chat","messageId":7,"senderId":2,"receiverId":42,"text":"hi","attachmentId":0,"timestamp":1700000000}',
+        '{"type":"chat","messageId":7,"senderId":2,"receiverId":42,"text":"hi","attachmentId":0,"replyTo":3,"timestamp":1700000000}',
       ),
     ).toEqual({
       type: "chat",
@@ -18,6 +18,7 @@ describe("parseInbound", () => {
       receiverId: 42,
       text: "hi",
       attachmentId: 0,
+      replyTo: 3,
       timestamp: 1700000000,
     });
   });

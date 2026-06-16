@@ -81,9 +81,9 @@ describe("requests + counts", () => {
 
   it("totalUnread sums conversation unread counts", () => {
     let s = withFriends([friend({ accountId: 2 }), friend({ accountId: 3 })]);
-    s = applyInbound(s, { type: "chat", messageId: 1, senderId: 2, receiverId: 42, text: "a", attachmentId: 0, timestamp: 1 }, NOW);
-    s = applyInbound(s, { type: "chat", messageId: 2, senderId: 3, receiverId: 42, text: "b", attachmentId: 0, timestamp: 1 }, NOW);
-    s = applyInbound(s, { type: "chat", messageId: 3, senderId: 3, receiverId: 42, text: "c", attachmentId: 0, timestamp: 1 }, NOW);
+    s = applyInbound(s, { type: "chat", messageId: 1, senderId: 2, receiverId: 42, text: "a", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
+    s = applyInbound(s, { type: "chat", messageId: 2, senderId: 3, receiverId: 42, text: "b", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
+    s = applyInbound(s, { type: "chat", messageId: 3, senderId: 3, receiverId: 42, text: "c", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
     expect(totalUnread(s)).toBe(3);
   });
 });

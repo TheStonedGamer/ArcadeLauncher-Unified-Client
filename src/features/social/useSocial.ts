@@ -41,6 +41,10 @@ export interface SocialApi {
   deleteMessage: (msgId: number) => void;
   /** Toggle my reaction with `emoji` on a message (optimistic + gateway send). */
   toggleReaction: (msgId: number, emoji: string) => void;
+  /** The message the composer is currently replying to (0 = none). */
+  replyTo: number;
+  /** Set/clear the reply target. */
+  setReplyTo: (msgId: number) => void;
 }
 
 const EMPTY_CONV: Conversation = {
@@ -80,6 +84,7 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
   const [social, setSocial] = useState<SocialState>(initialSocialState);
   const [state, setState] = useState<GatewayState>("disconnected");
   const [selectedPeer, setSelectedPeer] = useState<number | null>(null);
+  const [replyTo, setReplyTo] = useState(0);
   const gatewayRef = useRef<Gateway | null>(null);
   // Latest state, read by toggleReaction to decide add-vs-remove without
   // re-creating the callback on every frame.
@@ -110,6 +115,7 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
 
   const select = useCallback((peerId: number | null) => {
     setSelectedPeer(peerId);
+    setReplyTo(0); // a reply target is per-conversation; clear on switch.
     if (peerId != null) {
       setSocial((prev) => markConversationRead(prev, peerId));
       // Tell the server we've read this conversation.
@@ -122,10 +128,12 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
       const peer = selectedPeer;
       const trimmed = text.trim();
       if (peer == null || trimmed === "") return;
-      setSocial((prev) => localEcho(prev, peer, trimmed, Date.now()).state);
-      gatewayRef.current?.send(outbound.chat(peer, trimmed));
+      const rt = replyTo;
+      setSocial((prev) => localEcho(prev, peer, trimmed, Date.now(), rt).state);
+      gatewayRef.current?.send(outbound.chat(peer, trimmed, rt));
+      setReplyTo(0); // consumed.
     },
-    [selectedPeer],
+    [selectedPeer, replyTo],
   );
 
   const notifyTyping = useCallback(() => {
@@ -182,5 +190,7 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     editMessage,
     deleteMessage,
     toggleReaction,
+    replyTo,
+    setReplyTo,
   };
 }

@@ -384,6 +384,23 @@ body {
 .msg__chip--mine { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); }
 .msg__chip-count { color: var(--muted); font-size: 11px; }
 .msg__chip:disabled { cursor: default; }
+/* Quoted parent shown above a reply's text. */
+.msg__quote {
+  border-left: 3px solid var(--accent); padding: 2px 8px; margin-bottom: 4px;
+  font-size: 12px; color: var(--muted); opacity: .85;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px;
+}
+.msg--mine .msg__quote { border-left-color: rgba(255,255,255,.6); color: rgba(255,255,255,.85); }
+/* Reply bar above the composer. */
+.chatpane__replybar {
+  display: flex; align-items: center; gap: 8px; padding: 6px 16px;
+  border-top: 1px solid var(--border); background: var(--card); font-size: 12px; color: var(--muted);
+}
+.chatpane__replybar-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chatpane__replybar-cancel {
+  border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 4px;
+}
+.chatpane__replybar-cancel:hover { background: var(--card-hover); color: var(--text); }
 .msg--mine .msg__bubble { background: var(--accent); border-color: var(--accent); color: #fff; }
 .msg--pending .msg__bubble { opacity: .6; }
 .msg__deleted { color: var(--muted); font-style: italic; }

@@ -18,9 +18,22 @@ interface Props {
   onEdit: (msgId: number, text: string) => void;
   onDelete: (msgId: number) => void;
   onReact: (msgId: number, emoji: string) => void;
+  onReply: (msgId: number) => void;
+  /** The message currently being replied to (0 = none). */
+  replyTo: number;
+  /** Cancel the pending reply. */
+  onCancelReply: () => void;
 }
 
-export function ChatPane({ peer, conversation, selfId, connected, onSend, onTyping, onEdit, onDelete, onReact }: Props) {
+/** Shorten a parent message to a one-line reply quote. */
+function snippet(text: string): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  return t.length > 80 ? `${t.slice(0, 80)}…` : t;
+}
+
+export function ChatPane({
+  peer, conversation, selfId, connected, onSend, onTyping, onEdit, onDelete, onReact, onReply, replyTo, onCancelReply,
+}: Props) {
   const endRef = useRef<HTMLDivElement>(null);
   const msgCount = conversation?.messages.length ?? 0;
 
@@ -35,6 +48,13 @@ export function ChatPane({ peer, conversation, selfId, connected, onSend, onTypi
       </div>
     );
   }
+
+  // messageId → snippet, so a reply can quote its parent inline.
+  const textById = new Map<number, string>();
+  for (const m of conversation.messages) {
+    if (m.messageId !== 0 && !m.deleted) textById.set(m.messageId, snippet(m.text));
+  }
+  const replyParent = replyTo > 0 ? textById.get(replyTo) ?? "a message" : "";
 
   return (
     <div className="chatpane">
@@ -62,6 +82,8 @@ export function ChatPane({ peer, conversation, selfId, connected, onSend, onTypi
               onEdit={onEdit}
               onDelete={onDelete}
               onReact={onReact}
+              onReply={onReply}
+              replyPreview={m.replyTo > 0 ? textById.get(m.replyTo) : undefined}
             />
           ))
         )}
@@ -70,6 +92,15 @@ export function ChatPane({ peer, conversation, selfId, connected, onSend, onTypi
         )}
         <div ref={endRef} />
       </div>
+
+      {replyTo > 0 && (
+        <div className="chatpane__replybar">
+          <span className="chatpane__replybar-text">Replying to: {replyParent}</span>
+          <button className="chatpane__replybar-cancel" onClick={onCancelReply} aria-label="Cancel reply">
+            ✕
+          </button>
+        </div>
+      )}
 
       <Composer
         disabled={!connected}

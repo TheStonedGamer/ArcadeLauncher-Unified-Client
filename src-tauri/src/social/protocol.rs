@@ -47,6 +47,8 @@ pub enum Inbound {
         #[serde(default)]
         attachment_id: u64,
         #[serde(default)]
+        reply_to: u64,
+        #[serde(default)]
         timestamp: i64,
     },
     /// Peer read my outgoing messages up to `up_to_id`.
@@ -126,8 +128,12 @@ pub mod outbound {
         json!({ "type": "presence", "state": "ingame", "gameId": game_id }).to_string()
     }
 
-    pub fn chat(to: u64, text: &str) -> String {
-        json!({ "type": "chat", "to": to, "text": text }).to_string()
+    pub fn chat(to: u64, text: &str, reply_to: u64) -> String {
+        if reply_to > 0 {
+            json!({ "type": "chat", "to": to, "text": text, "replyTo": reply_to }).to_string()
+        } else {
+            json!({ "type": "chat", "to": to, "text": text }).to_string()
+        }
     }
 
     pub fn typing(to: u64) -> String {
@@ -165,7 +171,7 @@ mod tests {
 
     #[test]
     fn parses_chat_frame() {
-        let f = r#"{"type":"chat","messageId":7,"senderId":2,"receiverId":42,"text":"hi","attachmentId":0,"timestamp":1700000000}"#;
+        let f = r#"{"type":"chat","messageId":7,"senderId":2,"receiverId":42,"text":"hi","attachmentId":0,"replyTo":3,"timestamp":1700000000}"#;
         assert_eq!(
             Inbound::parse(f),
             Some(Inbound::Chat {
@@ -174,6 +180,7 @@ mod tests {
                 receiver_id: 42,
                 text: "hi".into(),
                 attachment_id: 0,
+                reply_to: 3,
                 timestamp: 1700000000,
             })
         );
@@ -250,7 +257,8 @@ mod tests {
     #[test]
     fn outbound_shapes_match_cpp() {
         assert_eq!(outbound::ping(), r#"{"type":"ping"}"#);
-        assert_eq!(outbound::chat(42, "hi"), r#"{"text":"hi","to":42,"type":"chat"}"#);
+        assert_eq!(outbound::chat(42, "hi", 0), r#"{"text":"hi","to":42,"type":"chat"}"#);
+        assert_eq!(outbound::chat(42, "hi", 3), r#"{"replyTo":3,"text":"hi","to":42,"type":"chat"}"#);
         assert_eq!(outbound::typing(42), r#"{"to":42,"type":"typing"}"#);
         assert_eq!(outbound::read(42), r#"{"to":42,"type":"read"}"#);
         assert_eq!(outbound::react(7, "👍", true), r#"{"emoji":"👍","msgId":7,"on":true,"type":"react"}"#);

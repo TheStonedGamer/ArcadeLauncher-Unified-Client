@@ -49,6 +49,9 @@ export function SocialView() {
             onEdit={social.editMessage}
             onDelete={social.deleteMessage}
             onReact={social.toggleReaction}
+            onReply={social.setReplyTo}
+            replyTo={social.replyTo}
+            onCancelReply={() => social.setReplyTo(0)}
           />
         </section>
       </div>

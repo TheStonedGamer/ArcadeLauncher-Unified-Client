@@ -84,6 +84,7 @@ export function localEcho(
   peerId: number,
   text: string,
   now: number,
+  replyTo = 0,
 ): { state: SocialState; message: ChatMessage } {
   const message: ChatMessage = {
     messageId: 0,
@@ -98,6 +99,7 @@ export function localEcho(
     attachmentId: 0,
     attachmentName: "",
     reactions: [],
+    replyTo,
   };
   const c = convOf(state, peerId);
   const conv = { ...c, messages: [...c.messages, message], peerTyping: false };
@@ -214,6 +216,7 @@ export function applyInbound(state: SocialState, msg: Inbound, now: number): Soc
         attachmentId: msg.attachmentId,
         attachmentName: "",
         reactions: [],
+        replyTo: msg.replyTo,
       };
       const c = convOf(state, peer);
       // Resolve a pending echo (matched on sender+text+attachment) if present,

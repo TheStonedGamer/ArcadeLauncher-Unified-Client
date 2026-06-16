@@ -9,7 +9,7 @@ export type Inbound =
   | { type: "pong" }
   | { type: "presence"; userId: number; state: string; gameId: string; gameTitle: string }
   | { type: "typing"; fromId: number }
-  | { type: "chat"; messageId: number; senderId: number; receiverId: number; text: string; attachmentId: number; timestamp: number }
+  | { type: "chat"; messageId: number; senderId: number; receiverId: number; text: string; attachmentId: number; replyTo: number; timestamp: number }
   | { type: "read"; readerId: number; upToId: number }
   | { type: "chat_edit"; messageId: number; text: string; editedAt: number }
   | { type: "chat_delete"; messageId: number }
@@ -59,6 +59,7 @@ export function parseInbound(utf8: string): Inbound | null {
         receiverId: num(v.receiverId),
         text: str(v.text),
         attachmentId: num(v.attachmentId),
+        replyTo: num(v.replyTo),
         timestamp: num(v.timestamp),
       };
     case "read":
@@ -92,7 +93,8 @@ export const outbound = {
   resume: (afterMsgId: number): string => JSON.stringify({ type: "resume", afterMsgId }),
   presence: (state: string): string => JSON.stringify({ type: "presence", state }),
   presenceInGame: (gameId: string): string => JSON.stringify({ type: "presence", state: "ingame", gameId }),
-  chat: (to: number, text: string): string => JSON.stringify({ type: "chat", to, text }),
+  chat: (to: number, text: string, replyTo = 0): string =>
+    replyTo > 0 ? JSON.stringify({ type: "chat", to, text, replyTo }) : JSON.stringify({ type: "chat", to, text }),
   typing: (to: number): string => JSON.stringify({ type: "typing", to }),
   read: (to: number): string => JSON.stringify({ type: "read", to }),
   edit: (msgId: number, text: string): string => JSON.stringify({ type: "edit", msgId, text }),

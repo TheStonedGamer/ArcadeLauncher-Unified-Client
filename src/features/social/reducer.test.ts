@@ -87,6 +87,7 @@ describe("chat", () => {
       receiverId: 42,
       text: "hi",
       attachmentId: 0,
+      replyTo: 0,
       timestamp: 1,
     }, NOW);
     const conv = s.conversations[2];
@@ -105,6 +106,7 @@ describe("chat", () => {
       receiverId: 2,
       text: "yo",
       attachmentId: 0,
+      replyTo: 0,
       timestamp: 1,
     }, NOW);
     const conv = s.conversations[2];
@@ -116,12 +118,27 @@ describe("chat", () => {
   it("an inbound chat clears the peer-typing indicator", () => {
     let s = applyInbound(baseState(), { type: "typing", fromId: 2 }, NOW);
     expect(s.conversations[2].peerTyping).toBe(true);
-    s = applyInbound(s, { type: "chat", messageId: 9, senderId: 2, receiverId: 42, text: "x", attachmentId: 0, timestamp: 1 }, NOW);
+    s = applyInbound(s, { type: "chat", messageId: 9, senderId: 2, receiverId: 42, text: "x", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
     expect(s.conversations[2].peerTyping).toBe(false);
   });
 
+  it("inbound chat carries replyTo onto the message", () => {
+    const s = applyInbound(baseState(), { type: "chat", messageId: 7, senderId: 2, receiverId: 42, text: "re", attachmentId: 0, replyTo: 3, timestamp: 1 }, NOW);
+    expect(s.conversations[2].messages[0].replyTo).toBe(3);
+  });
+
+  it("localEcho stamps a reply target on the optimistic message", () => {
+    const echo = localEcho(baseState(), 2, "yo", NOW, 5);
+    expect(echo.message.replyTo).toBe(5);
+  });
+
+  it("localEcho defaults replyTo to 0 when omitted", () => {
+    const echo = localEcho(baseState(), 2, "yo", NOW);
+    expect(echo.message.replyTo).toBe(0);
+  });
+
   it("markConversationRead clears unread", () => {
-    let s = applyInbound(baseState(), { type: "chat", messageId: 7, senderId: 2, receiverId: 42, text: "hi", attachmentId: 0, timestamp: 1 }, NOW);
+    let s = applyInbound(baseState(), { type: "chat", messageId: 7, senderId: 2, receiverId: 42, text: "hi", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
     s = markConversationRead(s, 2);
     expect(s.conversations[2].unread).toBe(0);
   });
@@ -132,7 +149,7 @@ describe("read receipts", () => {
     // Three acked outgoing messages (ids 8, 10, 12).
     let s = baseState();
     for (const id of [8, 10, 12]) {
-      s = applyInbound(s, { type: "chat", messageId: id, senderId: 42, receiverId: 2, text: `m${id}`, attachmentId: 0, timestamp: 1 }, NOW);
+      s = applyInbound(s, { type: "chat", messageId: id, senderId: 42, receiverId: 2, text: `m${id}`, attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
     }
     // Peer read up to id 10 — the read marker is readUpTo (per the C++ client,
     // outgoing messages carry isRead=true from creation).
@@ -148,32 +165,32 @@ describe("read receipts", () => {
 
 describe("edit + delete", () => {
   it("chat_edit rewrites text and stamps editedAt", () => {
-    let s = applyInbound(baseState(), { type: "chat", messageId: 7, senderId: 2, receiverId: 42, text: "old", attachmentId: 0, timestamp: 1 }, NOW);
+    let s = applyInbound(baseState(), { type: "chat", messageId: 7, senderId: 2, receiverId: 42, text: "old", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
     s = applyInbound(s, { type: "chat_edit", messageId: 7, text: "new", editedAt: 999 }, NOW);
     expect(s.conversations[2].messages[0]).toMatchObject({ text: "new", editedAt: 999 });
   });
 
   it("chat_delete tombstones the message", () => {
-    let s = applyInbound(baseState(), { type: "chat", messageId: 7, senderId: 2, receiverId: 42, text: "secret", attachmentId: 0, timestamp: 1 }, NOW);
+    let s = applyInbound(baseState(), { type: "chat", messageId: 7, senderId: 2, receiverId: 42, text: "secret", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
     s = applyInbound(s, { type: "chat_delete", messageId: 7 }, NOW);
     expect(s.conversations[2].messages[0].deleted).toBe(true);
   });
 
   it("optimisticEdit updates my message text and stamps editedAt before the echo", () => {
-    let s = applyInbound(baseState(), { type: "chat", messageId: 9, senderId: 42, receiverId: 2, text: "typo", attachmentId: 0, timestamp: 1 }, NOW);
+    let s = applyInbound(baseState(), { type: "chat", messageId: 9, senderId: 42, receiverId: 2, text: "typo", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
     s = optimisticEdit(s, 9, "  fixed  ", NOW);
     expect(s.conversations[2].messages[0]).toMatchObject({ text: "fixed", deleted: false });
     expect(s.conversations[2].messages[0].editedAt).toBeGreaterThan(0);
   });
 
   it("optimisticEdit ignores empty text and unsaved (id 0) messages", () => {
-    const s = applyInbound(baseState(), { type: "chat", messageId: 9, senderId: 42, receiverId: 2, text: "keep", attachmentId: 0, timestamp: 1 }, NOW);
+    const s = applyInbound(baseState(), { type: "chat", messageId: 9, senderId: 42, receiverId: 2, text: "keep", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
     expect(optimisticEdit(s, 9, "   ", NOW)).toBe(s);
     expect(optimisticEdit(s, 0, "x", NOW)).toBe(s);
   });
 
   it("optimisticDelete tombstones my message before the echo", () => {
-    let s = applyInbound(baseState(), { type: "chat", messageId: 9, senderId: 42, receiverId: 2, text: "oops", attachmentId: 0, timestamp: 1 }, NOW);
+    let s = applyInbound(baseState(), { type: "chat", messageId: 9, senderId: 42, receiverId: 2, text: "oops", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
     s = optimisticDelete(s, 9);
     expect(s.conversations[2].messages[0].deleted).toBe(true);
   });
@@ -181,7 +198,7 @@ describe("edit + delete", () => {
 
 describe("reactions", () => {
   function withMsg(): SocialState {
-    return applyInbound(baseState(), { type: "chat", messageId: 7, senderId: 2, receiverId: 42, text: "hi", attachmentId: 0, timestamp: 1 }, NOW);
+    return applyInbound(baseState(), { type: "chat", messageId: 7, senderId: 2, receiverId: 42, text: "hi", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
   }
 
   it("a reaction frame adds an (emoji,user) entry", () => {

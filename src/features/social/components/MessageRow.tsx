@@ -18,6 +18,10 @@ interface Props {
   onDelete?: (msgId: number) => void;
   /** Toggle my reaction with `emoji` on this message (absent → no react UI). */
   onReact?: (msgId: number, emoji: string) => void;
+  /** Start a reply to this message (absent → no reply affordance). */
+  onReply?: (msgId: number) => void;
+  /** Snippet of the message this one replies to (absent → no quote shown). */
+  replyPreview?: string;
 }
 
 function clockTime(epochSecs: number): string {
@@ -45,7 +49,7 @@ function groupReactions(message: ChatMessage, selfId: number) {
   return order.map((emoji) => ({ emoji, ...by.get(emoji)! }));
 }
 
-export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onReact }: Props) {
+export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onReact, onReply, replyPreview }: Props) {
   const [editing, setEditing] = useState(false);
   const [picking, setPicking] = useState(false);
   const [draft, setDraft] = useState(message.text);
@@ -53,8 +57,9 @@ export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onRe
   const cls = `msg${mine ? " msg--mine" : ""}${message.pending ? " msg--pending" : ""}`;
   // Only my own saved (id != 0), non-deleted messages can be mutated.
   const canMutate = mine && !message.pending && !message.deleted && message.messageId !== 0;
-  // Any saved, non-deleted message can be reacted to (mine or the peer's).
+  // Any saved, non-deleted message can be reacted to / replied to (mine or peer's).
   const reactable = !!onReact && !message.pending && !message.deleted && message.messageId !== 0;
+  const replyable = !!onReply && !message.pending && !message.deleted && message.messageId !== 0;
   const chips = groupReactions(message, selfId);
 
   const react = (emoji: string) => {
@@ -76,6 +81,9 @@ export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onRe
   return (
     <div className={cls}>
       <div className="msg__bubble">
+        {message.replyTo > 0 && !message.deleted && (
+          <div className="msg__quote">{replyPreview ?? "replying to a message"}</div>
+        )}
         {message.deleted ? (
           <span className="msg__deleted">message deleted</span>
         ) : editing ? (
@@ -95,11 +103,16 @@ export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onRe
           <span className="msg__text">{message.text}</span>
         )}
         {message.editedAt > 0 && !message.deleted && !editing && <span className="msg__edited">(edited)</span>}
-        {!editing && (canMutate || reactable) && (
+        {!editing && (canMutate || reactable || replyable) && (
           <span className="msg__actions">
             {reactable && (
               <button className="msg__action" onClick={() => setPicking((p) => !p)} aria-label="Add reaction">
                 ＋
+              </button>
+            )}
+            {replyable && (
+              <button className="msg__action" onClick={() => onReply!(message.messageId)} aria-label="Reply">
+                ↩
               </button>
             )}
             {canMutate && onEdit && (

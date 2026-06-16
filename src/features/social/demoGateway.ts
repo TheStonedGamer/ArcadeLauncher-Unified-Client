@@ -36,6 +36,7 @@ export class DemoGateway implements Gateway {
           receiverId: SELF_ID,
           text: "yo! got the new build working?",
           attachmentId: 0,
+          replyTo: 0,
           timestamp: Math.floor(Date.now() / 1000),
         });
       }, 1200);
@@ -54,11 +55,11 @@ export class DemoGateway implements Gateway {
     const peer = msg.to;
     const id = Math.floor(Math.random() * 1_000_000) + 1000;
     setTimeout(() => {
-      this.frameCb({ type: "chat", messageId: id, senderId: SELF_ID, receiverId: peer, text: msg.text ?? "", attachmentId: 0, timestamp: Math.floor(Date.now() / 1000) });
+      this.frameCb({ type: "chat", messageId: id, senderId: SELF_ID, receiverId: peer, text: msg.text ?? "", attachmentId: 0, replyTo: 0, timestamp: Math.floor(Date.now() / 1000) });
       this.frameCb({ type: "read", readerId: peer, upToId: id });
       setTimeout(() => this.frameCb({ type: "typing", fromId: peer }), 600);
       setTimeout(() => {
-        this.frameCb({ type: "chat", messageId: id + 1, senderId: peer, receiverId: SELF_ID, text: "nice 🎮", attachmentId: 0, timestamp: Math.floor(Date.now() / 1000) });
+        this.frameCb({ type: "chat", messageId: id + 1, senderId: peer, receiverId: SELF_ID, text: "nice 🎮", attachmentId: 0, replyTo: 0, timestamp: Math.floor(Date.now() / 1000) });
       }, 1800);
     }, 300);
   }

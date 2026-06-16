@@ -81,6 +81,8 @@ export interface ChatMessage {
   attachmentName: string;
   /** Emoji reactions, one entry per (emoji,user). Server is authoritative. */
   reactions: Reaction[];
+  /** messageId this is a reply to (0 = not a reply). */
+  replyTo: number;
 }
 
 export interface Conversation {
