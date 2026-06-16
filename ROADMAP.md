@@ -230,7 +230,14 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
   (a3f76b3): `tauri-plugin-dialog` file picker, Composer paperclip, clickable
   attachment chips in `MessageRow`, hook `sendAttachment`/`openAttachment`.
   Green both OSes (CI 27653114962).
-- [ ] **T9d** User profiles (banner, bio, level/XP).
+- [x] **T9d** User profiles (banner, bio, level/XP). **T9d-1** (7f368f6) pure
+  `profile.ts` mirroring the server's `level_for_xp = floor(sqrt(xp/100))`
+  (levelForXp/xpForLevel/levelProgress; 7 vitest). **T9d-2** (25c5424) Rust
+  `social_profile_get`/`social_profile_update` + Endpoint profile URLs. **T9d-3**
+  (59c3983) profile overlay: banner, initial avatar, level badge + XP bar, bio;
+  own profile editable (banner/bio Save). Opened from a clickable peer name or a
+  "My profile" button. No public per-user avatar endpoint, so initials are used.
+  Green both OSes.
 - [ ] **T9e** Friend organization (groups, notes, search).
 - [ ] **T9f** Presence depth (custom status, DND, idle); DM privacy + ignore.
 
