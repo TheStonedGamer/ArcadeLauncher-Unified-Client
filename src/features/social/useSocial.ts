@@ -4,9 +4,12 @@
 // glue. The gateway is injected so T3b can swap NullGateway for the real one.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { NullGateway, type Gateway, type GatewayState } from "./gateway";
 import { DemoGateway } from "./demoGateway";
 import { WsGateway } from "./wsGateway";
+import { attachmentLink, uploadAttachment } from "./api";
 import { outbound } from "./protocol";
 import {
   applyFriendList,
@@ -45,6 +48,12 @@ export interface SocialApi {
   replyTo: number;
   /** Set/clear the reply target. */
   setReplyTo: (msgId: number) => void;
+  /** Whether DM attachments are available (needs a live, signed-in session). */
+  attachEnabled: boolean;
+  /** Pick a file and send it to the selected peer as an attachment. */
+  sendAttachment: () => void;
+  /** Resolve + open an attachment's download URL in the OS default handler. */
+  openAttachment: (attachmentId: number) => void;
 }
 
 const EMPTY_CONV: Conversation = {
@@ -136,6 +145,44 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     [selectedPeer, replyTo],
   );
 
+  const attachEnabled = !!(host && token);
+
+  const sendAttachment = useCallback(() => {
+    const peer = selectedPeer;
+    if (peer == null || !host || !token) return;
+    const rt = replyTo;
+    void (async () => {
+      try {
+        const picked = await openFileDialog({ multiple: false, directory: false });
+        const path = typeof picked === "string" ? picked : null;
+        if (!path) return;
+        const up = await uploadAttachment(host, token, path);
+        // Optimistic echo (empty text, attachment rides along); the acked frame
+        // resolves it (matched on sender + text + attachmentId — see reducer).
+        setSocial((prev) => localEcho(prev, peer, "", Date.now(), rt, up.attachmentId, up.filename).state);
+        gatewayRef.current?.send(outbound.chat(peer, "", rt, up.attachmentId));
+        setReplyTo(0);
+      } catch (e) {
+        console.error("attachment send failed", e);
+      }
+    })();
+  }, [selectedPeer, replyTo, host, token]);
+
+  const openAttachment = useCallback(
+    (attachmentId: number) => {
+      if (!attachmentId || !host || !token) return;
+      void (async () => {
+        try {
+          const link = await attachmentLink(host, token, attachmentId);
+          if (link.downloadUrl) await openUrl(link.downloadUrl);
+        } catch (e) {
+          console.error("open attachment failed", e);
+        }
+      })();
+    },
+    [host, token],
+  );
+
   const notifyTyping = useCallback(() => {
     if (selectedPeer != null) gatewayRef.current?.send(outbound.typing(selectedPeer));
   }, [selectedPeer]);
@@ -192,5 +239,8 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     toggleReaction,
     replyTo,
     setReplyTo,
+    attachEnabled,
+    sendAttachment,
+    openAttachment,
   };
 }

@@ -52,6 +52,8 @@ export function SocialView() {
             onReply={social.setReplyTo}
             replyTo={social.replyTo}
             onCancelReply={() => social.setReplyTo(0)}
+            onAttach={social.attachEnabled ? social.sendAttachment : undefined}
+            onOpenAttachment={social.attachEnabled ? social.openAttachment : undefined}
           />
         </section>
       </div>

@@ -22,6 +22,8 @@ interface Props {
   onReply?: (msgId: number) => void;
   /** Snippet of the message this one replies to (absent → no quote shown). */
   replyPreview?: string;
+  /** Open this message's attachment by id (absent → chip is inert). */
+  onOpenAttachment?: (attachmentId: number) => void;
 }
 
 function clockTime(epochSecs: number): string {
@@ -49,7 +51,7 @@ function groupReactions(message: ChatMessage, selfId: number) {
   return order.map((emoji) => ({ emoji, ...by.get(emoji)! }));
 }
 
-export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onReact, onReply, replyPreview }: Props) {
+export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onReact, onReply, replyPreview, onOpenAttachment }: Props) {
   const [editing, setEditing] = useState(false);
   const [picking, setPicking] = useState(false);
   const [draft, setDraft] = useState(message.text);
@@ -101,6 +103,17 @@ export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onRe
           />
         ) : (
           <span className="msg__text">{message.text}</span>
+        )}
+        {message.attachmentId > 0 && !message.deleted && (
+          <button
+            className="msg__attach"
+            onClick={() => onOpenAttachment?.(message.attachmentId)}
+            disabled={!onOpenAttachment}
+            title={message.attachmentName || "Open attachment"}
+          >
+            <span className="msg__attach-icon">📎</span>
+            <span className="msg__attach-name">{message.attachmentName || "Attachment"}</span>
+          </button>
         )}
         {message.editedAt > 0 && !message.deleted && !editing && <span className="msg__edited">(edited)</span>}
         {!editing && (canMutate || reactable || replyable) && (

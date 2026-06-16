@@ -23,6 +23,10 @@ interface Props {
   replyTo: number;
   /** Cancel the pending reply. */
   onCancelReply: () => void;
+  /** Pick + send a file attachment (absent → no paperclip). */
+  onAttach?: () => void;
+  /** Open an attachment by id (absent → attachment chips are inert). */
+  onOpenAttachment?: (attachmentId: number) => void;
 }
 
 /** Shorten a parent message to a one-line reply quote. */
@@ -33,6 +37,7 @@ function snippet(text: string): string {
 
 export function ChatPane({
   peer, conversation, selfId, connected, onSend, onTyping, onEdit, onDelete, onReact, onReply, replyTo, onCancelReply,
+  onAttach, onOpenAttachment,
 }: Props) {
   const endRef = useRef<HTMLDivElement>(null);
   const msgCount = conversation?.messages.length ?? 0;
@@ -84,6 +89,7 @@ export function ChatPane({
               onReact={onReact}
               onReply={onReply}
               replyPreview={m.replyTo > 0 ? textById.get(m.replyTo) : undefined}
+              onOpenAttachment={onOpenAttachment}
             />
           ))
         )}
@@ -107,6 +113,7 @@ export function ChatPane({
         placeholder={connected ? `Message ${displayName(peer)}` : "Offline — gateway connects in T3b"}
         onSend={onSend}
         onTyping={onTyping}
+        onAttach={onAttach}
       />
     </div>
   );

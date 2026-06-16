@@ -8,11 +8,13 @@ interface Props {
   placeholder: string;
   onSend: (text: string) => void;
   onTyping: () => void;
+  /** Pick + send a file attachment (absent → no paperclip shown). */
+  onAttach?: () => void;
 }
 
 const TYPING_THROTTLE_MS = 3000;
 
-export function Composer({ disabled, placeholder, onSend, onTyping }: Props) {
+export function Composer({ disabled, placeholder, onSend, onTyping, onAttach }: Props) {
   const [text, setText] = useState("");
   const lastTyping = useRef(0);
 
@@ -40,6 +42,18 @@ export function Composer({ disabled, placeholder, onSend, onTyping }: Props) {
         submit();
       }}
     >
+      {onAttach && (
+        <button
+          className="composer__attach"
+          type="button"
+          disabled={disabled}
+          onClick={onAttach}
+          aria-label="Attach a file"
+          title="Attach a file"
+        >
+          📎
+        </button>
+      )}
       <input
         className="composer__input"
         value={text}

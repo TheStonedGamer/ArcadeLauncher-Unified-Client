@@ -45,6 +45,7 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 # (unix socket on Linux, named pipe on Windows) — no system deps, identical on
 # both CI runners. Presence is best-effort and gated by a setting.
 discord-rich-presence = "0.2"
+tauri-plugin-dialog = "2"
 
 # Desktop-only plugins (updater/process are not built for mobile targets).
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
