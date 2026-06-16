@@ -10,6 +10,7 @@ mod launch;
 mod presence;
 mod settings;
 mod social;
+mod window;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -69,6 +70,8 @@ pub fn run() {
             presence::commands::presence_set_playing,
             presence::commands::presence_set_idle,
             hotkey::commands::hotkey_apply,
+            window::commands::set_fullscreen,
+            window::commands::is_fullscreen,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

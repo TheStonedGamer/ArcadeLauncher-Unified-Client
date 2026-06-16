@@ -119,6 +119,25 @@ body {
 .game-card__state--off { background: var(--off); }
 .game-card__title { font-size: 13px; font-weight: 600; line-height: 1.2; }
 .game-card__platform { font-size: 11px; color: var(--muted); }
+/* Gamepad/keyboard focus ring. */
+.game-card--focused .game-card__art {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent);
+}
+
+/* Big Picture toggle button + mode. */
+.catalog__bigpicture {
+  padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--panel); color: var(--text);
+  font-size: 12px;
+}
+.catalog__bigpicture[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* In Big Picture mode the tiles grow for couch viewing. */
+.catalog--bigpicture .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 22px; }
+.catalog--bigpicture .catalog__bar,
+.catalog--bigpicture .sidebar { display: none; }
+.catalog--bigpicture .catalog__layout { grid-template-columns: 1fr; }
 
 /* ── Layout: sidebar + content ─────────────────────────────────────────── */
 .catalog__layout { display: grid; grid-template-columns: 210px 1fr; gap: 16px; align-items: start; }
