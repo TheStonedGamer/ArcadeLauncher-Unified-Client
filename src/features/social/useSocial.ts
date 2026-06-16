@@ -43,16 +43,21 @@ const EMPTY_CONV: Conversation = {
   readUpTo: 0,
 };
 
+/** Host + token for the live gateway (sourced from the user's session). */
+export interface SocialAuth {
+  host: string;
+  token: string;
+}
+
 /**
- * Default gateway selection:
- *  - `?ws=<host>&token=<token>` → the live {@link WsGateway} (manual testing
- *    against a real backend; the auth slice will select this with the user's
- *    real session instead of URL params).
- *  - `?demo` → the scripted {@link DemoGateway}.
- *  - otherwise → {@link NullGateway} (the safe production default until the
- *    session/auth layer exists to supply a host + token).
+ * Gateway selection for a given auth:
+ *  - a real `auth` (the signed-in session) → the live {@link WsGateway}.
+ *  - else `?ws=<host>&token=<token>` → live gateway (manual backend testing).
+ *  - else `?demo` → the scripted {@link DemoGateway}.
+ *  - otherwise → {@link NullGateway} (safe default until the user signs in).
  */
-function defaultGateway(): Gateway {
+function gatewayFor(auth: SocialAuth | null): Gateway {
+  if (auth && auth.host && auth.token) return new WsGateway(auth.host, auth.token);
   if (typeof window === "undefined") return new NullGateway();
   const params = new URLSearchParams(window.location.search);
   const host = params.get("ws");
@@ -62,14 +67,17 @@ function defaultGateway(): Gateway {
   return new NullGateway();
 }
 
-export function useSocial(gatewayFactory: () => Gateway = defaultGateway): SocialApi {
+export function useSocial(auth: SocialAuth | null = null): SocialApi {
   const [social, setSocial] = useState<SocialState>(initialSocialState);
   const [state, setState] = useState<GatewayState>("disconnected");
   const [selectedPeer, setSelectedPeer] = useState<number | null>(null);
   const gatewayRef = useRef<Gateway | null>(null);
 
+  const host = auth?.host ?? null;
+  const token = auth?.token ?? null;
+
   useEffect(() => {
-    const gw = gatewayFactory();
+    const gw = gatewayFor(host && token ? { host, token } : null);
     gatewayRef.current = gw;
     gw.onFrame((msg) => setSocial((prev) => applyInbound(prev, msg, Date.now())));
     gw.onState((s) => {
@@ -84,9 +92,8 @@ export function useSocial(gatewayFactory: () => Gateway = defaultGateway): Socia
       gw.disconnect();
       gatewayRef.current = null;
     };
-    // gatewayFactory is expected to be stable (module-level); intentionally not a dep.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Rebuild the gateway when the session host/token changes (sign in/out).
+  }, [host, token]);
 
   const select = useCallback((peerId: number | null) => {
     setSelectedPeer(peerId);

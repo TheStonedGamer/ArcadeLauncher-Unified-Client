@@ -6,6 +6,7 @@ import { useSocial } from "./useSocial";
 import { FriendList } from "./components/FriendList";
 import { ChatPane } from "./components/ChatPane";
 import type { GatewayState } from "./gateway";
+import { useSession } from "../session/SessionContext";
 
 const STATE_LABEL: Record<GatewayState, string> = {
   disconnected: "Offline",
@@ -15,7 +16,8 @@ const STATE_LABEL: Record<GatewayState, string> = {
 };
 
 export function SocialView() {
-  const social = useSocial();
+  const { session } = useSession();
+  const social = useSocial(session ? { host: session.host, token: session.token } : null);
   const peer = social.friends.find((f) => f.accountId === social.selectedPeer) ?? null;
 
   return (
@@ -23,8 +25,8 @@ export function SocialView() {
       <div className={`social__status social__status--${social.state}`}>
         <span className="social__status-dot" />
         <span>{STATE_LABEL[social.state]}</span>
-        {!social.connected && (
-          <span className="social__status-note">— live gateway lands in T3b</span>
+        {!social.connected && !session && (
+          <span className="social__status-note">— sign in to connect</span>
         )}
       </div>
 
