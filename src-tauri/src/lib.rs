@@ -5,6 +5,7 @@
 mod catalog;
 mod download;
 mod error;
+mod hotkey;
 mod launch;
 mod presence;
 mod settings;
@@ -18,7 +19,8 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init());
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build());
 
     builder
         // Live social gateway connection state (one per app instance).
@@ -27,6 +29,27 @@ pub fn run() {
         .manage(download::engine::DownloadManager::default())
         // Discord Rich Presence connection (best-effort, settings-gated).
         .manage(presence::client::PresenceManager::default())
+        .setup(|app| {
+            // Register the global summon/hide hotkey from saved settings.
+            // Best-effort: a missing config or bad accelerator is logged, not
+            // fatal — the launcher must always boot.
+            #[cfg(desktop)]
+            {
+                use tauri::Manager;
+                let handle = app.handle();
+                if let Ok(dir) = handle.path().app_config_dir() {
+                    let cfg = settings::store::load(&dir.join("config.json")).unwrap_or_default();
+                    if let Err(e) = hotkey::register::install(
+                        handle,
+                        cfg.global_hotkey_enabled,
+                        &cfg.global_hotkey,
+                    ) {
+                        eprintln!("global hotkey not registered: {e}");
+                    }
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             catalog::commands::load_catalog,
             catalog::art_commands::fetch_cover_art,
@@ -45,6 +68,7 @@ pub fn run() {
             download::commands::download_cancel,
             presence::commands::presence_set_playing,
             presence::commands::presence_set_idle,
+            hotkey::commands::hotkey_apply,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

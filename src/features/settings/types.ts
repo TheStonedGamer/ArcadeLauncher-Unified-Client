@@ -13,4 +13,6 @@ export interface GeneralSettings {
   igdbClientSecret: string;
   discordRichPresence: boolean;
   discordAppId: string;
+  globalHotkeyEnabled: boolean;
+  globalHotkey: string;
 }

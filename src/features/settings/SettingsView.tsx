@@ -106,6 +106,29 @@ export function SettingsView() {
         />
       </label>
 
+      <h2 className="settings__heading">Global hotkey</h2>
+      <p className="catalog__status">
+        Summon or hide ArcadeLauncher from anywhere with a keyboard shortcut (e.g. while in a game).
+      </p>
+      <label className="settings__check">
+        <input
+          type="checkbox"
+          checked={draft.globalHotkeyEnabled}
+          onChange={(e) => set("globalHotkeyEnabled", e.target.checked)}
+        />
+        Enable global summon/hide hotkey
+      </label>
+      <label className="settings__field">
+        <span className="settings__label">Shortcut</span>
+        <input
+          className="settings__input"
+          value={draft.globalHotkey}
+          onChange={(e) => set("globalHotkey", e.target.value)}
+          placeholder="Ctrl+Shift+G"
+          spellCheck={false}
+        />
+      </label>
+
       <div className="settings__actions">
         <button className="settings__save" onClick={save}>
           Save

@@ -30,6 +30,10 @@ pub struct General {
     /// Discord application id for Rich Presence (empty = disabled even if the
     /// toggle is on). The app's art assets live under this application.
     pub discord_app_id: String,
+    /// Register a global hotkey that summons/hides the launcher window.
+    pub global_hotkey_enabled: bool,
+    /// The accelerator for that hotkey (e.g. "Ctrl+Shift+G").
+    pub global_hotkey: String,
 }
 
 impl Default for General {
@@ -46,6 +50,8 @@ impl Default for General {
             igdb_client_secret: String::new(),
             discord_rich_presence: false,
             discord_app_id: String::new(),
+            global_hotkey_enabled: false,
+            global_hotkey: crate::hotkey::shortcut::DEFAULT_SHORTCUT.to_string(),
         }
     }
 }

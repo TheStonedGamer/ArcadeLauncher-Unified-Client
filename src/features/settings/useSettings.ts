@@ -2,7 +2,7 @@
 // the form is responsive; `save` writes the draft to disk via Rust.
 
 import { useCallback, useEffect, useState } from "react";
-import { loadSettings, saveSettings } from "./api";
+import { applyHotkey, loadSettings, saveSettings } from "./api";
 import type { GeneralSettings } from "./types";
 
 const DEFAULTS: GeneralSettings = {
@@ -17,6 +17,8 @@ const DEFAULTS: GeneralSettings = {
   igdbClientSecret: "",
   discordRichPresence: false,
   discordAppId: "",
+  globalHotkeyEnabled: false,
+  globalHotkey: "Ctrl+Shift+G",
 };
 
 export function useSettings() {
@@ -46,6 +48,9 @@ export function useSettings() {
     setError(null);
     try {
       await saveSettings(draft);
+      // Re-register the global hotkey live so the change applies without a
+      // restart. A bad accelerator surfaces as an error but the save stands.
+      await applyHotkey(draft.globalHotkeyEnabled, draft.globalHotkey);
       setSaved(true);
     } catch (e) {
       setError(String(e));
