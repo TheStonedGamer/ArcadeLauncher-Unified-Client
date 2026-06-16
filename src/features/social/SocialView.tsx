@@ -6,12 +6,14 @@ import { useSocial } from "./useSocial";
 import { useProfile } from "./useProfile";
 import { useFriendMeta } from "./useFriendMeta";
 import { usePrivacy } from "./usePrivacy";
+import { useVoice } from "./useVoice";
 import { FriendList } from "./components/FriendList";
 import { AddFriend } from "./components/AddFriend";
 import { StatusPicker } from "./components/StatusPicker";
 import { ChatPane } from "./components/ChatPane";
 import { ProfilePanel } from "./components/ProfilePanel";
 import { PrivacyPanel } from "./components/PrivacyPanel";
+import { CallBar } from "./components/CallBar";
 import type { GatewayState } from "./gateway";
 import { useSession } from "../session/SessionContext";
 
@@ -29,7 +31,13 @@ export function SocialView() {
   const profile = useProfile(auth, social.selfId);
   const friendMeta = useFriendMeta(auth);
   const privacy = usePrivacy(auth);
+  const voice = useVoice(!!auth && social.connected, {
+    voiceSend: social.voiceSend,
+    setVoiceHandler: social.setVoiceHandler,
+  });
   const peer = social.friends.find((f) => f.accountId === social.selectedPeer) ?? null;
+  const callPeerName =
+    social.friends.find((f) => f.accountId === voice.call.peerId)?.username ?? "";
 
   return (
     <div className="social">
@@ -90,12 +98,14 @@ export function SocialView() {
             onAttach={social.attachEnabled ? social.sendAttachment : undefined}
             onOpenAttachment={social.attachEnabled ? social.openAttachment : undefined}
             onViewProfile={auth ? profile.open : undefined}
+            onCall={voice.enabled && peer ? () => voice.startCall(peer.accountId) : undefined}
           />
         </section>
       </div>
 
       <ProfilePanel panel={profile} />
       <PrivacyPanel privacy={privacy} />
+      <CallBar voice={voice} peerName={callPeerName} />
     </div>
   );
 }

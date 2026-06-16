@@ -268,8 +268,16 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
   protocol stubs exist; no webview capture/playback/RTCPeerConnection). Voice is
   the single gap → tracked as **T9g** below; does not block T10b since the C++
   client stays live until T10c.
-- [ ] **T9g** Voice chat: `voice/` feature using getUserMedia + RTCPeerConnection
-  over the existing server `voice_signal` relay + audio gating.
+- [x] **T9g** Voice chat — **P2P WebRTC** (decided over the server binary relay),
+  signaling over the existing `voice_signal` frame. **T9g-1** (e125dc9) pure
+  `voice.ts` (call-state FSM + `parseSignal` codec; 24 vitest) + voice_signal in
+  protocol in/out. **T9g-2/3/4** `useSocial` voice transport seam (voiceSend +
+  setVoiceHandler routing voice_signal frames) → `useVoice` RTCPeerConnection
+  engine (getUserMedia, offer/answer, trickle ICE, remote `<audio>`, mute) →
+  📞 call button in ChatPane + CallBar overlay (Accept/Decline, Mute, Hang up).
+  **Pending live infra:** ICE uses public STUN only; symmetric-NAT peers need a
+  TURN server — add its creds to `useVoice` `ICE_SERVERS` and adjust nginx when
+  available (user to supply nginx creds).
 - [ ] **T10b** First signed release on both OSes (user adds signing secrets);
   publish `.deb`/AppImage/NSIS + `latest.json`.
 - [ ] **T10c** Switch users from the C++ client to the unified client; retire

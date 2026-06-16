@@ -29,6 +29,8 @@ interface Props {
   onOpenAttachment?: (attachmentId: number) => void;
   /** View an account's profile (absent → peer name is not clickable). */
   onViewProfile?: (userId: number) => void;
+  /** Start a voice call with this peer (absent → no call button). */
+  onCall?: () => void;
 }
 
 /** Shorten a parent message to a one-line reply quote. */
@@ -39,7 +41,7 @@ function snippet(text: string): string {
 
 export function ChatPane({
   peer, conversation, selfId, connected, onSend, onTyping, onEdit, onDelete, onReact, onReply, replyTo, onCancelReply,
-  onAttach, onOpenAttachment, onViewProfile,
+  onAttach, onOpenAttachment, onViewProfile, onCall,
 }: Props) {
   const endRef = useRef<HTMLDivElement>(null);
   const msgCount = conversation?.messages.length ?? 0;
@@ -79,6 +81,11 @@ export function ChatPane({
             ? peer.currentGameTitle
             : presenceLabel[peer.presence]}
         </span>
+        {onCall && (
+          <button className="chatpane__call" onClick={onCall} title="Start voice call" aria-label="Start voice call">
+            📞
+          </button>
+        )}
       </header>
 
       <div className="chatpane__messages">

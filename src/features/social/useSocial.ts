@@ -61,6 +61,10 @@ export interface SocialApi {
   myStatusText: string;
   /** Set my presence status + custom text (gateway send + persists locally). */
   setStatus: (status: SelfStatus, statusText: string) => void;
+  /** Relay a WebRTC voice-signaling payload to a friend (ROADMAP T9g). */
+  voiceSend: (to: number, payload: unknown) => void;
+  /** Register the handler for inbound voice_signal frames (useVoice owns it). */
+  setVoiceHandler: (cb: (fromId: number, payload: unknown) => void) => void;
 }
 
 const EMPTY_CONV: Conversation = {
@@ -112,6 +116,9 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
   // re-creating the callback on every frame.
   const socialRef = useRef(social);
   socialRef.current = social;
+  // Voice signaling (T9g): inbound voice_signal frames are routed here so
+  // useVoice can drive its RTCPeerConnection without a second gateway.
+  const voiceHandlerRef = useRef<(fromId: number, payload: unknown) => void>(() => {});
 
   const host = auth?.host ?? null;
   const token = auth?.token ?? null;
@@ -119,7 +126,10 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
   useEffect(() => {
     const gw = gatewayFor(host && token ? { host, token } : null);
     gatewayRef.current = gw;
-    gw.onFrame((msg) => setSocial((prev) => applyInbound(prev, msg, Date.now())));
+    gw.onFrame((msg) => {
+      if (msg.type === "voice_signal") voiceHandlerRef.current(msg.fromId, msg.payload);
+      setSocial((prev) => applyInbound(prev, msg, Date.now()));
+    });
     gw.onState((s) => {
       setState(s);
       // On (re)connect, pull the authoritative friend list and re-assert my
@@ -213,6 +223,14 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     if (selectedPeer != null) gatewayRef.current?.send(outbound.typing(selectedPeer));
   }, [selectedPeer]);
 
+  const voiceSend = useCallback((to: number, payload: unknown) => {
+    if (to) gatewayRef.current?.send(outbound.voiceSignal(to, payload));
+  }, []);
+
+  const setVoiceHandler = useCallback((cb: (fromId: number, payload: unknown) => void) => {
+    voiceHandlerRef.current = cb;
+  }, []);
+
   const editMessage = useCallback((msgId: number, text: string) => {
     const trimmed = text.trim();
     if (!msgId || trimmed === "") return;
@@ -271,5 +289,7 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     myStatus,
     myStatusText,
     setStatus,
+    voiceSend,
+    setVoiceHandler,
   };
 }

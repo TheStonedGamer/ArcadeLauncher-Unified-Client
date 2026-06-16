@@ -32,22 +32,24 @@ server/contract, and is covered by the same one-green-on-both-OSes CI gate.
 | Social: presence depth (custom status / DND) | ✅ | ✅ | T9f |
 | Social: DM privacy + persistent ignore | ✅ | ✅ | T9f |
 
+| Social: voice chat | ✅ | ✅ | T9g — P2P WebRTC (see note) |
+
 ## NOT yet at parity ❌
 
-| Area | Native | Unified | Impact |
-|---|---|---|---|
-| **Voice chat (WebRTC)** | ✅ (SDL2/miniaudio + WS voice relay) | ❌ stubs only | The server's `voice_signal` relay + audio gating exist and the protocol carries voice frames, but **no capture/playback/peer-connection is implemented in the webview.** This is the single outstanding native feature. |
+_None._ Voice chat (the prior gap) shipped in T9g as peer-to-peer WebRTC, signaling
+over the server's existing `voice_signal` relay.
+
+> **Voice note:** the unified client uses **P2P WebRTC** rather than the native
+> client's server binary-audio relay, so a unified↔C++ cross-client call won't
+> interoperate — acceptable since the C++ client is retired at T10c. Unified↔unified
+> works. ICE currently uses public STUN only; symmetric-NAT users will need a TURN
+> server (pending infra/nginx step) added to `useVoice` `ICE_SERVERS`.
 
 ## Verdict
 
-The unified client is at **full parity except voice chat.** Everything that makes
-it a working launcher + text-social client is done, verified, and green on both
-OSes. Voice is the only gap and is self-contained (a new `voice/` feature using
-`getUserMedia` + `RTCPeerConnection` over the existing `voice_signal` relay).
+The unified client is at **full feature parity** with the native C++/Linux clients.
+Everything is implemented, wired to the live contracts, and green on both OSes.
 
-**Recommendation:** voice does not block a first *signed* release (T10b) of the
-unified client, since the C++ client stays the live product until T10c flips the
-auto-update channel. Two viable paths:
-
-1. **Ship T10b now** (text-complete), build voice as T9g before T10c flips users.
-2. **Build voice first** (T9g), then T10b ships full parity in one cut.
+**Next:** T10b — tag the first signed release (signing secrets + pubkey already
+configured), then T10c to flip users off the C++ auto-update channel. The TURN
+server is the one live-infra task remaining before voice is robust across all NATs.

@@ -336,6 +336,32 @@ body {
 .friendlist__sub { font-size: 11px; color: var(--muted); justify-self: end; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .friendlist__sub--game { color: var(--on); }
 
+/* Voice call (T9g) */
+.chatpane__call {
+  margin-left: auto; border: 1px solid var(--border); background: var(--panel);
+  color: var(--text); border-radius: 8px; padding: 4px 10px; cursor: pointer; font-size: 14px;
+}
+.chatpane__call:hover { border-color: var(--on); }
+.callbar {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 60;
+  display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+}
+.callbar__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--star); }
+.callbar--connected .callbar__dot { background: var(--on); }
+.callbar--ringing .callbar__dot { background: var(--accent); animation: callpulse 1s ease-in-out infinite; }
+@keyframes callpulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.callbar__who { font-weight: 700; font-size: 13px; }
+.callbar__phase { font-size: 12px; color: var(--muted); }
+.callbar__actions { display: flex; gap: 6px; }
+.callbar__accept, .callbar__mute, .callbar__hangup {
+  border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px; cursor: pointer; font-size: 12px; font-weight: 600;
+}
+.callbar__accept { background: var(--on); border-color: var(--on); color: #06210f; }
+.callbar__mute { background: var(--panel-2); color: var(--text); }
+.callbar__hangup { background: var(--error); border-color: var(--error); color: #fff; }
+
 /* Self status picker (T9f) */
 .statuspick { position: relative; margin-left: auto; }
 .statuspick__btn {
