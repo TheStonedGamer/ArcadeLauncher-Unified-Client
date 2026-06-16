@@ -9,7 +9,11 @@
 // exercised only by its unit tests.
 #![allow(dead_code)]
 
+pub mod commands;
+pub mod endpoint;
+pub mod engine;
 pub mod manifest;
 pub mod paths;
 pub mod queue;
+pub mod rate;
 pub mod verify;

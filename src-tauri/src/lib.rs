@@ -22,6 +22,8 @@ pub fn run() {
     builder
         // Live social gateway connection state (one per app instance).
         .manage(social::transport::SocialTransport::default())
+        // Active game-install downloads (one manager per app instance).
+        .manage(download::engine::DownloadManager::default())
         .invoke_handler(tauri::generate_handler![
             catalog::commands::load_catalog,
             launch::commands::launch_game,
@@ -31,6 +33,10 @@ pub fn run() {
             social::commands::social_send,
             social::commands::social_disconnect,
             social::commands::social_fetch_friends,
+            download::commands::download_start,
+            download::commands::download_pause,
+            download::commands::download_resume,
+            download::commands::download_cancel,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

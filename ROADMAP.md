@@ -54,9 +54,11 @@ full-file SHA-256 verify, `..` path-traversal rejection.
   per-file target path resolution, path-traversal rejection, SHA-256 verify
   helper, progress/percent math, queue state machine (queued→downloading→
   verifying→extracting→done/failed/paused). No IO. (18 KATs)
-- [ ] **T4b** Rust transport: single resumable ranged GET per file → `.part` →
-  verify → finalize; concurrency cap; bandwidth cap (KB/s from settings);
-  emits progress events. NullSink-style seam so the core is testable.
+- [x] **T4b** Rust transport: single resumable ranged GET per file → `.part` →
+  verify → finalize; concurrency cap (semaphore); bandwidth cap (KB/s from
+  settings); pause/resume/cancel; emits `download://progress`+`download://status`
+  events. Pure tested core: file-URL endpoint + throttle math (9 new KATs);
+  thin async engine glue on top.
 - [ ] **T4c** Extraction phase for `pc_archive` installs; install-state
   transitions written back to client-local install records (not `library.json`).
 - [ ] **T4d** Download UI: install button on detail panel + queue/status panel
