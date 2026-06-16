@@ -137,6 +137,29 @@ describe("chat", () => {
     expect(echo.message.replyTo).toBe(0);
   });
 
+  it("localEcho stamps an attachment onto the optimistic message", () => {
+    const echo = localEcho(baseState(), 2, "", NOW, 0, 88, "shot.png");
+    expect(echo.message).toMatchObject({ attachmentId: 88, attachmentName: "shot.png" });
+  });
+
+  it("an acked attachment frame resolves its pending echo (no duplicate)", () => {
+    const echo = localEcho(baseState(), 2, "", NOW, 0, 88, "shot.png");
+    const s = applyInbound(echo.state, {
+      type: "chat",
+      messageId: 12,
+      senderId: 42,
+      receiverId: 2,
+      text: "",
+      attachmentId: 88,
+      replyTo: 0,
+      timestamp: 1,
+    }, NOW);
+    const conv = s.conversations[2];
+    expect(conv.messages).toHaveLength(1);
+    // The acked message keeps the locally-known filename and is no longer pending.
+    expect(conv.messages[0]).toMatchObject({ messageId: 12, attachmentId: 88, attachmentName: "shot.png", pending: false });
+  });
+
   it("markConversationRead clears unread", () => {
     let s = applyInbound(baseState(), { type: "chat", messageId: 7, senderId: 2, receiverId: 42, text: "hi", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
     s = markConversationRead(s, 2);

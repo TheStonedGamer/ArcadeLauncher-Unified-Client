@@ -93,8 +93,12 @@ export const outbound = {
   resume: (afterMsgId: number): string => JSON.stringify({ type: "resume", afterMsgId }),
   presence: (state: string): string => JSON.stringify({ type: "presence", state }),
   presenceInGame: (gameId: string): string => JSON.stringify({ type: "presence", state: "ingame", gameId }),
-  chat: (to: number, text: string, replyTo = 0): string =>
-    replyTo > 0 ? JSON.stringify({ type: "chat", to, text, replyTo }) : JSON.stringify({ type: "chat", to, text }),
+  chat: (to: number, text: string, replyTo = 0, attachmentId = 0): string => {
+    const f: Record<string, unknown> = { type: "chat", to, text };
+    if (replyTo > 0) f.replyTo = replyTo;
+    if (attachmentId > 0) f.attachmentId = attachmentId;
+    return JSON.stringify(f);
+  },
   typing: (to: number): string => JSON.stringify({ type: "typing", to }),
   read: (to: number): string => JSON.stringify({ type: "read", to }),
   edit: (msgId: number, text: string): string => JSON.stringify({ type: "edit", msgId, text }),

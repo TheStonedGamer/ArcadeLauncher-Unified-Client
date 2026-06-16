@@ -66,6 +66,8 @@ describe("outbound", () => {
     expect(outbound.chat(42, "hi")).toBe('{"type":"chat","to":42,"text":"hi"}');
     expect(outbound.typing(42)).toBe('{"type":"typing","to":42}');
     expect(outbound.read(42)).toBe('{"type":"read","to":42}');
+    expect(outbound.chat(42, "hi", 3)).toBe('{"type":"chat","to":42,"text":"hi","replyTo":3}');
+    expect(outbound.chat(42, "", 0, 9)).toBe('{"type":"chat","to":42,"text":"","attachmentId":9}');
     expect(outbound.react(7, "👍", true)).toBe('{"type":"react","msgId":7,"emoji":"👍","on":true}');
     expect(outbound.presence("away")).toBe('{"type":"presence","state":"away"}');
     expect(outbound.presenceInGame("g1")).toBe('{"type":"presence","state":"ingame","gameId":"g1"}');

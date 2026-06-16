@@ -85,6 +85,8 @@ export function localEcho(
   text: string,
   now: number,
   replyTo = 0,
+  attachmentId = 0,
+  attachmentName = "",
 ): { state: SocialState; message: ChatMessage } {
   const message: ChatMessage = {
     messageId: 0,
@@ -96,8 +98,8 @@ export function localEcho(
     pending: true,
     editedAt: 0,
     deleted: false,
-    attachmentId: 0,
-    attachmentName: "",
+    attachmentId,
+    attachmentName,
     reactions: [],
     replyTo,
   };

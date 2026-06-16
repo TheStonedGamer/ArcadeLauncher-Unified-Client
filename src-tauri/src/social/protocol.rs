@@ -128,12 +128,15 @@ pub mod outbound {
         json!({ "type": "presence", "state": "ingame", "gameId": game_id }).to_string()
     }
 
-    pub fn chat(to: u64, text: &str, reply_to: u64) -> String {
+    pub fn chat(to: u64, text: &str, reply_to: u64, attachment_id: u64) -> String {
+        let mut v = json!({ "type": "chat", "to": to, "text": text });
         if reply_to > 0 {
-            json!({ "type": "chat", "to": to, "text": text, "replyTo": reply_to }).to_string()
-        } else {
-            json!({ "type": "chat", "to": to, "text": text }).to_string()
+            v["replyTo"] = json!(reply_to);
         }
+        if attachment_id > 0 {
+            v["attachmentId"] = json!(attachment_id);
+        }
+        v.to_string()
     }
 
     pub fn typing(to: u64) -> String {
@@ -257,8 +260,12 @@ mod tests {
     #[test]
     fn outbound_shapes_match_cpp() {
         assert_eq!(outbound::ping(), r#"{"type":"ping"}"#);
-        assert_eq!(outbound::chat(42, "hi", 0), r#"{"text":"hi","to":42,"type":"chat"}"#);
-        assert_eq!(outbound::chat(42, "hi", 3), r#"{"replyTo":3,"text":"hi","to":42,"type":"chat"}"#);
+        assert_eq!(outbound::chat(42, "hi", 0, 0), r#"{"text":"hi","to":42,"type":"chat"}"#);
+        assert_eq!(outbound::chat(42, "hi", 3, 0), r#"{"replyTo":3,"text":"hi","to":42,"type":"chat"}"#);
+        assert_eq!(
+            outbound::chat(42, "", 0, 9),
+            r#"{"attachmentId":9,"text":"","to":42,"type":"chat"}"#
+        );
         assert_eq!(outbound::typing(42), r#"{"to":42,"type":"typing"}"#);
         assert_eq!(outbound::read(42), r#"{"to":42,"type":"read"}"#);
         assert_eq!(outbound::react(7, "👍", true), r#"{"emoji":"👍","msgId":7,"on":true,"type":"react"}"#);
