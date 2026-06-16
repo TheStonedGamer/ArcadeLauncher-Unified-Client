@@ -93,6 +93,7 @@ pub fn run() {
             social::commands::social_friendmeta_get,
             social::commands::social_friendmeta_set,
             social::commands::social_user_search,
+            social::commands::social_friend_request,
             download::commands::download_start,
             download::commands::download_install,
             download::commands::download_pause,

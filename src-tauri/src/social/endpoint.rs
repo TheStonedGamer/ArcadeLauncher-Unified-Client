@@ -72,6 +72,11 @@ impl Endpoint {
         format!("https://{}/api/social/search?q={}", self.host, encode_query(q))
     }
 
+    /// REST URL to send a friend request (POST, body carries the username).
+    pub fn friend_request_url(&self) -> String {
+        format!("https://{}/api/social/friends/request", self.host)
+    }
+
     /// The bearer token, for the `Authorization` header on REST calls.
     pub fn token(&self) -> &str {
         &self.token
@@ -127,6 +132,7 @@ mod tests {
         assert_eq!(e.friendmeta_url(), "https://arcade.example.com/api/social/friendmeta");
         assert_eq!(e.search_url("a b"), "https://arcade.example.com/api/social/search?q=a%20b");
         assert_eq!(e.search_url("plain"), "https://arcade.example.com/api/social/search?q=plain");
+        assert_eq!(e.friend_request_url(), "https://arcade.example.com/api/social/friends/request");
     }
 
     #[test]

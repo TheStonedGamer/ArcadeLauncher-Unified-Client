@@ -6,6 +6,7 @@ import { useSocial } from "./useSocial";
 import { useProfile } from "./useProfile";
 import { useFriendMeta } from "./useFriendMeta";
 import { FriendList } from "./components/FriendList";
+import { AddFriend } from "./components/AddFriend";
 import { ChatPane } from "./components/ChatPane";
 import { ProfilePanel } from "./components/ProfilePanel";
 import type { GatewayState } from "./gateway";
@@ -43,6 +44,12 @@ export function SocialView() {
 
       <div className="social__layout">
         <aside className="social__roster">
+          {auth && (
+            <AddFriend
+              auth={auth}
+              friendIds={new Set(social.friends.map((f) => f.accountId))}
+            />
+          )}
           <FriendList
             friends={social.friends}
             selectedPeer={social.selectedPeer}

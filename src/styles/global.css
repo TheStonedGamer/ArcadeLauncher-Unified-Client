@@ -336,6 +336,29 @@ body {
 .friendlist__sub { font-size: 11px; color: var(--muted); justify-self: end; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .friendlist__sub--game { color: var(--on); }
 
+/* Add-friend search (T9e) */
+.addfriend { padding: 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.addfriend__input {
+  width: 100%; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel); color: var(--text); font-size: 12px;
+}
+.addfriend__input:focus { border-color: var(--accent); outline: none; }
+.addfriend__status { font-size: 11px; color: var(--muted); margin: 6px 2px 0; }
+.addfriend__results { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.addfriend__hint { font-size: 11px; color: var(--muted); padding: 4px 6px; }
+.addfriend__row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 5px 8px; border-radius: 7px;
+}
+.addfriend__row:hover { background: var(--panel-2); }
+.addfriend__name { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.addfriend__already { font-size: 11px; color: var(--muted); }
+.addfriend__add {
+  padding: 3px 12px; border-radius: 7px; border: 1px solid var(--accent);
+  background: var(--accent); color: #fff; cursor: pointer; font-size: 11px; font-weight: 600;
+}
+.addfriend__add:disabled { opacity: 0.5; cursor: default; }
+
 /* Friend-meta inline editor (T9e) */
 .friendmeta {
   display: flex; flex-direction: column; gap: 8px; padding: 8px 10px 10px;

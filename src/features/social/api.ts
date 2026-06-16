@@ -72,3 +72,8 @@ export function setFriendMeta(
 export function searchUsers(host: string, token: string, query: string): Promise<SearchHit[]> {
   return call("social_user_search", { host, token, query });
 }
+
+/** Send a friend request by username; resolves to the server's status string. */
+export function sendFriendRequest(host: string, token: string, username: string): Promise<string> {
+  return call("social_friend_request", { host, token, username });
+}

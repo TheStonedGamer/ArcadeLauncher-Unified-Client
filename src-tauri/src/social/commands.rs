@@ -432,3 +432,42 @@ pub async fn social_user_search(host: String, token: String, query: String) -> A
         .map(|h| SearchHit { user_id: h.user_id, username: h.username })
         .collect())
 }
+
+/// Send a friend request by username (ROADMAP T9e). The server resolves the
+/// username, honours block/ignore/privacy, and may instant-accept if the target
+/// already invited the caller. Returns the server's status string (e.g.
+/// "request_sent" / "accepted").
+#[tauri::command]
+pub async fn social_friend_request(host: String, token: String, username: String) -> AppResult<String> {
+    #[derive(Serialize)]
+    struct Body {
+        username: String,
+    }
+    #[derive(Deserialize)]
+    struct Resp {
+        #[serde(default)]
+        status: String,
+    }
+
+    let endpoint = Endpoint::new(host, token);
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(endpoint.friend_request_url())
+        .bearer_auth(endpoint.token())
+        .json(&Body { username })
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("friend request failed: {e}")))?;
+    let status = resp.status();
+    if !status.is_success() {
+        // Surface the server's plain-text reason (e.g. "No such user").
+        let body = resp.text().await.unwrap_or_default();
+        let reason = if body.trim().is_empty() { status.to_string() } else { body };
+        return Err(AppError::msg(format!("friend request failed: {reason}")));
+    }
+    let r: Resp = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid friend-request response: {e}")))?;
+    Ok(if r.status.is_empty() { "request_sent".to_string() } else { r.status })
+}
