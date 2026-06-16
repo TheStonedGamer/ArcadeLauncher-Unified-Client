@@ -212,7 +212,14 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
   `deleteMessage` on `useSocial`, and hover ✎/🗑 controls on my own messages in
   `MessageRow` (Edit swaps the bubble for an inline input; Enter saves, Esc
   cancels). Read receipts + "(edited)"/tombstone display already shipped in T3a.
-- [ ] **T9b** Reactions + replies.
+- [x] **T9b** Reactions + replies. Server already supported both (react WS
+  handler + `reply_to` column); this wired the client against that contract.
+  **T9b-1** (8c16e31, CI 27642125642): pure `applyReaction` toggle (6 vitest),
+  `reactions: Reaction[]` on ChatMessage, `toggleReaction` on `useSocial`,
+  reaction picker + chips in `MessageRow`. Fixed a latent bug where
+  `outbound.react` never sent `on`. **T9b-2** (21c42e2, CI 27642555502):
+  `replyTo` on messages/localEcho, `replyTo` reply bar + quoted-parent preview
+  in ChatPane/MessageRow. Both green on windows-latest + ubuntu-22.04.
 - [ ] **T9c** DM attachments (MinIO-backed upload + chips), paperclip control.
 - [ ] **T9d** User profiles (banner, bio, level/XP).
 - [ ] **T9e** Friend organization (groups, notes, search).
