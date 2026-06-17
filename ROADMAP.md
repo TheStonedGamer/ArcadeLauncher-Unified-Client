@@ -275,9 +275,12 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
   setVoiceHandler routing voice_signal frames) → `useVoice` RTCPeerConnection
   engine (getUserMedia, offer/answer, trickle ICE, remote `<audio>`, mute) →
   📞 call button in ChatPane + CallBar overlay (Accept/Decline, Mute, Hang up).
-  **Pending live infra:** ICE uses public STUN only; symmetric-NAT peers need a
-  TURN server — add its creds to `useVoice` `ICE_SERVERS` and adjust nginx when
-  available (user to supply nginx creds).
+  **TURN (done in code):** client fetches per-call ICE servers from
+  `GET /api/social/turn` (`social_turn_servers` → `useVoice` iceProvider, STUN
+  fallback). Server endpoint mints short-lived coturn REST creds; coturn deploy
+  artifacts live in the server repo `deploy/turn/`. **Pending live deploy:** stand
+  up coturn on 10.0.0.180, set `ARCADE_TURN_SECRET`/`ARCADE_TURN_URLS` on the
+  server, optional nginx-stream for TURN-over-443 (user to supply nginx creds).
 - [ ] **T10b** First signed release on both OSes (user adds signing secrets);
   publish `.deb`/AppImage/NSIS + `latest.json`.
 - [ ] **T10c** Switch users from the C++ client to the unified client; retire

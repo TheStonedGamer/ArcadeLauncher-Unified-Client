@@ -43,7 +43,9 @@ over the server's existing `voice_signal` relay.
 > client's server binary-audio relay, so a unified↔C++ cross-client call won't
 > interoperate — acceptable since the C++ client is retired at T10c. Unified↔unified
 > works. ICE currently uses public STUN only; symmetric-NAT users will need a TURN
-> server (pending infra/nginx step) added to `useVoice` `ICE_SERVERS`.
+> server. **TURN is wired in code** (client fetches ICE from `GET /api/social/turn`;
+> server mints coturn REST creds; deploy artifacts in the server repo `deploy/turn/`);
+> only the live coturn deploy + server env config remain.
 
 ## Verdict
 
