@@ -24,7 +24,7 @@ import type { Game } from "./types";
 
 export function CatalogView() {
   const { games, loading, error, status, load, launch, setCover } = useCatalog();
-  const { draft: settings } = useSettings();
+  const { draft: settings, loading: settingsLoading } = useSettings();
   const prefs = useCatalogPrefs();
   const { session } = useSession();
   const hasIgdbCreds = settings.igdbClientId.trim() !== "" && settings.igdbClientSecret.trim() !== "";
@@ -59,17 +59,21 @@ export function CatalogView() {
     if (path) setCover(game.id, path);
     return path;
   };
-  const [path, setPath] = useState(settings.libraryPath ?? "");
+  const [path, setPath] = useState("");
   const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
+  const autoLoaded = useRef(false);
 
-  // Auto-load from settings on first mount (mirrors old-client behaviour).
+  // Once settings finish loading, fill the path bar and auto-load the catalog.
+  // The ref prevents re-triggering if settings are saved mid-session.
   useEffect(() => {
-    if (settings.libraryPath?.trim()) {
-      void load(settings.libraryPath.trim());
+    if (settingsLoading || autoLoaded.current) return;
+    autoLoaded.current = true;
+    const p = settings.libraryPath?.trim() ?? "";
+    if (p) {
+      setPath(p);
+      void load(p);
     }
-    // Only on mount — don't re-run when settings change mid-session.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [settingsLoading, settings.libraryPath, load]);
   const [selected, setSelected] = useState<VariantGroup | null>(null);
 
   const sidebar = useMemo(() => buildSidebar(merged), [merged]);
