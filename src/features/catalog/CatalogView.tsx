@@ -59,8 +59,17 @@ export function CatalogView() {
     if (path) setCover(game.id, path);
     return path;
   };
-  const [path, setPath] = useState("");
+  const [path, setPath] = useState(settings.libraryPath ?? "");
   const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
+
+  // Auto-load from settings on first mount (mirrors old-client behaviour).
+  useEffect(() => {
+    if (settings.libraryPath?.trim()) {
+      void load(settings.libraryPath.trim());
+    }
+    // Only on mount — don't re-run when settings change mid-session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [selected, setSelected] = useState<VariantGroup | null>(null);
 
   const sidebar = useMemo(() => buildSidebar(merged), [merged]);
