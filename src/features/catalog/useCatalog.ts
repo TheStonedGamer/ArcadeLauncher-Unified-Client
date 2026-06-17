@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { loadCatalog, launchGame } from "./api";
+import { loadCatalog, fetchCatalog, launchGame } from "./api";
 import { setIdle, setPlaying } from "../presence/api";
 import type { Game } from "./types";
 
@@ -22,6 +22,8 @@ export interface CatalogState {
   error: string | null;
   status: string | null;
   load: (path?: string) => Promise<void>;
+  /** Refresh the catalog from the server (caches to library.json), then show it. */
+  syncFromServer: (host: string, token: string) => Promise<void>;
   launch: (game: Game) => Promise<void>;
   /** Update one game's cover path in-memory (after a cover fetch). */
   setCover: (id: string, coverArtPath: string) => void;
@@ -70,6 +72,22 @@ export function useCatalog(): CatalogState {
     }
   }, []);
 
+  // Pull the latest catalog from the server. On failure we keep whatever the
+  // local library.json already gave us (offline-friendly) and surface the error.
+  const syncFromServer = useCallback(async (host: string, token: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetchCatalog(host, token);
+      setGames(result);
+      setStatus(`Synced ${result.length} game${result.length === 1 ? "" : "s"} from server`);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const launch = useCallback(async (game: Game) => {
     setError(null);
     try {
@@ -86,5 +104,5 @@ export function useCatalog(): CatalogState {
     setGames((prev) => prev.map((g) => (g.id === id ? { ...g, coverArtPath } : g)));
   }, []);
 
-  return { games, loading, error, status, load, launch, setCover };
+  return { games, loading, error, status, load, syncFromServer, launch, setCover };
 }

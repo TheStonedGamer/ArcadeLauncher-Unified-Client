@@ -39,3 +39,61 @@ pub fn load_catalog(app: tauri::AppHandle, path: Option<String>) -> AppResult<Ve
     let resolved = resolve_library_path(&app, path)?;
     loader::load_file(&resolved)
 }
+
+/// Strip any scheme/trailing slash so we control the transport scheme (mirrors
+/// the download command's host normalization).
+fn normalize_host(host: &str) -> String {
+    let s = host
+        .strip_prefix("https://")
+        .or_else(|| host.strip_prefix("http://"))
+        .unwrap_or(host);
+    s.trim_end_matches('/').to_string()
+}
+
+/// Sync the catalog from the server (`GET /api/catalog`, Bearer-authed with the
+/// session token), cache it to the per-user `library.json` behind the scenes,
+/// and return the games. This is the unified client's equivalent of the native
+/// client's `ServerClient::FetchCatalog`: the catalog is server-owned, so the
+/// UI never asks the user where `library.json` lives — we fetch it, write it,
+/// and `load_catalog` reads the same file offline on the next launch.
+#[tauri::command]
+pub async fn fetch_catalog(
+    app: tauri::AppHandle,
+    host: String,
+    token: String,
+) -> AppResult<Vec<Game>> {
+    let host = normalize_host(&host);
+    let url = format!("https://{host}/api/catalog");
+    let resp = reqwest::Client::new()
+        .get(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("catalog request failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!(
+            "catalog fetch failed (HTTP {})",
+            resp.status()
+        )));
+    }
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| AppError::msg(format!("catalog read failed: {e}")))?;
+    let games = loader::parse_catalog_response(&body)?;
+
+    // Cache to the per-user library.json (bare array, the on-disk format) with an
+    // atomic temp-write + rename so a crash mid-write never corrupts the cache.
+    let dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| AppError::msg(format!("no config dir: {e}")))?;
+    std::fs::create_dir_all(&dir)?;
+    let path = dir.join("library.json");
+    let json = serde_json::to_string_pretty(&games)?;
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(&tmp, json)?;
+    std::fs::rename(&tmp, &path)?;
+
+    Ok(games)
+}

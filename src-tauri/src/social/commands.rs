@@ -9,7 +9,23 @@ use crate::social::endpoint::Endpoint;
 use crate::social::model::Friend;
 use crate::social::transport::SocialTransport;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use tauri::State;
+
+/// HTTP client for the social REST calls. These are small, latency-sensitive
+/// requests, so we cap how long the renderer can be left waiting: an
+/// unreachable or stalled gateway surfaces as a clear error instead of an
+/// indefinitely pending command (which would leave the UI spinning forever —
+/// e.g. the "Searching…" state on the add-friend box). Falls back to the
+/// default (no-timeout) client only if the builder fails, which it never does
+/// with these options.
+fn http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(20))
+        .build()
+        .unwrap_or_default()
+}
 
 /// Open (or replace) the live social gateway connection. Frames arrive as
 /// `social://frame` events; lifecycle as `social://state` events.
@@ -49,7 +65,7 @@ pub async fn social_fetch_friends(host: String, token: String) -> AppResult<Vec<
         friends: Vec<Friend>,
     }
 
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .get(endpoint.friends_url())
         .bearer_auth(endpoint.token())
@@ -122,7 +138,7 @@ pub async fn social_attachment_upload(
         upload_url: String,
     }
 
-    let client = reqwest::Client::new();
+    let client = http_client();
     let presign = client
         .post(endpoint.attachment_presign_url())
         .bearer_auth(endpoint.token())
@@ -141,7 +157,15 @@ pub async fn social_attachment_upload(
         .await
         .map_err(|e| AppError::msg(format!("invalid presign response: {e}")))?;
 
-    let put = client
+    // The object-store PUT streams up to MAX_ATTACHMENT_BYTES, which can outlast
+    // the short REST timeout on a slow link, so give the upload its own client
+    // with a generous overall budget (connect still bounded).
+    let upload_client = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(120))
+        .build()
+        .unwrap_or_default();
+    let put = upload_client
         .put(&presign.upload_url)
         .header("Content-Type", content_type)
         .body(bytes)
@@ -175,7 +199,7 @@ pub struct AttachmentLink {
 #[tauri::command]
 pub async fn social_attachment_url(host: String, token: String, attachment_id: u64) -> AppResult<AttachmentLink> {
     let endpoint = Endpoint::new(host, token);
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .get(endpoint.attachment_url(attachment_id))
         .bearer_auth(endpoint.token())
@@ -232,7 +256,7 @@ pub async fn social_profile_get(host: String, token: String, user_id: u64) -> Ap
     }
 
     let endpoint = Endpoint::new(host, token);
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .get(endpoint.profile_url(user_id))
         .bearer_auth(endpoint.token())
@@ -275,7 +299,7 @@ pub async fn social_profile_update(
     }
 
     let endpoint = Endpoint::new(host, token);
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .put(endpoint.profile_self_url())
         .bearer_auth(endpoint.token())
@@ -322,7 +346,7 @@ pub async fn social_friendmeta_get(host: String, token: String) -> AppResult<Vec
     }
 
     let endpoint = Endpoint::new(host, token);
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .get(endpoint.friendmeta_url())
         .bearer_auth(endpoint.token())
@@ -372,7 +396,7 @@ pub async fn social_friendmeta_set(
     }
 
     let endpoint = Endpoint::new(host, token);
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .put(endpoint.friendmeta_url())
         .bearer_auth(endpoint.token())
@@ -412,7 +436,7 @@ pub async fn social_user_search(host: String, token: String, query: String) -> A
     }
 
     let endpoint = Endpoint::new(host, token);
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .get(endpoint.search_url(&query))
         .bearer_auth(endpoint.token())
@@ -450,7 +474,7 @@ pub async fn social_friend_request(host: String, token: String, username: String
     }
 
     let endpoint = Endpoint::new(host, token);
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .post(endpoint.friend_request_url())
         .bearer_auth(endpoint.token())
@@ -485,7 +509,7 @@ pub struct Privacy {
 #[tauri::command]
 pub async fn social_privacy_get(host: String, token: String) -> AppResult<Privacy> {
     let endpoint = Endpoint::new(host, token);
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .get(endpoint.privacy_url())
         .bearer_auth(endpoint.token())
@@ -518,7 +542,7 @@ pub async fn social_privacy_set(
     }
 
     let endpoint = Endpoint::new(host, token);
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .put(endpoint.privacy_url())
         .bearer_auth(endpoint.token())
@@ -547,7 +571,7 @@ pub async fn social_ignores_get(host: String, token: String) -> AppResult<Vec<u6
     }
 
     let endpoint = Endpoint::new(host, token);
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .get(endpoint.ignores_url())
         .bearer_auth(endpoint.token())
@@ -590,7 +614,7 @@ pub struct IceConfig {
 #[tauri::command]
 pub async fn social_turn_servers(host: String, token: String) -> AppResult<IceConfig> {
     let endpoint = Endpoint::new(host, token);
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .get(endpoint.turn_url())
         .bearer_auth(endpoint.token())
@@ -616,7 +640,7 @@ pub async fn social_ignore_set(host: String, token: String, user_id: u64, ignore
     }
 
     let endpoint = Endpoint::new(host, token);
-    let client = reqwest::Client::new();
+    let client = http_client();
     let resp = client
         .post(endpoint.ignores_url())
         .bearer_auth(endpoint.token())

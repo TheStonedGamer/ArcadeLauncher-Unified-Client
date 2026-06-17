@@ -18,6 +18,29 @@ pub fn parse(json: &str) -> AppResult<Vec<Game>> {
     Ok(serde_json::from_str::<Vec<Game>>(trimmed)?)
 }
 
+/// Parse the server's `GET /api/catalog` response into `Vec<Game>`.
+///
+/// The server wraps the list in a `{ "schemaVersion", "generatedBy", "games": [..] }`
+/// envelope, whereas the on-disk `library.json` is a bare array. Accept either
+/// shape so this also tolerates a future server that returns a plain array (and
+/// so a cached `library.json` could be fed back through here).
+pub fn parse_catalog_response(json: &str) -> AppResult<Vec<Game>> {
+    let trimmed = json.trim();
+    if trimmed.is_empty() {
+        return Ok(Vec::new());
+    }
+    // Bare array first (matches library.json); fall back to the wrapped envelope.
+    if let Ok(games) = serde_json::from_str::<Vec<Game>>(trimmed) {
+        return Ok(games);
+    }
+    #[derive(serde::Deserialize)]
+    struct Envelope {
+        #[serde(default)]
+        games: Vec<Game>,
+    }
+    Ok(serde_json::from_str::<Envelope>(trimmed)?.games)
+}
+
 /// Load + parse `library.json` from `path`. Missing file → empty catalog.
 pub fn load_file(path: &Path) -> AppResult<Vec<Game>> {
     if !path.exists() {
@@ -54,5 +77,22 @@ mod tests {
     #[test]
     fn corrupt_json_errors() {
         assert!(parse("[ {not json } ]").is_err());
+    }
+
+    #[test]
+    fn catalog_response_accepts_envelope_and_array() {
+        // Wrapped envelope (what GET /api/catalog returns).
+        let env = r#"{"schemaVersion":1,"generatedBy":"mariadb-rust","games":[
+            {"id":"nes-abc","title":"Crystalis","platform":"NES"}]}"#;
+        let g = parse_catalog_response(env).unwrap();
+        assert_eq!(g.len(), 1);
+        assert_eq!(g[0].title, "Crystalis");
+
+        // Bare array (library.json on disk).
+        let arr = r#"[{"id":"1","title":"SMB3"}]"#;
+        assert_eq!(parse_catalog_response(arr).unwrap().len(), 1);
+
+        // Empty input → empty catalog, not an error.
+        assert!(parse_catalog_response("   ").unwrap().is_empty());
     }
 }

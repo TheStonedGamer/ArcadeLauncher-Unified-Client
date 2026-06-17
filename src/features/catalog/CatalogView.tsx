@@ -27,7 +27,7 @@ import { syncSaves, type ConflictPolicy, type SyncReport } from "../saves/api";
 import type { Game } from "./types";
 
 export function CatalogView() {
-  const { games, loading, error, status, load, launch, setCover } = useCatalog();
+  const { games, loading, error, status, load, syncFromServer, launch, setCover } = useCatalog();
   const { draft: settings } = useSettings();
   const prefs = useCatalogPrefs();
   const installOverlay = useInstallOverlay();
@@ -74,15 +74,24 @@ export function CatalogView() {
   };
   const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
   const autoLoaded = useRef(false);
+  const syncedFor = useRef<string | null>(null);
 
-  // Load the catalog on first mount. The library.json location is resolved in
-  // Rust (per-user default), so there is no path for the user to manage. The
-  // ref prevents re-triggering on re-renders.
+  // Show the locally cached catalog immediately on first mount (offline-friendly,
+  // no path for the user to manage — it's resolved in Rust).
   useEffect(() => {
     if (autoLoaded.current) return;
     autoLoaded.current = true;
     void load();
   }, [load]);
+
+  // Once signed in, refresh from the server (and re-cache library.json). Keyed
+  // on the token so it runs once per session, not on every re-render.
+  useEffect(() => {
+    if (!session) return;
+    if (syncedFor.current === session.token) return;
+    syncedFor.current = session.token;
+    void syncFromServer(session.host, session.token);
+  }, [session, syncFromServer]);
   const [selected, setSelected] = useState<VariantGroup | null>(null);
 
   const sidebar = useMemo(() => buildSidebar(merged), [merged]);

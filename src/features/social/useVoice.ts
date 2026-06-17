@@ -113,6 +113,17 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
     stream.getTracks().forEach((t) => pc.addTrack(t, stream));
   }, []);
 
+  /** End a call that can't proceed (mic denied, negotiation error): tell the
+   *  peer, drop to ended, and release any media we grabbed. */
+  const failCall = useCallback(
+    (peerId: number) => {
+      transport.voiceSend(peerId, { kind: "end" });
+      dispatch({ type: "hangup" });
+      cleanup();
+    },
+    [transport, cleanup],
+  );
+
   const startCall = useCallback(
     (peerId: number) => {
       if (!enabled || isBusy(callRef.current) || !peerId) return;
@@ -163,7 +174,12 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
           if (c.phase !== "inviting" || fromId !== c.peerId) return;
           dispatch({ type: "remoteAccept" });
           const pc = await makePc(fromId);
-          await addLocalAudio(pc);
+          try {
+            await addLocalAudio(pc);
+          } catch {
+            failCall(fromId); // mic unavailable/denied → end cleanly
+            return;
+          }
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
           transport.voiceSend(fromId, { kind: "offer", sdp: offer.sdp ?? "" });
@@ -173,7 +189,12 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
           // I'm the callee (already accepted) → answer.
           if (fromId !== c.peerId) return;
           const pc = pcRef.current ?? (await makePc(fromId));
-          await addLocalAudio(pc);
+          try {
+            await addLocalAudio(pc);
+          } catch {
+            failCall(fromId); // mic unavailable/denied → end cleanly
+            return;
+          }
           await pc.setRemoteDescription({ type: "offer", sdp: sig.sdp });
           await flushIce(pc);
           const answer = await pc.createAnswer();
@@ -217,12 +238,28 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
 
     transport.setVoiceHandler(handle);
     return () => transport.setVoiceHandler(() => {});
-  }, [transport, makePc, addLocalAudio, cleanup]);
+  }, [transport, makePc, addLocalAudio, cleanup, failCall]);
 
   // Tear down media when a call leaves the active phases.
   useEffect(() => {
     if (call.phase === "ended" || call.phase === "idle") cleanup();
   }, [call.phase, cleanup]);
+
+  // Auto-end calls that never reach "connected": an unanswered invite/ring
+  // shouldn't ring forever, and stalled media negotiation shouldn't hang. Once
+  // connected, the connectionstatechange handler owns teardown.
+  useEffect(() => {
+    const p = call.phase;
+    if (p !== "inviting" && p !== "ringing" && p !== "connecting") return;
+    const ms = p === "connecting" ? 20_000 : 45_000;
+    const timer = setTimeout(() => {
+      const c = callRef.current;
+      if (c.peerId) transport.voiceSend(c.peerId, { kind: "end" });
+      dispatch({ type: "hangup" });
+      cleanup();
+    }, ms);
+    return () => clearTimeout(timer);
+  }, [call.phase, transport, cleanup]);
 
   return { call, enabled, startCall, acceptCall, hangup, toggleMute };
 }

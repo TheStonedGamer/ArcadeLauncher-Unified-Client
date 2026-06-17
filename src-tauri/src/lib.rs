@@ -76,6 +76,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             catalog::commands::load_catalog,
+            catalog::commands::fetch_catalog,
             catalog::art_commands::fetch_cover_art,
             catalog::prefs_commands::load_catalog_prefs,
             catalog::prefs_commands::save_catalog_prefs,

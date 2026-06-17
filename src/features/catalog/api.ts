@@ -22,6 +22,12 @@ export function loadCatalog(path?: string): Promise<Game[]> {
   return call<Game[]>("load_catalog", { path: path ?? null });
 }
 
+/** Sync the catalog from the server (Bearer-authed), caching it to the per-user
+ *  library.json behind the scenes, and return the games. */
+export function fetchCatalog(host: string, token: string): Promise<Game[]> {
+  return call<Game[]>("fetch_catalog", { host, token });
+}
+
 /** Launch a game; resolves to the spawned process id. */
 export function launchGame(game: Game): Promise<number> {
   return call<number>("launch_game", { game });
