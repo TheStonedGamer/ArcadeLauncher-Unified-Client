@@ -17,8 +17,9 @@ This file lives in **this** repo and is distinct from the C++ repo's
 - **Non-destructive to user data.** The user's `library.json` is read as the
   source of truth; client-local state (favorites, hidden, prefs) lives in
   separate per-user files, never by rewriting `library.json`.
-- The C++ client stays the live product until the cutover phase; do not disturb
-  its auto-update channel during the rewrite.
+- The unified client is the **sole shipping product** (T10c). The native C++
+  auto-update channel is retired; do not publish new `client-v*` releases except
+  a one-time EOL build pointing users here.
 
 ## Status legend
 
@@ -281,10 +282,17 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
   artifacts live in the server repo `deploy/turn/`. **Pending live deploy:** stand
   up coturn on 10.0.0.180, set `ARCADE_TURN_SECRET`/`ARCADE_TURN_URLS` on the
   server, optional nginx-stream for TURN-over-443 (user to supply nginx creds).
-- [ ] **T10b** First signed release on both OSes (user adds signing secrets);
-  publish `.deb`/AppImage/NSIS + `latest.json`.
-- [ ] **T10c** Switch users from the C++ client to the unified client; retire
-  the C++ auto-update channel.
+- [x] **T10b** First signed release on both OSes. Repo secrets configured
+  2026-06-16; **v0.9.2** published 2026-06-17 (CI run 27692555393, both OSes
+  green). Assets: NSIS `.exe`, `.deb`, `.rpm`, AppImage + `.sig` sidecars and
+  signed `latest.json` on
+  [GitHub Releases](https://github.com/TheStonedGamer/ArcadeLauncher-Unified-Client/releases/tag/v0.9.2).
+  v0.9.0 was the initial publish; v0.9.2 is current Latest.
+- [x] **T10c** Switch users from the C++ client to the unified client; retire
+  the C++ auto-update channel. Native `AppUpdater` now shows a one-time migration
+  notice (and manual Check for Updates) linking to the unified GitHub release;
+  `server-client-release.yml` no longer runs on every `main` push (tag/dispatch
+  only). Final EOL native release shipped via workflow dispatch.
 
 ---
 

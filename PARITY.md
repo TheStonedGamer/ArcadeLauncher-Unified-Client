@@ -52,6 +52,5 @@ over the server's existing `voice_signal` relay.
 The unified client is at **full feature parity** with the native C++/Linux clients.
 Everything is implemented, wired to the live contracts, and green on both OSes.
 
-**Next:** T10b — tag the first signed release (signing secrets + pubkey already
-configured), then T10c to flip users off the C++ auto-update channel. The TURN
-server is the one live-infra task remaining before voice is robust across all NATs.
+**Next:** All T10 cutover work is complete. Optional infra: deploy coturn for
+voice NAT traversal (see T9g in `ROADMAP.md`).

@@ -9,8 +9,11 @@ Windows and Linux.
 so admin is needed at most once and **updates never require admin** (Tauri's
 signed updater).
 
-The phase plan (T0–T7) lives in `ROADMAP-V2.md` in the legacy client repo. The
-legacy C++ client stays the live product until this reaches parity.
+**Releases:** [GitHub Releases](https://github.com/TheStonedGamer/ArcadeLauncher-Unified-Client/releases/latest)
+— Windows NSIS, Linux `.deb`/`.rpm`/AppImage, signed in-app updater.
+
+The phase plan lives in [`ROADMAP.md`](ROADMAP.md). The native C++ clients are
+retired as of T10c; this is the sole shipping client.
 
 ## Architecture (modular by design)
 
