@@ -53,8 +53,16 @@ CI mirror: `.github/workflows/ci.yml` on windows-latest + ubuntu-22.04.
 No roadmap blockers remain. Optional:
 
 - **TURN deploy** — coturn on `10.0.0.180` + server env for symmetric-NAT voice.
-- **Install-records catalog overlay** — Install button reflects `install_records.json` without catalog reload.
 - **7z/rar extraction** — if non-zip `pc_archive` titles matter.
+
+Done since last handoff:
+
+- **Install-records catalog overlay** ✅ — the Install button + detail panel now
+  reflect `install_records.json` live (records loaded on launch, kept current
+  from `download://status` events) without a catalog reload. Pure
+  `download/installState.ts` (11 vitest) + `load_install_records` command +
+  `state_map()` (1 KAT); `useInstallOverlay` glue wired through `CatalogView`.
+  Shows ✓ Installed / Installing… / Retry install in `GameDetail`.
 
 ---
 

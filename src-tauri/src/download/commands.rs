@@ -120,6 +120,22 @@ pub async fn download_install(
     Ok(())
 }
 
+/// Load the client-local install records as a `game_id → catalog state string`
+/// map. The catalog UI overlays this onto the read-only library so the Install
+/// button reflects what's actually on disk without a catalog reload. A missing
+/// records file yields an empty map (first run, nothing installed yet).
+#[tauri::command]
+pub fn load_install_records(
+    app: tauri::AppHandle,
+) -> AppResult<std::collections::BTreeMap<String, String>> {
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| AppError::msg(format!("no config dir: {e}")))?;
+    let records = crate::download::records::load(&config_dir.join("install_records.json"))?;
+    Ok(records.state_map())
+}
+
 /// Pause an active install (its `.part` files are kept for resume).
 #[tauri::command]
 pub fn download_pause(manager: State<'_, DownloadManager>, game_id: String) {

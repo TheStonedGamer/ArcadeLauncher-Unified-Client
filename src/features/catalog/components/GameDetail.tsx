@@ -158,8 +158,12 @@ export function GameDetail({
 
   const rating = game.igdbRating >= 1 ? `${Math.round(game.igdbRating)}/100` : "";
   const hasVariants = group.members.length > 1;
+  // The live install state (overlaid from records + download events upstream).
+  const state = pick.installState;
+  const installed = state === "installed" || state === "updateAvailable";
+  const inProgress = state === "installing";
   // Offer Install for server-backed games that aren't already installed.
-  const installable = !!onInstall && pick.serverBacked && pick.installState !== "installed";
+  const installable = !!onInstall && pick.serverBacked && !installed;
   // Offer cloud-save sync for any server-backed game.
   const syncable = !!onSyncSaves && pick.serverBacked;
 
@@ -268,15 +272,31 @@ export function GameDetail({
             </div>
           )}
 
+          {installed && (
+            <div className="detail__install">
+              <span className="detail__fetchmsg">
+                {state === "updateAvailable" ? "✓ Installed — update available" : "✓ Installed"}
+              </span>
+            </div>
+          )}
+
           {installable && (
             <div className="detail__install">
               <button
                 className="detail__launch detail__install-btn"
                 onClick={install}
-                disabled={installing || !canInstall}
+                disabled={installing || inProgress || !canInstall}
                 title={canInstall ? "" : "Sign in to install"}
               >
-                {installing ? "Starting…" : canInstall ? "⬇ Install" : "⬇ Sign in to install"}
+                {inProgress
+                  ? "⬇ Installing…"
+                  : installing
+                    ? "Starting…"
+                    : canInstall
+                      ? state === "failed"
+                        ? "⬇ Retry install"
+                        : "⬇ Install"
+                      : "⬇ Sign in to install"}
               </button>
               {installMsg && <span className="detail__fetchmsg">{installMsg}</span>}
             </div>

@@ -4,6 +4,13 @@
 // runs the engine. The queue controls below work against any active install.
 
 import { call } from "../../lib/ipc";
+import type { InstallStateMap } from "./installState";
+
+/** Load the client-local install records as a `gameId → installState` overlay,
+ *  so the catalog can reflect what's on disk without reloading library.json. */
+export function loadInstallRecords(): Promise<InstallStateMap> {
+  return call<InstallStateMap>("load_install_records");
+}
 
 /** Start installing a game using the signed-in session's host + token. Progress
  *  arrives via the `download://progress`/`status` events the Downloads tab listens

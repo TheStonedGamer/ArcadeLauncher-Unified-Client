@@ -108,6 +108,16 @@ impl InstallRecords {
         self.records.remove(game_id).is_some()
     }
 
+    /// A `game_id → catalog state string` map of every recorded game, for the
+    /// catalog UI to overlay onto the read-only library without a reload. Uses
+    /// the same `installState` strings the catalog model speaks.
+    pub fn state_map(&self) -> BTreeMap<String, String> {
+        self.records
+            .values()
+            .map(|r| (r.game_id.clone(), r.state.as_catalog_str().to_string()))
+            .collect()
+    }
+
     /// Ids that are fully installed (or have an update available — still on disk).
     pub fn installed_ids(&self) -> Vec<&str> {
         self.records
@@ -193,6 +203,19 @@ mod tests {
         let mut ids = r.installed_ids();
         ids.sort();
         assert_eq!(ids, vec!["a", "b"]);
+    }
+
+    #[test]
+    fn state_map_uses_catalog_strings() {
+        let mut r = InstallRecords::default();
+        r.upsert(record("a", InstallState::Installed));
+        r.upsert(record("b", InstallState::Installing));
+        r.upsert(record("c", InstallState::Failed));
+        let m = r.state_map();
+        assert_eq!(m.get("a").map(String::as_str), Some("installed"));
+        assert_eq!(m.get("b").map(String::as_str), Some("installing"));
+        assert_eq!(m.get("c").map(String::as_str), Some("failed"));
+        assert_eq!(m.len(), 3);
     }
 
     #[test]

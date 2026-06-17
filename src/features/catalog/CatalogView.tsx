@@ -19,6 +19,8 @@ import { useCatalogPrefs } from "./useCatalogPrefs";
 import { applyPrefs } from "./prefs";
 import { useSession } from "../session/SessionContext";
 import { installGame } from "../download/api";
+import { useInstallOverlay } from "../download/useInstallOverlay";
+import { effectiveInstallState } from "../download/installState";
 import { syncSaves, type ConflictPolicy, type SyncReport } from "../saves/api";
 import type { Game } from "./types";
 
@@ -26,6 +28,7 @@ export function CatalogView() {
   const { games, loading, error, status, load, launch, setCover } = useCatalog();
   const { draft: settings, loading: settingsLoading } = useSettings();
   const prefs = useCatalogPrefs();
+  const installOverlay = useInstallOverlay();
   const { session } = useSession();
   const hasIgdbCreds = settings.igdbClientId.trim() !== "" && settings.igdbClientSecret.trim() !== "";
 
@@ -52,7 +55,15 @@ export function CatalogView() {
 
   // Overlay the user's favorite/hidden/collection overrides onto the read-only
   // catalog before any querying; downstream code never sees raw library.json.
-  const merged = useMemo(() => applyPrefs(games, prefs.prefs), [games, prefs.prefs]);
+  // The install overlay then layers live install state (from records + download
+  // events) on top so the Install button reflects what's on disk without a reload.
+  const merged = useMemo(() => {
+    const withPrefs = applyPrefs(games, prefs.prefs);
+    return withPrefs.map((g) => {
+      const state = effectiveInstallState(g.id, g.installState, installOverlay);
+      return state === g.installState ? g : { ...g, installState: state };
+    });
+  }, [games, prefs.prefs, installOverlay]);
 
   const fetchCover = async (game: Game): Promise<string | null> => {
     const path = await fetchCoverArt(game, settings.igdbClientId, settings.igdbClientSecret);

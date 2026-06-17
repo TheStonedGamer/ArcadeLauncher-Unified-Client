@@ -104,6 +104,7 @@ pub fn run() {
             download::commands::download_pause,
             download::commands::download_resume,
             download::commands::download_cancel,
+            download::commands::load_install_records,
             presence::commands::presence_set_playing,
             presence::commands::presence_set_idle,
             hotkey::commands::hotkey_apply,
