@@ -87,6 +87,11 @@ impl Endpoint {
         format!("https://{}/api/social/ignores", self.host)
     }
 
+    /// REST URL for per-call WebRTC ICE servers (STUN + short-lived TURN creds).
+    pub fn turn_url(&self) -> String {
+        format!("https://{}/api/social/turn", self.host)
+    }
+
     /// The bearer token, for the `Authorization` header on REST calls.
     pub fn token(&self) -> &str {
         &self.token
@@ -145,6 +150,7 @@ mod tests {
         assert_eq!(e.friend_request_url(), "https://arcade.example.com/api/social/friends/request");
         assert_eq!(e.privacy_url(), "https://arcade.example.com/api/social/privacy");
         assert_eq!(e.ignores_url(), "https://arcade.example.com/api/social/ignores");
+        assert_eq!(e.turn_url(), "https://arcade.example.com/api/social/turn");
     }
 
     #[test]

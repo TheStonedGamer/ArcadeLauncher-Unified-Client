@@ -5,14 +5,15 @@
 // is the browser-API glue (RTCPeerConnection, getUserMedia, remote <audio>),
 // which can't run under jsdom, so it stays thin.
 //
-// NAT note: ICE uses public STUN only for now. Symmetric-NAT peers will need a
-// TURN server — that's the pending nginx/infra step; add its creds to ICE_SERVERS
-// when available.
+// NAT note: ICE servers are fetched per call from the server's /api/social/turn
+// (STUN + short-lived TURN creds) via the injected `iceProvider`. If that fetch
+// fails or no provider is given, we fall back to public STUN — symmetric-NAT
+// peers then won't connect until TURN is configured server-side.
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { callReducer, IDLE_CALL, isBusy, parseSignal, type CallState, type SignalPayload } from "./voice";
 
-const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
+const DEFAULT_ICE: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 export interface VoiceApi {
   call: CallState;
@@ -31,6 +32,8 @@ export interface VoiceApi {
 interface VoiceTransport {
   voiceSend: (to: number, payload: unknown) => void;
   setVoiceHandler: (cb: (fromId: number, payload: unknown) => void) => void;
+  /** Fetch ICE servers (STUN + TURN) for a call; absent → STUN-only fallback. */
+  iceProvider?: () => Promise<RTCIceServer[]>;
 }
 
 export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi {
@@ -43,6 +46,8 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   // ICE candidates that arrive before the remote description is set are queued.
   const pendingIce = useRef<RTCIceCandidateInit[]>([]);
+  // Cached ICE servers for the in-progress call (fresh creds per call).
+  const iceRef = useRef<RTCIceServer[] | null>(null);
 
   const cleanup = useCallback(() => {
     pcRef.current?.close();
@@ -50,13 +55,32 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
     localRef.current?.getTracks().forEach((t) => t.stop());
     localRef.current = null;
     pendingIce.current = [];
+    iceRef.current = null; // next call refetches fresh TURN credentials
     if (audioRef.current) audioRef.current.srcObject = null;
   }, []);
 
+  /** Resolve ICE servers for this call: fetched once, then cached. Falls back to
+   *  public STUN if no provider or the fetch fails. */
+  const ensureIce = useCallback(async (): Promise<RTCIceServer[]> => {
+    if (iceRef.current) return iceRef.current;
+    let servers = DEFAULT_ICE;
+    if (transport.iceProvider) {
+      try {
+        const fetched = await transport.iceProvider();
+        if (fetched.length) servers = fetched;
+      } catch {
+        // keep STUN fallback
+      }
+    }
+    iceRef.current = servers;
+    return servers;
+  }, [transport]);
+
   /** Build a peer connection wired to send ICE + surface remote audio. */
   const makePc = useCallback(
-    (peerId: number) => {
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    async (peerId: number) => {
+      const iceServers = await ensureIce();
+      const pc = new RTCPeerConnection({ iceServers });
       pc.onicecandidate = (e) => {
         if (e.candidate) transport.voiceSend(peerId, { kind: "ice", candidate: JSON.stringify(e.candidate) });
       };
@@ -79,7 +103,7 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
       pcRef.current = pc;
       return pc;
     },
-    [transport, cleanup],
+    [transport, cleanup, ensureIce],
   );
 
   /** Acquire the mic and add its track to the connection. */
@@ -138,7 +162,7 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
           // Remote accepted my invite → I'm the caller: make offer.
           if (c.phase !== "inviting" || fromId !== c.peerId) return;
           dispatch({ type: "remoteAccept" });
-          const pc = makePc(fromId);
+          const pc = await makePc(fromId);
           await addLocalAudio(pc);
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
@@ -148,7 +172,7 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
         case "offer": {
           // I'm the callee (already accepted) → answer.
           if (fromId !== c.peerId) return;
-          const pc = pcRef.current ?? makePc(fromId);
+          const pc = pcRef.current ?? (await makePc(fromId));
           await addLocalAudio(pc);
           await pc.setRemoteDescription({ type: "offer", sdp: sig.sdp });
           await flushIce(pc);

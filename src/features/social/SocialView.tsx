@@ -7,6 +7,7 @@ import { useProfile } from "./useProfile";
 import { useFriendMeta } from "./useFriendMeta";
 import { usePrivacy } from "./usePrivacy";
 import { useVoice } from "./useVoice";
+import { fetchTurnServers } from "./api";
 import { FriendList } from "./components/FriendList";
 import { AddFriend } from "./components/AddFriend";
 import { StatusPicker } from "./components/StatusPicker";
@@ -34,6 +35,9 @@ export function SocialView() {
   const voice = useVoice(!!auth && social.connected, {
     voiceSend: social.voiceSend,
     setVoiceHandler: social.setVoiceHandler,
+    iceProvider: auth
+      ? async () => (await fetchTurnServers(auth.host, auth.token)).iceServers
+      : undefined,
   });
   const peer = social.friends.find((f) => f.accountId === social.selectedPeer) ?? null;
   const callPeerName =

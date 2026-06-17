@@ -564,6 +564,47 @@ pub async fn social_ignores_get(host: String, token: String) -> AppResult<Vec<u6
     Ok(r.ignored)
 }
 
+/// One ICE server entry for a WebRTC connection. `urls` may be a single string
+/// or an array (RTCIceServer shape); we pass it through as raw JSON. `username`/
+/// `credential` are present only for TURN servers.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IceServer {
+    pub urls: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credential: Option<String>,
+}
+
+/// ICE configuration for a voice call: the servers + the credential TTL.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IceConfig {
+    pub ice_servers: Vec<IceServer>,
+    #[serde(default)]
+    pub ttl: i64,
+}
+
+/// Fetch per-call WebRTC ICE servers (STUN + short-lived TURN credentials) for
+/// voice (ROADMAP T9g). The server scopes TURN creds to the caller.
+#[tauri::command]
+pub async fn social_turn_servers(host: String, token: String) -> AppResult<IceConfig> {
+    let endpoint = Endpoint::new(host, token);
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(endpoint.turn_url())
+        .bearer_auth(endpoint.token())
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("turn request failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("turn lookup failed (HTTP {})", resp.status())));
+    }
+    resp.json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid turn response: {e}")))
+}
+
 /// Add or remove a persistent ignore on another account.
 #[tauri::command]
 pub async fn social_ignore_set(host: String, token: String, user_id: u64, ignore: bool) -> AppResult<()> {

@@ -98,6 +98,7 @@ pub fn run() {
             social::commands::social_privacy_set,
             social::commands::social_ignores_get,
             social::commands::social_ignore_set,
+            social::commands::social_turn_servers,
             download::commands::download_start,
             download::commands::download_install,
             download::commands::download_pause,

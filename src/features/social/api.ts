@@ -102,3 +102,16 @@ export function fetchIgnores(host: string, token: string): Promise<number[]> {
 export function setIgnore(host: string, token: string, userId: number, ignore: boolean): Promise<void> {
   return call("social_ignore_set", { host, token, userId, ignore });
 }
+
+/** WebRTC ICE config for a voice call (STUN + short-lived TURN credentials). */
+export interface IceConfig {
+  /** RTCIceServer-shaped entries (urls may be a string or string[]). */
+  iceServers: RTCIceServer[];
+  /** TURN credential lifetime in seconds (0 = STUN-only, no expiry). */
+  ttl: number;
+}
+
+/** Fetch per-call ICE servers (STUN + scoped TURN creds) for voice (T9g). */
+export function fetchTurnServers(host: string, token: string): Promise<IceConfig> {
+  return call("social_turn_servers", { host, token });
+}
