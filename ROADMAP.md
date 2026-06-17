@@ -296,6 +296,24 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
 
 ---
 
+## Phase T11 — Post-cutover polish (in progress)
+
+The client is the sole shipping product; this phase is incremental UX/quality
+work on top of parity. Each item still ships green on both OSes.
+
+- [x] **T11a** Catalog auto-loads behind the scenes. Removed the `library.json`
+  path bar from the catalog screen **and** the "Library file" field from
+  Settings — the path is no longer something the user manages. `load_catalog`
+  now resolves the location in Rust: an explicit arg (rare) → a legacy
+  `libraryPath` still in `config.json` (migration) → the default per-user
+  `app_config_dir/library.json` (alongside `config.json`,
+  `install_records.json`, `catalog_prefs.json`). A missing file yields an empty
+  catalog, so a fresh install simply shows no games until the catalog syncs.
+  The `libraryPath` field stays in the settings model for back-compat but is
+  hidden. Targeted for **v0.9.3**.
+
+---
+
 ## Execution order
 
 Top-down by foundational value: **T4 (downloads) → T5 → T6 → T7 → T8 → T9 →

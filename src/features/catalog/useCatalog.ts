@@ -21,7 +21,7 @@ export interface CatalogState {
   loading: boolean;
   error: string | null;
   status: string | null;
-  load: (path: string) => Promise<void>;
+  load: (path?: string) => Promise<void>;
   launch: (game: Game) => Promise<void>;
   /** Update one game's cover path in-memory (after a cover fetch). */
   setCover: (id: string, coverArtPath: string) => void;
@@ -55,7 +55,7 @@ export function useCatalog(): CatalogState {
     };
   }, []);
 
-  const load = useCallback(async (path: string) => {
+  const load = useCallback(async (path?: string) => {
     setLoading(true);
     setError(null);
     try {

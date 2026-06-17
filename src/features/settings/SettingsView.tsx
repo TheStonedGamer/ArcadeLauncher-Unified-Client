@@ -12,17 +12,6 @@ export function SettingsView() {
     <section className="settings">
       <h2 className="settings__heading">General</h2>
 
-      <label className="settings__field">
-        <span className="settings__label">Library file (library.json)</span>
-        <input
-          className="settings__input"
-          value={draft.libraryPath}
-          onChange={(e) => set("libraryPath", e.target.value)}
-          placeholder="Path to your library.json"
-          spellCheck={false}
-        />
-      </label>
-
       <label className="settings__check">
         <input type="checkbox" checked={draft.closeToTray} onChange={(e) => set("closeToTray", e.target.checked)} />
         Minimize to tray on close

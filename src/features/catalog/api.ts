@@ -16,9 +16,10 @@ export function saveCatalogPrefs(prefs: CatalogPrefs): Promise<void> {
   return call("save_catalog_prefs", { prefs });
 }
 
-/** Load games from a library.json path. */
-export function loadCatalog(path: string): Promise<Game[]> {
-  return call<Game[]>("load_catalog", { path });
+/** Load games. The library.json path is resolved in Rust (per-user default);
+ *  pass an explicit path only for special cases. */
+export function loadCatalog(path?: string): Promise<Game[]> {
+  return call<Game[]>("load_catalog", { path: path ?? null });
 }
 
 /** Launch a game; resolves to the spawned process id. */

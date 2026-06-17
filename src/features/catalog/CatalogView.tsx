@@ -1,6 +1,8 @@
-// The catalog screen: library path bar, sidebar (filters), a toolbar (search +
-// sort), the filtered/sorted grid, and a detail modal. Query state lives here;
-// the actual filtering/sorting is the pure applyQuery from query.ts.
+// The catalog screen: sidebar (filters), a toolbar (search + sort), the
+// filtered/sorted grid, and a detail modal. The library.json location is
+// resolved in Rust (per-user default) and auto-loaded on mount — there is no
+// path bar. Query state lives here; the actual filtering/sorting is the pure
+// applyQuery from query.ts.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCatalog } from "./useCatalog";
@@ -26,7 +28,7 @@ import type { Game } from "./types";
 
 export function CatalogView() {
   const { games, loading, error, status, load, launch, setCover } = useCatalog();
-  const { draft: settings, loading: settingsLoading } = useSettings();
+  const { draft: settings } = useSettings();
   const prefs = useCatalogPrefs();
   const installOverlay = useInstallOverlay();
   const { session } = useSession();
@@ -70,21 +72,17 @@ export function CatalogView() {
     if (path) setCover(game.id, path);
     return path;
   };
-  const [path, setPath] = useState("");
   const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
   const autoLoaded = useRef(false);
 
-  // Once settings finish loading, fill the path bar and auto-load the catalog.
-  // The ref prevents re-triggering if settings are saved mid-session.
+  // Load the catalog on first mount. The library.json location is resolved in
+  // Rust (per-user default), so there is no path for the user to manage. The
+  // ref prevents re-triggering on re-renders.
   useEffect(() => {
-    if (settingsLoading || autoLoaded.current) return;
+    if (autoLoaded.current) return;
     autoLoaded.current = true;
-    const p = settings.libraryPath?.trim() ?? "";
-    if (p) {
-      setPath(p);
-      void load(p);
-    }
-  }, [settingsLoading, settings.libraryPath, load]);
+    void load();
+  }, [load]);
   const [selected, setSelected] = useState<VariantGroup | null>(null);
 
   const sidebar = useMemo(() => buildSidebar(merged), [merged]);
@@ -148,25 +146,7 @@ export function CatalogView() {
 
   return (
     <section className={`catalog${bigPicture ? " catalog--bigpicture" : ""}`}>
-      <form
-        className="catalog__bar"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (path.trim()) load(path.trim());
-        }}
-      >
-        <input
-          className="catalog__path"
-          value={path}
-          onChange={(e) => setPath(e.target.value)}
-          placeholder="Path to library.json"
-          spellCheck={false}
-        />
-        <button className="catalog__load" type="submit" disabled={loading || !path.trim()}>
-          {loading ? "Loading…" : "Load catalog"}
-        </button>
-      </form>
-
+      {loading && <p className="catalog__status">Loading catalog…</p>}
       {error && <p className="catalog__error">{error}</p>}
       {!error && status && <p className="catalog__status">{status}</p>}
 
