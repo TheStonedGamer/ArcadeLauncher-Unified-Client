@@ -236,10 +236,20 @@ body {
 
 .catalog__content { min-width: 0; }
 .catalog__toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.catalog__search-wrap { flex: 1; position: relative; display: flex; }
 .catalog__search {
-  flex: 1; padding: 8px 10px; border-radius: 8px;
+  flex: 1; padding: 8px 32px 8px 10px; border-radius: 8px;
   border: 1px solid var(--border); background: var(--panel); color: var(--text);
 }
+.catalog__search-clear {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+  padding: 0; border: none; border-radius: 50%; cursor: pointer;
+  background: transparent; color: var(--muted); font-size: 18px; line-height: 1;
+}
+.catalog__search-clear:hover { background: var(--border); color: var(--text); }
+.catalog__search-clear:active { transform: translateY(-50%) scale(0.9); }
+.catalog__search-clear:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .catalog__sort { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
 .catalog__sort select {
   padding: 7px 8px; border-radius: 8px; border: 1px solid var(--border);
@@ -320,6 +330,25 @@ body {
   padding: 10px 18px; border-radius: 9px; border: none;
   background: var(--on); color: #06210f; font-weight: 700; cursor: pointer; font-size: 14px;
 }
+.detail__launch:disabled { opacity: .6; cursor: default; }
+.detail__launch-wrap { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.detail__launch-reason { color: var(--warn, #e0a04d); }
+
+/* Controller button-prompt bar (shown only when a pad is connected). */
+.cc-hints {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: flex; gap: 18px; justify-content: center; align-items: center;
+  padding: 8px 16px; pointer-events: none;
+  background: linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,0));
+  font-size: 13px; color: var(--fg, #e8e8e8);
+}
+.cc-hints__item { display: inline-flex; align-items: center; gap: 6px; }
+.cc-hints__btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+  background: rgba(255,255,255,.16); font-weight: 700; font-size: 12px;
+}
+.cc-hints__label { opacity: .85; }
 .detail__install { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 10px; }
 .detail__install-btn { background: var(--accent); color: #06210f; }
 .detail__install-btn:disabled { opacity: .65; cursor: default; }

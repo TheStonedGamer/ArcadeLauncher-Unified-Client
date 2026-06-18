@@ -129,7 +129,7 @@ dependencies = [
 
 [[package]]
 name = "arcade_launcher"
-version = "0.9.15"
+version = "0.9.16"
 dependencies = [
  "discord-rich-presence",
  "filetime",
@@ -154,7 +154,7 @@ dependencies = [
 
 [[package]]
 name = "arcade_updater"
-version = "0.9.15"
+version = "0.9.16"
 dependencies = [
  "base64 0.22.1",
  "eframe",

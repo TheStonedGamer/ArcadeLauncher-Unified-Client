@@ -110,33 +110,58 @@ fn find_rom(install_dir: &Path) -> Option<PathBuf> {
     best.map(|(_, p)| p)
 }
 
+/// Why `enrich` did (or didn't) fill in an emulator-ROM launch target. The
+/// distinct skip reasons let the caller surface a precise "why it can't run"
+/// instead of a blanket "no runnable target" (see `launch::target::diagnose`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EnrichOutcome {
+    /// Filled the target, already had a direct one, or the platform isn't
+    /// emulated — either way the normal launch precedence applies as-is.
+    Resolved,
+    /// Emulator-ROM platform, but no unpacked emulator runtime is installed.
+    EmulatorMissing,
+    /// Emulator runtime present, but the game's ROM/ISO isn't installed.
+    RomMissing,
+}
+
 /// Fill `game.emulator_path` / `game.rom_path` for an emulator-ROM game so it can
 /// launch. No-op (leaves the game unchanged) when the platform isn't emulated,
 /// the game already has a direct launch target, no runtime exe is present, or the
 /// ROM isn't installed — callers fall back to the normal launch precedence.
 pub fn enrich(app: &tauri::AppHandle, game: &mut Game) {
+    let _ = enrich_status(app, game);
+}
+
+/// Like [`enrich`], but reports the outcome so a caller can tell a genuinely
+/// unconfigured game (`Resolved` + no other target → "no target") apart from an
+/// emulator game that's simply not installed yet (`EmulatorMissing`/`RomMissing`).
+pub fn enrich_status(app: &tauri::AppHandle, game: &mut Game) -> EnrichOutcome {
     // Already directly runnable, or already resolved — nothing to do.
     if !game.launch_uri.is_empty() || !game.emulator_path.is_empty() {
-        return;
+        return EnrichOutcome::Resolved;
     }
     let candidates = exe_candidates(&game.platform);
     if candidates.is_empty() {
-        return;
+        // Not an emulated platform — leave it to the exe/uri precedence.
+        return EnrichOutcome::Resolved;
     }
-    let Some(emu_dir) = emulators_dir(app) else { return };
+    let Some(emu_dir) = emulators_dir(app) else {
+        return EnrichOutcome::EmulatorMissing;
+    };
     let Some(exe) = find_exe(&emu_dir.join("_runtimes"), candidates) else {
-        return;
+        return EnrichOutcome::EmulatorMissing;
     };
 
     // Resolve the installed ROM via the install record's dir, falling back to the
     // conventional `<app_data>/games/<id>` layout if the record lacks a dir.
     let install_dir = resolve_install_dir(app, &game.id);
     let Some(rom) = install_dir.as_deref().and_then(find_rom) else {
-        return;
+        return EnrichOutcome::RomMissing;
     };
 
     game.emulator_path = exe.to_string_lossy().into_owned();
     game.rom_path = rom.to_string_lossy().into_owned();
+    EnrichOutcome::Resolved
 }
 
 /// The install dir for `game_id` from `install_records.json`, or the conventional

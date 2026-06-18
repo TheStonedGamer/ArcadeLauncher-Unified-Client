@@ -5,11 +5,17 @@
 
 import { useEffect, useRef } from "react";
 import { diffIntents, type NavIntent, type PadSnapshot } from "./input";
+import { useWindowFocused } from "./useWindowFocused";
 
 export function useGamepad(onIntent: (intent: NavIntent) => void, enabled = true): void {
   const prev = useRef<PadSnapshot>({ buttons: [], axes: [] });
   const cb = useRef(onIntent);
   cb.current = onIntent;
+  // CRITICAL focus gate: only act on controller input while we're the
+  // foreground window (alt-tab / minimize / a launched game in front → ignore).
+  const focused = useWindowFocused();
+  const focusedRef = useRef(focused);
+  focusedRef.current = focused;
 
   useEffect(() => {
     if (!enabled) return;
@@ -25,7 +31,12 @@ export function useGamepad(onIntent: (intent: NavIntent) => void, enabled = true
           buttons: gp.buttons.map((b) => b.pressed),
           axes: Array.from(gp.axes),
         };
-        for (const intent of diffIntents(snap, prev.current)) cb.current(intent);
+        // While unfocused we still sync `prev` to the live state but emit
+        // nothing — so a button held across the blur isn't seen as a fresh
+        // press (edge) the instant focus returns.
+        if (focusedRef.current) {
+          for (const intent of diffIntents(snap, prev.current)) cb.current(intent);
+        }
         prev.current = snap;
       }
       raf = requestAnimationFrame(tick);

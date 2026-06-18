@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextIndex } from "./navigate";
+import { nextIndex, pageIndex, PAGE_ROWS } from "./navigate";
 
 // A 3-column grid of 7 tiles:
 //  0 1 2
@@ -40,5 +40,22 @@ describe("nextIndex (3 cols, 7 tiles)", () => {
   });
   it("handles an empty grid", () => {
     expect(nextIndex(0, "down", 0, 3)).toBe(0);
+  });
+});
+
+describe("pageIndex", () => {
+  // 3 cols → a page is PAGE_ROWS*3 tiles.
+  const step = PAGE_ROWS * 3;
+  it("jumps down a page, clamping at the last tile", () => {
+    expect(pageIndex(0, "pageDown", 100, 3)).toBe(step);
+    expect(pageIndex(95, "pageDown", 100, 3)).toBe(99);
+  });
+  it("jumps up a page, clamping at zero", () => {
+    expect(pageIndex(step, "pageUp", 100, 3)).toBe(0);
+    expect(pageIndex(2, "pageUp", 100, 3)).toBe(0);
+  });
+  it("ignores non-page intents and empty grids", () => {
+    expect(pageIndex(5, "select", 100, 3)).toBe(5);
+    expect(pageIndex(0, "pageDown", 0, 3)).toBe(0);
   });
 });

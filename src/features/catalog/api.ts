@@ -32,6 +32,21 @@ export function launchGame(game: Game): Promise<number> {
   return call<number>("launch_game", { game });
 }
 
+/** Whether a game can run right now, and if not, a specific reason. Mirrors the
+ *  Rust `launch::target::TargetStatus`. */
+export interface TargetStatus {
+  runnable: boolean;
+  /** runnable | emulatorMissing | romMissing | executableMissing | noTarget */
+  kind: string;
+  message: string;
+}
+
+/** Diagnose a game's launch readiness without spawning it. Used by the detail
+ *  panel to show a precise reason instead of a blanket "No Runnable Target". */
+export function checkRunnable(game: Game): Promise<TargetStatus> {
+  return call<TargetStatus>("check_runnable", { game });
+}
+
 /** A game needs a cover when it has neither a local path nor a URL (mirrors the
  *  Rust `art::needs_art` predicate). */
 export function needsArt(game: Game): boolean {

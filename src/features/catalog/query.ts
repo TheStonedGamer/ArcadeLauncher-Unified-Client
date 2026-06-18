@@ -17,10 +17,18 @@ export const SORT_LABELS: Record<SortMode, string> = {
 // A sidebar selection: a built-in scope, a platform, or a collection.
 export type Filter =
   | { kind: "all" }
+  | { kind: "installed" }
   | { kind: "favorites" }
   | { kind: "hidden" }
   | { kind: "platform"; value: string }
   | { kind: "collection"; value: string };
+
+/** A game counts as installed once it's on disk and runnable: install state
+ *  "installed" (or "updateAvailable", which is installed + an update pending).
+ *  "installing"/"failed"/"notInstalled" don't qualify. */
+export function isInstalled(game: Game): boolean {
+  return game.installState === "installed" || game.installState === "updateAvailable";
+}
 
 export interface Query {
   search: string;
@@ -71,6 +79,8 @@ function matchesFilter(game: Game, filter: Filter): boolean {
   switch (filter.kind) {
     case "all":
       return true;
+    case "installed":
+      return isInstalled(game);
     case "favorites":
       return game.favorite;
     case "hidden":
@@ -125,9 +135,11 @@ export function buildSidebar(games: Game[]): SidebarEntry[] {
   const platforms = new Map<string, number>();
   const collections = new Map<string, number>();
   let favorites = 0;
+  let installed = 0;
 
   for (const g of visible) {
     if (g.favorite) favorites++;
+    if (isInstalled(g)) installed++;
     if (g.platform) platforms.set(g.platform, (platforms.get(g.platform) ?? 0) + 1);
     for (const c of collectionsOf(g)) {
       collections.set(c, (collections.get(c) ?? 0) + 1);
@@ -136,6 +148,7 @@ export function buildSidebar(games: Game[]): SidebarEntry[] {
 
   const entries: SidebarEntry[] = [
     { id: "all", label: "All Games", filter: { kind: "all" }, count: visible.length },
+    { id: "installed", label: "Installed", filter: { kind: "installed" }, count: installed },
     { id: "favorites", label: "Favorites", filter: { kind: "favorites" }, count: favorites },
   ];
   if (hiddenCount > 0) {

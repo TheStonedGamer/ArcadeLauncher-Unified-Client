@@ -2,8 +2,9 @@
 // dump, a summary, and (when the group has multiple dumps) a version picker.
 // Launching uses the currently selected dump. Esc / backdrop click closes.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { checkRunnable, type TargetStatus } from "../api";
 import type { Game } from "../types";
 import type { ConflictPolicy, SyncReport } from "../../saves/api";
 import { yearOf, collectionsOf } from "../query";
@@ -143,6 +144,26 @@ export function GameDetail({
   const inProgress = state === "installing";
   // Offer Install for server-backed games that aren't already installed.
   const installable = !!onInstall && pick.serverBacked && !installed;
+
+  // Diagnose the selected dump's launch readiness so we can show a specific
+  // reason ("file moved", "emulator not installed", …) instead of letting the
+  // user click Launch only to hit a generic failure. Only relevant once we're
+  // past the Install button (installable games show Install, not Launch).
+  const [runStatus, setRunStatus] = useState<TargetStatus | null>(null);
+  useEffect(() => {
+    if (installable) {
+      setRunStatus(null);
+      return;
+    }
+    let live = true;
+    setRunStatus(null);
+    checkRunnable(pick)
+      .then((s) => live && setRunStatus(s))
+      .catch(() => live && setRunStatus(null));
+    return () => {
+      live = false;
+    };
+  }, [pick, installable]);
   // Offer cloud-save sync for any server-backed game.
   const syncable = !!onSyncSaves && pick.serverBacked;
 
@@ -304,10 +325,19 @@ export function GameDetail({
               {installMsg && <span className="detail__fetchmsg">{installMsg}</span>}
             </div>
           ) : (
-            <button className="detail__launch" onClick={() => onLaunch(pick)}>
-              ▶ {state === "updateAvailable" ? "Launch (update available)" : "Launch"}
-              {hasVariants ? ` — ${variantLabel(pick) || "Base"}` : ""}
-            </button>
+            <div className="detail__launch-wrap">
+              <button
+                className="detail__launch"
+                onClick={() => onLaunch(pick)}
+                disabled={runStatus !== null && !runStatus.runnable}
+              >
+                ▶ {state === "updateAvailable" ? "Launch (update available)" : "Launch"}
+                {hasVariants ? ` — ${variantLabel(pick) || "Base"}` : ""}
+              </button>
+              {runStatus && !runStatus.runnable && (
+                <span className="detail__fetchmsg detail__launch-reason">{runStatus.message}</span>
+              )}
+            </div>
           )}
         </div>
       </div>

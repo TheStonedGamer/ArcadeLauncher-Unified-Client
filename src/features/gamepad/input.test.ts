@@ -28,10 +28,17 @@ describe("diffIntents — buttons", () => {
     // Held across frames → no repeat.
     expect(diffIntents(down, down)).toEqual([]);
   });
-  it("maps A/B/Y to select/back/bigpicture", () => {
+  it("maps the face/shoulder/menu buttons to their intents", () => {
     expect(diffIntents(pad([BTN.A]))).toEqual(["select"]);
     expect(diffIntents(pad([BTN.B]))).toEqual(["back"]);
-    expect(diffIntents(pad([BTN.Y]))).toEqual(["bigpicture"]);
+    expect(diffIntents(pad([BTN.X]))).toEqual(["context"]);
+    expect(diffIntents(pad([BTN.Y]))).toEqual(["search"]);
+    expect(diffIntents(pad([BTN.LB]))).toEqual(["tabPrev"]);
+    expect(diffIntents(pad([BTN.RB]))).toEqual(["tabNext"]);
+    expect(diffIntents(pad([BTN.LT]))).toEqual(["pageUp"]);
+    expect(diffIntents(pad([BTN.RT]))).toEqual(["pageDown"]);
+    expect(diffIntents(pad([BTN.START]))).toEqual(["settings"]);
+    expect(diffIntents(pad([BTN.GUIDE]))).toEqual(["bigpicture"]);
   });
   it("releasing then pressing again re-fires", () => {
     const a = pad([BTN.A]);

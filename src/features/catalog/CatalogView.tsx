@@ -7,9 +7,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCatalog } from "./useCatalog";
 import { useGamepad } from "../gamepad/useGamepad";
-import { nextIndex } from "../gamepad/navigate";
+import { nextIndex, pageIndex } from "../gamepad/navigate";
 import { setFullscreen } from "../gamepad/api";
 import type { NavIntent } from "../gamepad/input";
+import { ControllerHints } from "../gamepad/ControllerHints";
 import { CatalogGrid } from "./components/CatalogGrid";
 import { Sidebar } from "./components/Sidebar";
 import { GameDetail } from "./components/GameDetail";
@@ -70,9 +71,38 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
     });
   }, [games, prefs.prefs, installOverlay]);
 
-  const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
+  // Restore the last sidebar filter + sort so the chosen scope (e.g. Installed)
+  // survives a relaunch. Search text is intentionally not persisted — a stale
+  // query on startup is confusing.
+  const [query, setQuery] = useState<Query>(() => {
+    try {
+      const saved = localStorage.getItem("catalog.query");
+      if (saved) {
+        const p = JSON.parse(saved) as Partial<Query>;
+        return { ...DEFAULT_QUERY, filter: p.filter ?? DEFAULT_QUERY.filter, sort: p.sort ?? DEFAULT_QUERY.sort };
+      }
+    } catch {
+      // ignore malformed/absent storage
+    }
+    return DEFAULT_QUERY;
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("catalog.query", JSON.stringify({ filter: query.filter, sort: query.sort }));
+    } catch {
+      // storage may be unavailable; persistence is best-effort
+    }
+  }, [query.filter, query.sort]);
   const autoLoaded = useRef(false);
   const syncedFor = useRef<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Clear the search box and keep the cursor in it, so the user can immediately
+  // type a new query (used by the X button and the Esc key).
+  const clearSearch = useCallback(() => {
+    setQuery((q) => ({ ...q, search: "" }));
+    searchRef.current?.focus();
+  }, []);
 
   // Show the locally cached catalog immediately on first mount (offline-friendly,
   // no path for the user to manage — it's resolved in Rust).
@@ -116,7 +146,7 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
 
   const onIntent = useCallback(
     (intent: NavIntent) => {
-      // A detail modal is open → A launches, B closes, Y still toggles BP.
+      // A detail modal is open → A launches, B closes, Guide still toggles BP.
       if (selected) {
         if (intent === "select") {
           launch(selected.representative);
@@ -135,8 +165,18 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
         case "right":
           setFocusIndex((i) => nextIndex(i < 0 ? 0 : i, intent, groups.length, columns.current));
           break;
+        case "pageUp":
+        case "pageDown":
+          setFocusIndex((i) => pageIndex(i < 0 ? 0 : i, intent, groups.length, columns.current));
+          break;
         case "select":
+        case "context":
+          // A opens the focused tile; X (context) does the same — the detail
+          // modal is where per-game actions live.
           if (focusIndex >= 0 && groups[focusIndex]) setSelected(groups[focusIndex]);
+          break;
+        case "search":
+          searchRef.current?.focus();
           break;
         case "back":
           if (bigPicture) toggleBigPicture();
@@ -162,13 +202,33 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
 
         <div className="catalog__content">
           <div className="catalog__toolbar">
-            <input
-              className="catalog__search"
-              value={query.search}
-              onChange={(e) => setQuery((q) => ({ ...q, search: e.target.value }))}
-              placeholder="Search title, platform, dev, genre, year…"
-              spellCheck={false}
-            />
+            <div className="catalog__search-wrap">
+              <input
+                ref={searchRef}
+                className="catalog__search"
+                value={query.search}
+                onChange={(e) => setQuery((q) => ({ ...q, search: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape" && query.search) {
+                    e.preventDefault();
+                    clearSearch();
+                  }
+                }}
+                placeholder="Search title, platform, dev, genre, year…"
+                spellCheck={false}
+              />
+              {query.search && (
+                <button
+                  type="button"
+                  className="catalog__search-clear"
+                  onClick={clearSearch}
+                  aria-label="Clear search"
+                  title="Clear search (Esc)"
+                >
+                  ×
+                </button>
+              )}
+            </div>
             <label className="catalog__sort">
               Sort
               <select
@@ -187,7 +247,7 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
               type="button"
               className="catalog__bigpicture"
               onClick={toggleBigPicture}
-              title="Big Picture mode (gamepad Y)"
+              title="Big Picture mode (gamepad Guide)"
               aria-pressed={bigPicture}
             >
               {bigPicture ? "Exit Big Picture" : "Big Picture"}
@@ -224,6 +284,8 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
           savePathFor={(g) => prefs.prefs.savePaths[g.id] ?? ""}
         />
       )}
+
+      <ControllerHints context={selected ? "detail" : "grid"} />
     </section>
   );
 }

@@ -3,7 +3,9 @@
 // This is the testable heart of controller navigation; the `useGamepad` hook
 // only polls `navigator.getGamepads()` and feeds snapshots through here.
 
-/** Discrete navigation intents the UI acts on. */
+/** Discrete navigation intents the UI acts on. Buttons follow the roadmap's
+ *  default Xbox mapping (A confirm, B back, X context, Y search, LB/RB tabs,
+ *  LT/RT page scroll, Start settings); Big Picture moves to the Guide button. */
 export type NavIntent =
   | "up"
   | "down"
@@ -11,6 +13,13 @@ export type NavIntent =
   | "right"
   | "select"
   | "back"
+  | "context"
+  | "search"
+  | "tabPrev"
+  | "tabNext"
+  | "pageUp"
+  | "pageDown"
+  | "settings"
   | "bigpicture";
 
 /** A minimal, engine-agnostic snapshot of a gamepad for one frame. */
@@ -25,11 +34,18 @@ export interface PadSnapshot {
 export const BTN = {
   A: 0,
   B: 1,
+  X: 2,
   Y: 3,
+  LB: 4,
+  RB: 5,
+  LT: 6,
+  RT: 7,
+  START: 9,
   DPAD_UP: 12,
   DPAD_DOWN: 13,
   DPAD_LEFT: 14,
   DPAD_RIGHT: 15,
+  GUIDE: 16,
 } as const;
 
 /** Left-stick deflection past this counts as a directional press. */
@@ -82,7 +98,14 @@ export function diffIntents(curr: PadSnapshot, prev: PadSnapshot = EMPTY): NavIn
 
   if (edge(curr, prev, BTN.A)) out.push("select");
   if (edge(curr, prev, BTN.B)) out.push("back");
-  if (edge(curr, prev, BTN.Y)) out.push("bigpicture");
+  if (edge(curr, prev, BTN.X)) out.push("context");
+  if (edge(curr, prev, BTN.Y)) out.push("search");
+  if (edge(curr, prev, BTN.LB)) out.push("tabPrev");
+  if (edge(curr, prev, BTN.RB)) out.push("tabNext");
+  if (edge(curr, prev, BTN.LT)) out.push("pageUp");
+  if (edge(curr, prev, BTN.RT)) out.push("pageDown");
+  if (edge(curr, prev, BTN.START)) out.push("settings");
+  if (edge(curr, prev, BTN.GUIDE)) out.push("bigpicture");
 
   return out;
 }

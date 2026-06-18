@@ -31,9 +31,12 @@ pub fn start(app: &AppHandle, mut game: Game) -> AppResult<u32> {
     // that already have a direct target (Steam/Epic/PC), so precedence is intact.
     crate::emulators::launch::enrich(app, &mut game);
 
-    let plan = game
-        .launch_plan()
-        .ok_or_else(|| crate::error::AppError::msg(format!("'{}' has no runnable target", game.title)))?;
+    let plan = game.launch_plan().ok_or_else(|| {
+        // Re-diagnose for a specific reason instead of a blanket message, so the
+        // UI can tell the user *why* (not installed, file moved, etc.).
+        let status = crate::launch::target::diagnose(app, &game);
+        crate::error::AppError::msg(status.message)
+    })?;
 
     hooks::run(&game.pre_launch_cmd);
 

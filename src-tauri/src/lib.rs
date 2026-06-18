@@ -80,6 +80,7 @@ pub fn run() {
             catalog::prefs_commands::load_catalog_prefs,
             catalog::prefs_commands::save_catalog_prefs,
             launch::commands::launch_game,
+            launch::commands::check_runnable,
             settings::commands::load_settings,
             settings::commands::save_settings,
             social::commands::social_connect,

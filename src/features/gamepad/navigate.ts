@@ -34,3 +34,23 @@ export function nextIndex(
       return i;
   }
 }
+
+/** How many rows a single page-scroll (LT/RT) jumps. */
+export const PAGE_ROWS = 3;
+
+/** Jump the focus index by a page (PAGE_ROWS rows) up or down, clamping within
+ *  [0, total-1]. Used by the LT/RT trigger intents for fast scrolling. */
+export function pageIndex(
+  current: number,
+  intent: NavIntent,
+  total: number,
+  columns: number,
+): number {
+  if (total <= 0) return 0;
+  const cols = Math.max(1, columns);
+  const i = Math.min(Math.max(current, 0), total - 1);
+  const step = cols * PAGE_ROWS;
+  if (intent === "pageUp") return Math.max(0, i - step);
+  if (intent === "pageDown") return Math.min(total - 1, i + step);
+  return i;
+}

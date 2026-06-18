@@ -102,6 +102,16 @@ describe("applyQuery", () => {
     const out = applyQuery(games, { ...DEFAULT_QUERY, filter: { kind: "favorites" } });
     expect(out.map((g) => g.id)).toEqual(["1"]);
   });
+  it("filters by installed (installed + updateAvailable, not installing/notInstalled)", () => {
+    const inst = [
+      game({ id: "i1", title: "On disk", installState: "installed" }),
+      game({ id: "i2", title: "Updatable", installState: "updateAvailable" }),
+      game({ id: "i3", title: "Downloading", installState: "installing" }),
+      game({ id: "i4", title: "Absent", installState: "notInstalled" }),
+    ];
+    const out = applyQuery(inst, { ...DEFAULT_QUERY, filter: { kind: "installed" } });
+    expect(out.map((g) => g.id).sort()).toEqual(["i1", "i2"]);
+  });
   it("sorts by rating desc", () => {
     expect(applyQuery(games, { ...DEFAULT_QUERY, sort: "rating" }).map((g) => g.id)).toEqual(["1", "3", "2"]);
   });
@@ -120,10 +130,20 @@ describe("buildSidebar", () => {
     game({ title: "C", platform: "Xbox" }),
     game({ title: "H", platform: "NES", hidden: true }),
   ];
-  it("lists All + Favorites first with counts, excluding hidden", () => {
+  it("lists All + Installed + Favorites first with counts, excluding hidden", () => {
     const sb = buildSidebar(games);
     expect(sb[0]).toMatchObject({ id: "all", count: 3 });
-    expect(sb[1]).toMatchObject({ id: "favorites", count: 1 });
+    expect(sb[1]).toMatchObject({ id: "installed" });
+    expect(sb[2]).toMatchObject({ id: "favorites", count: 1 });
+  });
+  it("counts installed games (excluding hidden)", () => {
+    const sb = buildSidebar([
+      game({ title: "A", installState: "installed" }),
+      game({ title: "B", installState: "updateAvailable" }),
+      game({ title: "C", installState: "notInstalled" }),
+      game({ title: "H", installState: "installed", hidden: true }),
+    ]);
+    expect(sb.find((e) => e.id === "installed")?.count).toBe(2);
   });
   it("includes platforms and collections with counts", () => {
     const sb = buildSidebar(games);
