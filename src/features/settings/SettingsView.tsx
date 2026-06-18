@@ -104,10 +104,12 @@ export function SettingsView() {
  *  lets the user download the rest. Independent of the General settings draft. */
 function EmulatorsSection() {
   const { session } = useSession();
-  const { emulators, loading, error, progress, refresh, download } = useEmulators(
+  const { emulators, loading, error, progress, refresh, download, downloadAll } = useEmulators(
     session?.host ?? null,
     session?.token ?? null,
   );
+
+  const allReady = emulators.length > 0 && emulators.every((e) => e.ready);
 
   return (
     <>
@@ -143,6 +145,9 @@ function EmulatorsSection() {
 
       {session && emulators.length > 0 && (
         <div className="settings__actions">
+          <button className="settings__save" onClick={downloadAll} disabled={allReady}>
+            {allReady ? "All downloaded ✓" : "Download all"}
+          </button>
           <button className="settings__save" onClick={refresh}>
             Refresh
           </button>

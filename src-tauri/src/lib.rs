@@ -107,6 +107,7 @@ pub fn run() {
             download::commands::load_install_records,
             emulators::commands::list_emulators,
             emulators::commands::download_emulator,
+            emulators::commands::download_all_emulators,
             stores::commands::scan_steam,
             stores::commands::scan_epic,
             stores::commands::launch_store_uri,

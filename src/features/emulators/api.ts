@@ -32,3 +32,8 @@ export async function listEmulators(host: string, token: string): Promise<Emulat
 export async function downloadEmulator(host: string, token: string, id: string): Promise<void> {
   return call("download_emulator", { host, token, id });
 }
+
+/** Stage every emulator/firmware not already present locally. */
+export async function downloadAllEmulators(host: string, token: string): Promise<void> {
+  return call("download_all_emulators", { host, token });
+}

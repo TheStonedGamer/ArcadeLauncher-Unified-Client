@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
+  downloadAllEmulators,
   downloadEmulator,
   listEmulators,
   type EmulatorProgress,
@@ -21,6 +22,8 @@ export interface EmulatorsApi {
   progress: Record<string, EmulatorProgress>;
   refresh: () => void;
   download: (id: string) => void;
+  /** Stage every emulator/firmware not already present locally. */
+  downloadAll: () => void;
 }
 
 export function useEmulators(host: string | null, token: string | null): EmulatorsApi {
@@ -94,5 +97,23 @@ export function useEmulators(host: string | null, token: string | null): Emulato
     [host, token],
   );
 
-  return { emulators, loading, error, progress, refresh, download };
+  const downloadAll = useCallback(() => {
+    if (!host || !token) return;
+    // Seed optimistic progress for every not-yet-ready emulator so the UI shows
+    // activity immediately; real per-file progress events overwrite these.
+    setProgress((p) => {
+      const next = { ...p };
+      for (const e of emulators) {
+        if (!e.ready) {
+          next[e.id] = { id: e.id, downloadedBytes: 0, totalBytes: e.totalBytes, done: false, error: null };
+        }
+      }
+      return next;
+    });
+    void downloadAllEmulators(host, token).catch(() => {
+      /* per-emulator errors arrive via progress events; ignore the aggregate */
+    });
+  }, [host, token, emulators]);
+
+  return { emulators, loading, error, progress, refresh, download, downloadAll };
 }

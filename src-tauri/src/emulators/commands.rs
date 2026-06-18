@@ -142,37 +142,32 @@ struct EmulatorProgress {
     error: Option<String>,
 }
 
-/// Download (stage) an emulator's runtime files into the per-user data dir.
-/// Resumes by skipping files already present at the right size. Each file is
-/// streamed to a `.part` sibling and atomically renamed on completion.
-#[tauri::command]
-pub async fn download_emulator(
-    app: tauri::AppHandle,
-    host: String,
-    token: String,
-    id: String,
-) -> AppResult<()> {
-    let host = normalize_host(&host);
-    let client = reqwest::Client::new();
-
-    // Re-fetch the file list so we always stage the current server contents.
-    let list: EmulatorList = client
+/// Fetch the current server emulator list (Bearer-authed).
+async fn fetch_list(client: &reqwest::Client, host: &str, token: &str) -> AppResult<EmulatorList> {
+    client
         .get(format!("https://{host}/api/emulators"))
-        .bearer_auth(&token)
+        .bearer_auth(token)
         .send()
         .await
         .map_err(|e| AppError::msg(format!("emulator list request failed: {e}")))?
         .json()
         .await
-        .map_err(|e| AppError::msg(format!("bad emulator list: {e}")))?;
-    let em = list
-        .emulators
-        .into_iter()
-        .find(|e| e.id == id)
-        .ok_or_else(|| AppError::msg(format!("emulator '{id}' not found on server")))?;
+        .map_err(|e| AppError::msg(format!("bad emulator list: {e}")))
+}
 
-    // `rel` is relative to the emulators root; stage files directly under it.
-    let base = emulators_dir(&app)?;
+/// Stage one emulator's files into `base` (the local emulators dir). Skips files
+/// already present at the right size, streams the rest to a `.part` sibling and
+/// atomically renames. Emits `emulator://progress` keyed by `em.id`. Returns the
+/// staging error (after emitting it) so callers can decide whether to continue.
+async fn stage_emulator(
+    app: &tauri::AppHandle,
+    client: &reqwest::Client,
+    host: &str,
+    token: &str,
+    base: &std::path::Path,
+    em: &ServerEmulator,
+) -> AppResult<()> {
+    let id = em.id.clone();
     let total = em.total_bytes;
     let mut downloaded = 0u64;
     let emit = |downloaded: u64, done: bool, error: Option<String>| {
@@ -202,7 +197,7 @@ pub async fn download_emulator(
         let file_url = format!("https://{host}/emulators/{}", encode_rel(&f.rel));
         let mut r = client
             .get(&file_url)
-            .bearer_auth(&token)
+            .bearer_auth(token)
             .send()
             .await
             .map_err(|e| AppError::msg(format!("download failed: {e}")))?;
@@ -228,5 +223,55 @@ pub async fn download_emulator(
         std::fs::rename(&tmp, &dest).map_err(|e| AppError::msg(format!("finalize failed: {e}")))?;
     }
     emit(downloaded, true, None);
+    Ok(())
+}
+
+/// Download (stage) one emulator's runtime files into the per-user data dir.
+/// Resumes by skipping files already present at the right size.
+#[tauri::command]
+pub async fn download_emulator(
+    app: tauri::AppHandle,
+    host: String,
+    token: String,
+    id: String,
+) -> AppResult<()> {
+    let host = normalize_host(&host);
+    let client = reqwest::Client::new();
+    let list = fetch_list(&client, &host, &token).await?;
+    let em = list
+        .emulators
+        .into_iter()
+        .find(|e| e.id == id)
+        .ok_or_else(|| AppError::msg(format!("emulator '{id}' not found on server")))?;
+    let base = emulators_dir(&app)?;
+    stage_emulator(&app, &client, &host, &token, &base, &em).await
+}
+
+/// Stage EVERY emulator/firmware the server hosts that isn't already complete
+/// locally. Used by the Settings "Download all" button and by the background
+/// auto-stage on launch. Files already present at the right size are skipped, so
+/// repeat runs are cheap. One emulator failing doesn't abort the rest.
+#[tauri::command]
+pub async fn download_all_emulators(
+    app: tauri::AppHandle,
+    host: String,
+    token: String,
+) -> AppResult<()> {
+    let host = normalize_host(&host);
+    let client = reqwest::Client::new();
+    let list = fetch_list(&client, &host, &token).await?;
+    let base = emulators_dir(&app)?;
+    for em in &list.emulators {
+        // Skip ones already fully present so we don't re-emit churn for them.
+        let complete = !em.files.is_empty()
+            && em.files.iter().all(|f| {
+                std::fs::metadata(base.join(&f.rel)).map(|m| m.len() == f.size).unwrap_or(false)
+            });
+        if complete {
+            continue;
+        }
+        // Best-effort: log-and-continue on a single emulator's failure.
+        let _ = stage_emulator(&app, &client, &host, &token, &base, em).await;
+    }
     Ok(())
 }
