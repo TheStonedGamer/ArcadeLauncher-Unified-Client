@@ -242,36 +242,6 @@ export function GameDetail({
             </div>
           )}
 
-          {installed && (
-            <div className="detail__install">
-              <span className="detail__fetchmsg">
-                {state === "updateAvailable" ? "✓ Installed — update available" : "✓ Installed"}
-              </span>
-            </div>
-          )}
-
-          {installable && (
-            <div className="detail__install">
-              <button
-                className="detail__launch detail__install-btn"
-                onClick={install}
-                disabled={installing || inProgress || !canInstall}
-                title={canInstall ? "" : "Sign in to install"}
-              >
-                {inProgress
-                  ? "⬇ Installing…"
-                  : installing
-                    ? "Starting…"
-                    : canInstall
-                      ? state === "failed"
-                        ? "⬇ Retry install"
-                        : "⬇ Install"
-                      : "⬇ Sign in to install"}
-              </button>
-              {installMsg && <span className="detail__fetchmsg">{installMsg}</span>}
-            </div>
-          )}
-
           {syncable && (
             <div className="detail__saves">
               {onSetSavePath && (
@@ -310,9 +280,35 @@ export function GameDetail({
             </div>
           )}
 
-          <button className="detail__launch" onClick={() => onLaunch(pick)}>
-            ▶ Launch{hasVariants ? ` ${variantLabel(pick) || "Base"}` : ""}
-          </button>
+          {/* Steam-style single primary action: Install while a server game
+              isn't on disk yet (or is mid-install), Launch once it is. Local,
+              non-server games are always launchable. */}
+          {installable ? (
+            <div className="detail__install">
+              <button
+                className="detail__launch detail__install-btn"
+                onClick={install}
+                disabled={installing || inProgress || !canInstall}
+                title={canInstall ? "" : "Sign in to install"}
+              >
+                {inProgress
+                  ? "⬇ Installing…"
+                  : installing
+                    ? "Starting…"
+                    : canInstall
+                      ? state === "failed"
+                        ? "⬇ Retry install"
+                        : "⬇ Install"
+                      : "⬇ Sign in to install"}
+              </button>
+              {installMsg && <span className="detail__fetchmsg">{installMsg}</span>}
+            </div>
+          ) : (
+            <button className="detail__launch" onClick={() => onLaunch(pick)}>
+              ▶ {state === "updateAvailable" ? "Launch (update available)" : "Launch"}
+              {hasVariants ? ` — ${variantLabel(pick) || "Base"}` : ""}
+            </button>
+          )}
         </div>
       </div>
     </div>
