@@ -18,7 +18,7 @@ import {
   removeItem,
   type DownloadState,
 } from "./reducer";
-import { activeCount, queueList } from "./selectors";
+import { activeCount, progressByGame, queueList, type CardProgress } from "./selectors";
 import type { DownloadItem, ProgressEvent, StatusEvent } from "./types";
 
 const PROGRESS_EVENT = "download://progress";
@@ -27,6 +27,9 @@ const STATUS_EVENT = "download://status";
 export interface DownloadApi {
   items: DownloadItem[];
   activeCount: number;
+  /** Live per-game progress for in-flight installs, keyed by game id, so the
+   *  catalog can overlay a progress bar on the matching tile. */
+  progress: Record<string, CardProgress>;
   pause: (gameId: string) => void;
   resume: (gameId: string) => void;
   cancel: (gameId: string) => void;
@@ -91,6 +94,7 @@ export function useDownloads(): DownloadApi {
 
   const items = useMemo(() => queueList(state), [state]);
   const active = useMemo(() => activeCount(state), [state]);
+  const progress = useMemo(() => progressByGame(state), [state]);
 
-  return { items, activeCount: active, pause, resume, cancel, dismiss, clearDone };
+  return { items, activeCount: active, progress, pause, resume, cancel, dismiss, clearDone };
 }

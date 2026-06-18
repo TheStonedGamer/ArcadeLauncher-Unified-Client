@@ -29,6 +29,25 @@ export function activeCount(state: DownloadState): number {
   return Object.values(state.items).filter((i) => ACTIVE.has(i.status)).length;
 }
 
+/** A live view of one in-flight install for the catalog card overlay. */
+export interface CardProgress {
+  status: DownloadStatus;
+  percent: number;
+}
+
+/** Map of `gameId → {status, percent}` for every still-pending install, so the
+ *  catalog can paint a progress bar on the matching tile. Finished/failed items
+ *  are excluded — the card reverts to its normal state once an install ends. */
+export function progressByGame(state: DownloadState): Record<string, CardProgress> {
+  const out: Record<string, CardProgress> = {};
+  for (const item of Object.values(state.items)) {
+    if (PENDING.has(item.status)) {
+      out[item.gameId] = { status: item.status, percent: percent(item) };
+    }
+  }
+  return out;
+}
+
 /** All items, stably ordered: in-flight first (queued→active→paused), then
  *  failed, then done; ties broken by game id so the list never reshuffles. */
 export function queueList(state: DownloadState): DownloadItem[] {

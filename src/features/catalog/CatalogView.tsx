@@ -22,9 +22,16 @@ import { installGame } from "../download/api";
 import { useInstallOverlay } from "../download/useInstallOverlay";
 import { effectiveInstallState } from "../download/installState";
 import { syncSaves, type ConflictPolicy, type SyncReport } from "../saves/api";
+import type { CardProgress } from "../download/selectors";
 import type { Game } from "./types";
 
-export function CatalogView() {
+interface CatalogViewProps {
+  /** Live per-game install progress, keyed by game id (from the download hook).
+   *  Threaded down to the grid so in-flight tiles show a progress bar. */
+  downloadProgress?: Record<string, CardProgress>;
+}
+
+export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
   const { games, loading, error, status, load, syncFromServer, launch } = useCatalog();
   const prefs = useCatalogPrefs();
   const installOverlay = useInstallOverlay();
@@ -192,6 +199,7 @@ export function CatalogView() {
             onOpen={setSelected}
             focusIndex={focusIndex}
             onColumns={(c) => (columns.current = c)}
+            progress={downloadProgress}
           />
         </div>
       </div>

@@ -5,6 +5,7 @@
 
 import { useEffect, useLayoutEffect, useRef } from "react";
 import type { VariantGroup } from "../variants";
+import type { CardProgress } from "../../download/selectors";
 import { GameCard } from "./GameCard";
 
 interface Props {
@@ -14,6 +15,21 @@ interface Props {
   focusIndex?: number;
   /** Reports the measured column count whenever it changes (for nav math). */
   onColumns?: (columns: number) => void;
+  /** Live install progress keyed by game id; a group shows a bar if any of its
+   *  members is in-flight. */
+  progress?: Record<string, CardProgress>;
+}
+
+/** Progress for a variant group: the first member with an in-flight install. */
+function groupProgress(
+  grp: VariantGroup,
+  progress: Record<string, CardProgress>,
+): CardProgress | undefined {
+  for (const m of grp.members) {
+    const p = progress[m.id];
+    if (p) return p;
+  }
+  return undefined;
 }
 
 /** Count grid columns from the computed `grid-template-columns` track list. */
@@ -22,7 +38,7 @@ function measureColumns(el: HTMLElement): number {
   return Math.max(1, tracks.length);
 }
 
-export function CatalogGrid({ groups, onOpen, focusIndex = -1, onColumns }: Props) {
+export function CatalogGrid({ groups, onOpen, focusIndex = -1, onColumns, progress = {} }: Props) {
   const gridRef = useRef<HTMLDivElement>(null);
   const focusedRef = useRef<HTMLButtonElement>(null);
 
@@ -55,6 +71,7 @@ export function CatalogGrid({ groups, onOpen, focusIndex = -1, onColumns }: Prop
           variantCount={grp.members.length}
           focused={i === focusIndex}
           onOpen={() => onOpen(grp)}
+          progress={groupProgress(grp, progress)}
         />
       ))}
     </div>

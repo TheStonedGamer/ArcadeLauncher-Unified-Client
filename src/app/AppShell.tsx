@@ -70,7 +70,7 @@ export function AppShell() {
       </header>
       {showLogin && !session && <LoginPanel onClose={() => setShowLogin(false)} />}
       <main className="app__main">
-        {view === "library" && <CatalogView />}
+        {view === "library" && <CatalogView downloadProgress={downloads.progress} />}
         {view === "friends" && <SocialView />}
         {view === "downloads" && <DownloadQueue api={downloads} />}
         {view === "settings" && <SettingsView />}

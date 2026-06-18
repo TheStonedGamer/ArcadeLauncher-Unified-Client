@@ -4,6 +4,7 @@
 import { forwardRef } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Game } from "../types";
+import type { CardProgress } from "../../download/selectors";
 
 interface Props {
   game: Game;
@@ -11,15 +12,36 @@ interface Props {
   variantCount?: number;
   /** Highlighted by gamepad/keyboard navigation. */
   focused?: boolean;
+  /** Live install progress while this game is downloading (absent = not in-flight). */
+  progress?: CardProgress;
   onOpen: (game: Game) => void;
 }
 
+/** Short label for the in-flight phase shown next to the bar. */
+function phaseLabel(p: CardProgress): string {
+  switch (p.status) {
+    case "queued":
+      return "Queued";
+    case "verifying":
+      return "Verifying…";
+    case "extracting":
+      return "Extracting…";
+    case "paused":
+      return "Paused";
+    default:
+      return `${p.percent}%`;
+  }
+}
+
 export const GameCard = forwardRef<HTMLButtonElement, Props>(function GameCard(
-  { game, variantCount = 1, focused = false, onOpen },
+  { game, variantCount = 1, focused = false, progress, onOpen },
   ref,
 ) {
   const cover = game.coverArtPath ? convertFileSrc(game.coverArtPath) : game.coverArtUrl;
   const installed = game.installState === "installed";
+  // A bar fills proportionally while downloading; queued/verifying/extracting
+  // show an indeterminate-ish full-width tint with a label instead of a number.
+  const determinate = progress?.status === "downloading" || progress?.status === "paused";
 
   return (
     <button
@@ -29,6 +51,15 @@ export const GameCard = forwardRef<HTMLButtonElement, Props>(function GameCard(
       title={game.title}
     >
       <div className="game-card__art">
+        {progress && (
+          <div className="game-card__progress" role="progressbar" aria-valuenow={progress.percent}>
+            <div
+              className={`game-card__progress-fill${determinate ? "" : " game-card__progress-fill--pulse"}`}
+              style={{ width: determinate ? `${progress.percent}%` : "100%" }}
+            />
+            <span className="game-card__progress-label">{phaseLabel(progress)}</span>
+          </div>
+        )}
         {cover ? (
           <img src={cover} alt={game.title} loading="lazy" />
         ) : (

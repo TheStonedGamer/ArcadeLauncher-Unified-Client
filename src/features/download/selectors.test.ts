@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { applyProgress, applyStatus, initialDownloadState, type DownloadState } from "./reducer";
-import { activeCount, formatBytes, formatSpeed, hasPending, percent, queueList } from "./selectors";
+import {
+  activeCount,
+  formatBytes,
+  formatSpeed,
+  hasPending,
+  percent,
+  progressByGame,
+  queueList,
+} from "./selectors";
 import type { DownloadItem } from "./types";
 
 function item(p: Partial<DownloadItem> & { gameId: string }): DownloadItem {
@@ -55,6 +63,22 @@ describe("download selectors", () => {
       item({ gameId: "b", status: "failed" }),
     ]);
     expect(hasPending(s)).toBe(false);
+  });
+
+  it("progressByGame maps only in-flight installs to {status, percent}", () => {
+    const s = stateOf([
+      item({ gameId: "a", status: "downloading", downloadedBytes: 50, totalBytes: 200 }),
+      item({ gameId: "b", status: "queued" }),
+      item({ gameId: "c", status: "paused", downloadedBytes: 10, totalBytes: 100 }),
+      item({ gameId: "d", status: "done", downloadedBytes: 100, totalBytes: 100 }),
+      item({ gameId: "e", status: "failed" }),
+    ]);
+    const p = progressByGame(s);
+    expect(Object.keys(p).sort()).toEqual(["a", "b", "c"]);
+    expect(p["a"]).toEqual({ status: "downloading", percent: 25 });
+    expect(p["c"]).toEqual({ status: "paused", percent: 10 });
+    expect(p["d"]).toBeUndefined();
+    expect(p["e"]).toBeUndefined();
   });
 
   it("formatSpeed and formatBytes are human-readable", () => {
