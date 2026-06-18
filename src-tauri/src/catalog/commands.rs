@@ -80,7 +80,14 @@ pub async fn fetch_catalog(
         .text()
         .await
         .map_err(|e| AppError::msg(format!("catalog read failed: {e}")))?;
-    let games = loader::parse_catalog_response(&body)?;
+    let mut games = loader::parse_catalog_response(&body)?;
+
+    // Everything from `/api/catalog` is server-owned and installable on demand.
+    // The server doesn't emit `serverBacked`, so flag it here — the UI gates the
+    // Install button (and cloud-save sync) on it.
+    for g in &mut games {
+        g.server_backed = true;
+    }
 
     // Cache to the per-user library.json (bare array, the on-disk format) with an
     // atomic temp-write + rename so a crash mid-write never corrupts the cache.
