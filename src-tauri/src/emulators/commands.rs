@@ -21,6 +21,8 @@ struct ServerEmulator {
     id: String,
     name: String,
     #[serde(default)]
+    kind: String,
+    #[serde(default)]
     total_bytes: u64,
     files: Vec<ServerEmulatorFile>,
 }
@@ -37,6 +39,7 @@ struct EmulatorList {
 pub struct EmulatorStatus {
     id: String,
     name: String,
+    kind: String,
     total_bytes: u64,
     file_count: usize,
     /// Every file present locally with a matching size.
@@ -103,14 +106,15 @@ pub async fn list_emulators(
         .await
         .map_err(|e| AppError::msg(format!("bad emulator list: {e}")))?;
 
+    // `rel` is relative to the emulators root, so resolve files directly under
+    // the local emulators dir (no per-id subdir).
     let root = emulators_dir(&app)?;
     let mut out = Vec::new();
     for e in list.emulators {
-        let base = root.join(&e.id);
         let mut local_bytes = 0u64;
         let mut ready = !e.files.is_empty();
         for f in &e.files {
-            match std::fs::metadata(base.join(&f.rel)) {
+            match std::fs::metadata(root.join(&f.rel)) {
                 Ok(m) if m.len() == f.size => local_bytes += f.size,
                 _ => ready = false,
             }
@@ -118,6 +122,7 @@ pub async fn list_emulators(
         out.push(EmulatorStatus {
             id: e.id,
             name: e.name,
+            kind: e.kind,
             total_bytes: e.total_bytes,
             file_count: e.files.len(),
             ready,
@@ -166,7 +171,8 @@ pub async fn download_emulator(
         .find(|e| e.id == id)
         .ok_or_else(|| AppError::msg(format!("emulator '{id}' not found on server")))?;
 
-    let base = emulators_dir(&app)?.join(&em.id);
+    // `rel` is relative to the emulators root; stage files directly under it.
+    let base = emulators_dir(&app)?;
     let total = em.total_bytes;
     let mut downloaded = 0u64;
     let emit = |downloaded: u64, done: bool, error: Option<String>| {
@@ -193,7 +199,7 @@ pub async fn download_emulator(
         if let Some(parent) = dest.parent() {
             std::fs::create_dir_all(parent).map_err(|e| AppError::msg(format!("mkdir failed: {e}")))?;
         }
-        let file_url = format!("https://{host}/emulators/{}/{}", encode_rel(&em.id), encode_rel(&f.rel));
+        let file_url = format!("https://{host}/emulators/{}", encode_rel(&f.rel));
         let mut r = client
             .get(&file_url)
             .bearer_auth(&token)

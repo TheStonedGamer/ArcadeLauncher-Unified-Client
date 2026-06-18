@@ -6,6 +6,8 @@ import { call } from "../../lib/ipc";
 export interface EmulatorStatus {
   id: string;
   name: string;
+  /** "emulator" or "firmware". */
+  kind: string;
   totalBytes: number;
   fileCount: number;
   /** All files present locally with a matching size. */

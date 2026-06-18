@@ -125,11 +125,20 @@ function EmulatorsSection() {
       )}
 
       {session && emulators.length > 0 && (
-        <ul className="emu-list">
-          {emulators.map((emu) => (
-            <EmulatorRow key={emu.id} emu={emu} progress={progress[emu.id]} onDownload={download} />
-          ))}
-        </ul>
+        <>
+          <EmulatorGroup
+            label="Emulators"
+            items={emulators.filter((e) => e.kind !== "firmware")}
+            progress={progress}
+            onDownload={download}
+          />
+          <EmulatorGroup
+            label="Firmware & BIOS"
+            items={emulators.filter((e) => e.kind === "firmware")}
+            progress={progress}
+            onDownload={download}
+          />
+        </>
       )}
 
       {session && emulators.length > 0 && (
@@ -139,6 +148,30 @@ function EmulatorsSection() {
           </button>
         </div>
       )}
+    </>
+  );
+}
+
+function EmulatorGroup({
+  label,
+  items,
+  progress,
+  onDownload,
+}: {
+  label: string;
+  items: EmulatorStatus[];
+  progress: Record<string, EmulatorProgress>;
+  onDownload: (id: string) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <>
+      <h3 className="emu-group">{label}</h3>
+      <ul className="emu-list">
+        {items.map((emu) => (
+          <EmulatorRow key={emu.id} emu={emu} progress={progress[emu.id]} onDownload={onDownload} />
+        ))}
+      </ul>
     </>
   );
 }
