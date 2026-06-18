@@ -16,8 +16,10 @@ struct EpicManifest {
     display_name: String,
     #[serde(default)]
     install_location: String,
-    /// True for the actual game; helper/DLC manifests set this false.
-    #[serde(default)]
+    /// True for the actual game; helper/DLC manifests set this false. Epic
+    /// spells this key `bIsApplication` (lowercase leading b), which does NOT
+    /// match the struct's PascalCase rule — so it needs an explicit rename.
+    #[serde(default, rename = "bIsApplication")]
     b_is_application: bool,
 }
 
@@ -88,5 +90,29 @@ fn manifests_dir() -> Option<std::path::PathBuf> {
     #[cfg(not(windows))]
     {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // A trimmed-down copy of a real Epic `.item` manifest. The casing of
+    // `bIsApplication` is the crucial part — it must deserialize to `true`.
+    const FORTNITE_ITEM: &str = r#"{
+        "DisplayName": "Fortnite",
+        "AppName": "Fortnite",
+        "InstallLocation": "C:\\Program Files\\Epic Games\\Fortnite",
+        "bIsApplication": true,
+        "bIsExecutable": true
+    }"#;
+
+    #[test]
+    fn parses_real_manifest_casing() {
+        let m: EpicManifest = serde_json::from_str(FORTNITE_ITEM).unwrap();
+        assert!(m.b_is_application, "bIsApplication must deserialize to true");
+        assert_eq!(m.display_name, "Fortnite");
+        assert_eq!(m.app_name, "Fortnite");
+        assert_eq!(m.install_location, r"C:\Program Files\Epic Games\Fortnite");
     }
 }
