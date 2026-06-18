@@ -24,10 +24,15 @@ jobs:
           - os: windows-latest
             # No linker override on Windows (MSVC link.exe).
             rustflags: ""
-          - os: ubuntu-22.04
+          # Linux release builds run on the self-hosted Proxmox runner (CT 130,
+          # 16 threads / 8 GB). Safe for a PUBLIC repo because this workflow is
+          # tag-triggered only, and tags can only be pushed by collaborators with
+          # write access — there is no fork-PR code-execution path onto the LAN.
+          - os: self-hosted-linux
+            runs-on: [self-hosted, arcade-pve]
             # Use lld for the link step — much faster than the default bfd.
             rustflags: "-C link-arg=-fuse-ld=lld"
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runs-on || matrix.os }}
     permissions:
       contents: write
     # Speeds the Rust link step on Linux; harmless (empty) on Windows. Set at job
@@ -38,7 +43,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Linux Tauri deps
-        if: matrix.os == 'ubuntu-22.04'
+        if: matrix.os == 'self-hosted-linux'
         run: |
           sudo rm -f /etc/apt/sources.list.d/azure-cli.list \
                      /etc/apt/sources.list.d/microsoft-prod.list \
