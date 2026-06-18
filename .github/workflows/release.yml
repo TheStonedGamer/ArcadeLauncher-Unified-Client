@@ -22,10 +22,18 @@ jobs:
       matrix:
         include:
           - os: windows-latest
+            # No linker override on Windows (MSVC link.exe).
+            rustflags: ""
           - os: ubuntu-22.04
+            # Use lld for the link step — much faster than the default bfd.
+            rustflags: "-C link-arg=-fuse-ld=lld"
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
+    # Speeds the Rust link step on Linux; harmless (empty) on Windows. Set at job
+    # scope so both the sidecar build and the tauri-action app build pick it up.
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
     steps:
       - uses: actions/checkout@v4
 
@@ -38,7 +46,17 @@ jobs:
                      /etc/apt/sources.list.d/microsoft.list
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
-            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev lld
+
+      # Tauri downloads the WiX + NSIS toolchains on first bundle and caches them
+      # under %LOCALAPPDATA%\tauri. Persisting that across runs skips the repeated
+      # (~100 MB) download each release build. Windows-only; no-op elsewhere.
+      - name: Cache Tauri bundler tools (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\tauri
+          key: tauri-bundler-tools-${{ runner.os }}-v1
 
       - uses: actions/setup-node@v4
         with:
@@ -50,6 +68,11 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          # Keep a cache even when a run fails (e.g. a flaky bundle step) so the
+          # next attempt still reuses compiled deps. Shared key lets the sidecar
+          # and app builds resolve the same cache.
+          cache-on-failure: true
+          shared-key: release-${{ matrix.os }}
 
       - name: Install npm deps
         run: npm ci

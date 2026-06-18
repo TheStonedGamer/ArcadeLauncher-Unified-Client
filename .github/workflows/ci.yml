@@ -17,8 +17,13 @@ jobs:
       matrix:
         include:
           - os: windows-latest
+            rustflags: ""
           - os: ubuntu-22.04
+            # Use lld for the link step — much faster than the default bfd.
+            rustflags: "-C link-arg=-fuse-ld=lld"
     runs-on: ${{ matrix.os }}
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
     steps:
       - uses: actions/checkout@v4
 
@@ -32,7 +37,7 @@ jobs:
                      /etc/apt/sources.list.d/microsoft.list
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
-            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev lld
 
       - uses: actions/setup-node@v4
         with:
@@ -44,6 +49,8 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          cache-on-failure: true
+          shared-key: ci-${{ matrix.os }}
 
       - name: Install npm deps
         run: npm ci
