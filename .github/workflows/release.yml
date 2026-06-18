@@ -1,9 +1,16 @@
 name: Release
 
-# Builds the real installable artifacts on both OSes and attaches them to a
-# GitHub Release: Windows NSIS installer + updater artifacts, and the Linux
-# .deb / .rpm / AppImage. Triggered only by pushing a `vX.Y.Z` tag (or manual
-# dispatch) — never on normal pushes, so it can't gate the green main build.
+# Builds the real installable artifacts and attaches them to a GitHub Release:
+# Windows NSIS installer + updater artifacts, and the Linux .deb / .rpm /
+# AppImage. Triggered only by pushing a `vX.Y.Z` tag (or manual dispatch) —
+# never on normal pushes, so it can't gate the green main build.
+#
+# Both legs run on SELF-HOSTED runners that live on the same physical Proxmox
+# host (Windows VM 131 = label `arcade-win`, Linux CT 130 = label `arcade-pve`).
+# To avoid pegging that host, the two legs are STAGGERED: the Linux job `needs`
+# the Windows job, so Windows builds first and Linux only starts once it's done.
+# Safe for a PUBLIC repo: tag-triggered only, and tags can only be pushed by
+# collaborators with write access — no fork-PR path executes code on the LAN.
 #
 # Requires two repo secrets before the first real release (the in-app updater
 # signs artifacts with them):
@@ -16,48 +23,18 @@ on:
   workflow_dispatch:
 
 jobs:
-  release:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            # No linker override on Windows (MSVC link.exe).
-            rustflags: ""
-          # Linux release builds run on the self-hosted Proxmox runner (CT 130,
-          # 16 threads / 8 GB). Safe for a PUBLIC repo because this workflow is
-          # tag-triggered only, and tags can only be pushed by collaborators with
-          # write access — there is no fork-PR code-execution path onto the LAN.
-          - os: self-hosted-linux
-            runs-on: [self-hosted, arcade-pve]
-            # Use lld for the link step — much faster than the default bfd.
-            rustflags: "-C link-arg=-fuse-ld=lld"
-    runs-on: ${{ matrix.runs-on || matrix.os }}
+  # ---- Windows leg (runs first) -------------------------------------------
+  release-windows:
+    runs-on: [self-hosted, arcade-win]
     permissions:
       contents: write
-    # Speeds the Rust link step on Linux; harmless (empty) on Windows. Set at job
-    # scope so both the sidecar build and the tauri-action app build pick it up.
-    env:
-      RUSTFLAGS: ${{ matrix.rustflags }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Linux Tauri deps
-        if: matrix.os == 'self-hosted-linux'
-        run: |
-          sudo rm -f /etc/apt/sources.list.d/azure-cli.list \
-                     /etc/apt/sources.list.d/microsoft-prod.list \
-                     /etc/apt/sources.list.d/dotnetdev.list \
-                     /etc/apt/sources.list.d/microsoft.list
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
-            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev lld
-
       # Tauri downloads the WiX + NSIS toolchains on first bundle and caches them
       # under %LOCALAPPDATA%\tauri. Persisting that across runs skips the repeated
-      # (~100 MB) download each release build. Windows-only; no-op elsewhere.
-      - name: Cache Tauri bundler tools (Windows)
-        if: matrix.os == 'windows-latest'
+      # (~100 MB) download each release build.
+      - name: Cache Tauri bundler tools
         uses: actions/cache@v4
         with:
           path: ~\AppData\Local\tauri
@@ -73,29 +50,85 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          # Keep a cache even when a run fails (e.g. a flaky bundle step) so the
-          # next attempt still reuses compiled deps. Shared key lets the sidecar
-          # and app builds resolve the same cache.
           cache-on-failure: true
-          shared-key: release-${{ matrix.os }}
+          shared-key: release-windows
 
       - name: Install npm deps
         run: npm ci
 
       # Build the bootstrap updater and stage it as a Tauri sidecar so the
-      # bundler installs updater.exe (or `updater` on Linux) next to the app.
-      # externalBin requires the file to pre-exist with a target-triple suffix.
+      # bundler installs updater.exe next to the app. externalBin requires the
+      # file to pre-exist with a target-triple suffix.
       - name: Build bootstrap updater sidecar
         shell: bash
         run: |
           cargo build --release -p arcade_updater --manifest-path src-tauri/Cargo.toml
           mkdir -p src-tauri/binaries
           TRIPLE=$(rustc -vV | sed -n 's/host: //p')
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            cp "src-tauri/target/release/updater.exe" "src-tauri/binaries/updater-$TRIPLE.exe"
-          else
-            cp "src-tauri/target/release/updater" "src-tauri/binaries/updater-$TRIPLE"
-          fi
+          cp "src-tauri/target/release/updater.exe" "src-tauri/binaries/updater-$TRIPLE.exe"
+
+      - name: Build + publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', github.run_number) }}
+          releaseName: "ArcadeLauncher ${{ github.ref_name }}"
+          releaseBody: "See the assets to download and install this version."
+          releaseDraft: false
+          prerelease: false
+
+  # ---- Linux leg (runs after Windows, on the same physical host) ----------
+  release-linux:
+    needs: release-windows
+    # Run after Windows even if it failed (still serialized via needs) so a
+    # Windows hiccup doesn't silently drop the Linux artifacts; only skip if the
+    # whole run was cancelled.
+    if: ${{ !cancelled() }}
+    runs-on: [self-hosted, arcade-pve]
+    permissions:
+      contents: write
+    # lld speeds the Rust link step.
+    env:
+      RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux Tauri deps
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/azure-cli.list \
+                     /etc/apt/sources.list.d/microsoft-prod.list \
+                     /etc/apt/sources.list.d/dotnetdev.list \
+                     /etc/apt/sources.list.d/microsoft.list
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev lld
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+          shared-key: release-linux
+
+      - name: Install npm deps
+        run: npm ci
+
+      - name: Build bootstrap updater sidecar
+        shell: bash
+        run: |
+          cargo build --release -p arcade_updater --manifest-path src-tauri/Cargo.toml
+          mkdir -p src-tauri/binaries
+          TRIPLE=$(rustc -vV | sed -n 's/host: //p')
+          cp "src-tauri/target/release/updater" "src-tauri/binaries/updater-$TRIPLE"
 
       - name: Build + publish release
         uses: tauri-apps/tauri-action@v0
