@@ -4,4 +4,5 @@
 //! present ("ready") so Settings can show readiness and offer a download.
 
 pub mod commands;
+pub mod launch;
 pub mod unpack;

@@ -65,11 +65,10 @@ impl Game {
             return Some(LaunchPlan { program: self.launch_uri.clone(), args: vec![] });
         }
         if !self.emulator_path.is_empty() {
-            let mut args = Vec::new();
-            if !self.rom_path.is_empty() {
-                args.push(self.rom_path.clone());
-            }
-            return Some(LaunchPlan { program: self.emulator_path.clone(), args });
+            return Some(LaunchPlan {
+                program: self.emulator_path.clone(),
+                args: emulator_args(&self.arguments, &self.rom_path),
+            });
         }
         if !self.exe_path.is_empty() {
             return Some(LaunchPlan {
@@ -79,6 +78,23 @@ impl Game {
         }
         None
     }
+}
+
+/// Build an emulator's argument vector from its server-provided `arguments`
+/// template and the resolved local `rom` path. The template carries a `{rom}`
+/// placeholder (most emulators take the ROM as a bare positional arg; xemu/Xbox
+/// use `-dvd_path {rom}`). We split the template into tokens FIRST, then
+/// substitute `{rom}` inside whichever token holds it — so a ROM path with
+/// spaces stays a single argument instead of being re-split. An empty template
+/// falls back to passing the ROM as the sole positional argument.
+fn emulator_args(template: &str, rom: &str) -> Vec<String> {
+    if template.trim().is_empty() {
+        return if rom.is_empty() { vec![] } else { vec![rom.to_string()] };
+    }
+    split_args(template)
+        .into_iter()
+        .map(|t| if t.contains("{rom}") { t.replace("{rom}", rom) } else { t })
+        .collect()
 }
 
 /// Minimal whitespace arg split (quotes respected). Good enough for T0; a
@@ -122,6 +138,7 @@ mod tests {
 
     #[test]
     fn launch_emulator_passes_rom() {
+        // No template → ROM is the sole positional arg.
         let g = Game {
             emulator_path: "/usr/bin/mednafen".into(),
             rom_path: "/roms/crystalis.nes".into(),
@@ -130,6 +147,32 @@ mod tests {
         let p = g.launch_plan().unwrap();
         assert_eq!(p.program, "/usr/bin/mednafen");
         assert_eq!(p.args, vec!["/roms/crystalis.nes"]);
+    }
+
+    #[test]
+    fn launch_emulator_substitutes_rom_template() {
+        // xemu-style flagged template; ROM path has a space and must stay one arg.
+        let g = Game {
+            emulator_path: "xemu.exe".into(),
+            rom_path: "C:/games/Halo 2.iso".into(),
+            arguments: "-dvd_path {rom}".into(),
+            ..Default::default()
+        };
+        let p = g.launch_plan().unwrap();
+        assert_eq!(p.program, "xemu.exe");
+        assert_eq!(p.args, vec!["-dvd_path", "C:/games/Halo 2.iso"]);
+    }
+
+    #[test]
+    fn launch_emulator_bare_rom_template() {
+        let g = Game {
+            emulator_path: "Ryujinx.exe".into(),
+            rom_path: "C:/games/zelda.nsp".into(),
+            arguments: "{rom}".into(),
+            ..Default::default()
+        };
+        let p = g.launch_plan().unwrap();
+        assert_eq!(p.args, vec!["C:/games/zelda.nsp"]);
     }
 
     #[test]

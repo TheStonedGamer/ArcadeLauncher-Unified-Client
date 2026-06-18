@@ -25,7 +25,12 @@ pub const GAME_EXITED_EVENT: &str = "game-exited";
 
 /// Start a play session for `game`. Resolves the launch target, runs the
 /// pre-launch hook, spawns the process, and detaches a waiter thread.
-pub fn start(app: &AppHandle, game: Game) -> AppResult<u32> {
+pub fn start(app: &AppHandle, mut game: Game) -> AppResult<u32> {
+    // For emulator-ROM games the server ships no machine-local launch target;
+    // resolve the unpacked emulator exe + installed ROM here. No-op for games
+    // that already have a direct target (Steam/Epic/PC), so precedence is intact.
+    crate::emulators::launch::enrich(app, &mut game);
+
     let plan = game
         .launch_plan()
         .ok_or_else(|| crate::error::AppError::msg(format!("'{}' has no runnable target", game.title)))?;
