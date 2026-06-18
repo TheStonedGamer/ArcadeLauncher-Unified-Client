@@ -28,6 +28,13 @@ jobs:
     runs-on: [self-hosted, arcade-win]
     permissions:
       contents: write
+    # The Windows runner VM has 16 vCPU but limited RAM. Cargo defaults to one
+    # rustc per core; 16 concurrent rustc at opt-level 3 spike to ~16 GB and the
+    # VM starts swapping. Cap the parallelism so peak RAM stays well under the
+    # ceiling — costs some wall-clock on a cold build, but keeps the box healthy
+    # (and warm-cache builds barely notice).
+    env:
+      CARGO_BUILD_JOBS: "6"
     steps:
       - uses: actions/checkout@v4
 
