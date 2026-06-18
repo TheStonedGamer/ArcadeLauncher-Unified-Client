@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { CatalogView } from "../features/catalog/CatalogView";
+import { StoreView } from "../features/stores/StoreView";
 import { SettingsView } from "../features/settings/SettingsView";
 import { SocialView } from "../features/social/SocialView";
 import { DownloadQueue } from "../features/download/components/DownloadQueue";
@@ -11,7 +12,7 @@ import { useDownloads } from "../features/download/useDownloads";
 import { useSession } from "../features/session/SessionContext";
 import { LoginPanel } from "../features/session/LoginPanel";
 
-type View = "library" | "friends" | "downloads" | "settings";
+type View = "library" | "steam" | "epic" | "friends" | "downloads" | "settings";
 
 export function AppShell() {
   const [view, setView] = useState<View>("library");
@@ -30,6 +31,18 @@ export function AppShell() {
             onClick={() => setView("library")}
           >
             Library
+          </button>
+          <button
+            className={`app__navbtn${view === "steam" ? " app__navbtn--active" : ""}`}
+            onClick={() => setView("steam")}
+          >
+            Steam
+          </button>
+          <button
+            className={`app__navbtn${view === "epic" ? " app__navbtn--active" : ""}`}
+            onClick={() => setView("epic")}
+          >
+            Epic
           </button>
           <button
             className={`app__navbtn${view === "friends" ? " app__navbtn--active" : ""}`}
@@ -71,6 +84,8 @@ export function AppShell() {
       {showLogin && !session && <LoginPanel onClose={() => setShowLogin(false)} />}
       <main className="app__main">
         {view === "library" && <CatalogView downloadProgress={downloads.progress} />}
+        {view === "steam" && <StoreView source="steam" />}
+        {view === "epic" && <StoreView source="epic" />}
         {view === "friends" && <SocialView />}
         {view === "downloads" && <DownloadQueue api={downloads} />}
         {view === "settings" && <SettingsView />}

@@ -4,6 +4,7 @@
 
 mod catalog;
 mod download;
+mod emulators;
 mod error;
 mod hotkey;
 mod launch;
@@ -12,6 +13,7 @@ mod saves;
 mod session;
 mod settings;
 mod social;
+mod stores;
 mod tray;
 mod window;
 
@@ -103,6 +105,11 @@ pub fn run() {
             download::commands::download_resume,
             download::commands::download_cancel,
             download::commands::load_install_records,
+            emulators::commands::list_emulators,
+            emulators::commands::download_emulator,
+            stores::commands::scan_steam,
+            stores::commands::scan_epic,
+            stores::commands::launch_store_uri,
             presence::commands::presence_set_playing,
             presence::commands::presence_set_idle,
             presence::commands::presence_configure,

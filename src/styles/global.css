@@ -93,6 +93,38 @@ body {
 }
 .settings__saved { color: var(--on); font-size: 13px; }
 
+/* ── Emulator readiness list (Settings) ───────────────────────────────────── */
+.emu-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.emu-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--panel-2);
+  font-size: 13px;
+}
+.emu-row__dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.emu-row__dot--on { background: var(--on); }
+.emu-row__dot--off { background: var(--off); }
+.emu-row__name { font-weight: 600; }
+.emu-row__size { color: var(--muted); }
+.emu-row__ready { margin-left: auto; color: var(--on); font-weight: 600; }
+.emu-row__btn {
+  margin-left: auto; padding: 5px 14px; border-radius: 6px;
+  border: 1px solid var(--accent); background: var(--accent); color: #fff;
+  cursor: pointer; font-weight: 600;
+}
+.emu-row__btn:hover { filter: brightness(1.08); }
+.emu-row__progress {
+  margin-left: auto; position: relative; width: 160px; height: 18px;
+  border-radius: 6px; overflow: hidden; background: rgba(13, 17, 23, 0.6);
+  display: flex; align-items: center; justify-content: center;
+}
+.emu-row__bar {
+  position: absolute; top: 0; left: 0; bottom: 0;
+  background: var(--accent); opacity: 0.85; transition: width .25s ease;
+}
+.emu-row__pct { position: relative; font-size: 11px; font-weight: 600; color: var(--text); }
+.emu-row__err { flex-basis: 100%; }
+
 /* ── Update banner ─────────────────────────────────────────────────────── */
 .update-banner {
   display: flex; align-items: center; gap: 12px;
