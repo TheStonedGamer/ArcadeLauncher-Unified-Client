@@ -16,6 +16,10 @@ use std::sync::Mutex;
 #[derive(Default)]
 pub struct PresenceManager {
     inner: Mutex<Inner>,
+    /// The Discord application id to connect with, fetched from the server
+    /// (`/api/client-config`) after login via `presence_configure`. Empty until
+    /// then, so presence is a no-op until the server hands one over.
+    app_id: Mutex<String>,
 }
 
 #[derive(Default)]
@@ -25,6 +29,17 @@ struct Inner {
 }
 
 impl PresenceManager {
+    /// Store the server-provided Discord application id. Called once after the
+    /// session host becomes known; `presence_set_*` then uses it to connect.
+    pub fn set_app_id(&self, app_id: &str) {
+        *self.app_id.lock().unwrap() = app_id.trim().to_string();
+    }
+
+    /// The configured Discord application id (empty until `set_app_id`).
+    pub fn app_id(&self) -> String {
+        self.app_id.lock().unwrap().clone()
+    }
+
     /// Reconcile the live connection with the desired state. When `enabled` and
     /// `app_id` is non-empty, connect (if needed) and push the activity; when
     /// disabled or unconfigured, tear any existing connection down. Errors are

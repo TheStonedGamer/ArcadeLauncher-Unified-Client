@@ -13,10 +13,8 @@ import type { NavIntent } from "../gamepad/input";
 import { CatalogGrid } from "./components/CatalogGrid";
 import { Sidebar } from "./components/Sidebar";
 import { GameDetail } from "./components/GameDetail";
-import { fetchCoverArt } from "./api";
 import { applyQuery, buildSidebar, DEFAULT_QUERY, SORT_LABELS, type Filter, type Query, type SortMode } from "./query";
 import { groupVariants, type VariantGroup } from "./variants";
-import { useSettings } from "../settings/useSettings";
 import { useCatalogPrefs } from "./useCatalogPrefs";
 import { applyPrefs } from "./prefs";
 import { useSession } from "../session/SessionContext";
@@ -27,12 +25,10 @@ import { syncSaves, type ConflictPolicy, type SyncReport } from "../saves/api";
 import type { Game } from "./types";
 
 export function CatalogView() {
-  const { games, loading, error, status, load, syncFromServer, launch, setCover } = useCatalog();
-  const { draft: settings } = useSettings();
+  const { games, loading, error, status, load, syncFromServer, launch } = useCatalog();
   const prefs = useCatalogPrefs();
   const installOverlay = useInstallOverlay();
   const { session } = useSession();
-  const hasIgdbCreds = settings.igdbClientId.trim() !== "" && settings.igdbClientSecret.trim() !== "";
 
   // Install trigger (T4d-3): start the engine for a server game using the
   // signed-in session's host + token. Disabled in the UI when no session.
@@ -67,11 +63,6 @@ export function CatalogView() {
     });
   }, [games, prefs.prefs, installOverlay]);
 
-  const fetchCover = async (game: Game): Promise<string | null> => {
-    const path = await fetchCoverArt(game, settings.igdbClientId, settings.igdbClientSecret);
-    if (path) setCover(game.id, path);
-    return path;
-  };
   const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
   const autoLoaded = useRef(false);
   const syncedFor = useRef<string | null>(null);
@@ -213,7 +204,6 @@ export function CatalogView() {
             setSelected(null);
           }}
           onClose={() => setSelected(null)}
-          onFetchCover={hasIgdbCreds ? fetchCover : undefined}
           onToggleFavorite={prefs.toggleFavorite}
           onToggleHidden={prefs.toggleHidden}
           onAddCollection={prefs.addToCollection}

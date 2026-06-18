@@ -46,35 +46,10 @@ export function SettingsView() {
         />
       </label>
 
-      <h2 className="settings__heading">Cover art (IGDB)</h2>
-      <p className="catalog__status">
-        Optional. Create a Twitch application to get a client id/secret, then ArcadeLauncher can fetch
-        missing covers from IGDB.
-      </p>
-      <label className="settings__field">
-        <span className="settings__label">Twitch client id</span>
-        <input
-          className="settings__input"
-          value={draft.igdbClientId}
-          onChange={(e) => set("igdbClientId", e.target.value)}
-          spellCheck={false}
-        />
-      </label>
-      <label className="settings__field">
-        <span className="settings__label">Twitch client secret</span>
-        <input
-          className="settings__input"
-          type="password"
-          value={draft.igdbClientSecret}
-          onChange={(e) => set("igdbClientSecret", e.target.value)}
-          spellCheck={false}
-        />
-      </label>
-
       <h2 className="settings__heading">Discord Rich Presence</h2>
       <p className="catalog__status">
-        Show the game you're playing in your Discord status. Create a Discord application to get an
-        application id, then turn this on.
+        Show the game you're playing in your Discord status. The Discord application is configured on
+        the server — just turn this on.
       </p>
       <label className="settings__check">
         <input
@@ -83,16 +58,6 @@ export function SettingsView() {
           onChange={(e) => set("discordRichPresence", e.target.checked)}
         />
         Show current game in Discord
-      </label>
-      <label className="settings__field">
-        <span className="settings__label">Discord application id</span>
-        <input
-          className="settings__input"
-          value={draft.discordAppId}
-          onChange={(e) => set("discordAppId", e.target.value)}
-          placeholder="Discord application (client) id"
-          spellCheck={false}
-        />
       </label>
 
       <h2 className="settings__heading">Global hotkey</h2>

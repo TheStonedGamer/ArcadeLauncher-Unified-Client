@@ -1,8 +1,9 @@
 //! Presence commands. The frontend calls `presence_set_playing` when a game
 //! launches and `presence_set_idle` when it exits (driven by the existing
-//! `game-exited` event). Both read the General settings to decide whether
-//! presence is enabled and which Discord app id to use — so the toggle in
-//! Settings takes effect without any extra plumbing.
+//! `game-exited` event). Both read the `discord_rich_presence` toggle from the
+//! General settings, but the Discord application id comes from the server
+//! (`/api/client-config`) — the frontend pushes it via `presence_configure`
+//! after login, and it's held in `PresenceManager` state.
 
 use crate::error::{AppError, AppResult};
 use crate::presence::activity::PresenceState;
@@ -19,10 +20,19 @@ fn config_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
     Ok(dir.join("config.json"))
 }
 
-/// Push the desired state through the manager using the current settings.
+/// Push the desired state through the manager: the on/off toggle comes from the
+/// user's settings, the app id from the server (stored in the manager).
 fn apply(app: &tauri::AppHandle, mgr: &PresenceManager, state: &PresenceState) -> AppResult<()> {
     let cfg = store::load(&config_path(app)?)?;
-    mgr.apply(cfg.discord_rich_presence, &cfg.discord_app_id, state)
+    mgr.apply(cfg.discord_rich_presence, &mgr.app_id(), state)
+}
+
+/// Store the server-provided Discord application id. The frontend fetches
+/// `/api/client-config` after login and calls this once.
+#[tauri::command]
+pub fn presence_configure(presence: State<'_, PresenceManager>, app_id: String) -> AppResult<()> {
+    presence.set_app_id(&app_id);
+    Ok(())
 }
 
 #[tauri::command]

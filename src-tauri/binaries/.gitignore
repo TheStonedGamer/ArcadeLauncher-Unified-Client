@@ -1,0 +1,5 @@
+# The bootstrap updater sidecar is built (by CI, or locally via
+# `cargo build --release -p arcade_updater`) and staged here with a target-triple
+# suffix before `tauri build` bundles it. The built binaries are not committed.
+updater-*
+!.gitignore

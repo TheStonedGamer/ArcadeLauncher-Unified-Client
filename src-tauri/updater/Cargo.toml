@@ -1,0 +1,22 @@
+[package]
+name = "arcade_updater"
+version = "0.9.4"
+description = "ArcadeLauncher Steam-style bootstrap updater"
+authors = ["TheStonedGamer"]
+edition = "2021"
+
+# The binary the installer puts in front of the app. Kept tiny and dependency-
+# light: a blocking HTTP client (ureq), a minimal native window (eframe/egui),
+# minisign verification, and zip extraction for the NSIS payload.
+[[bin]]
+name = "updater"
+path = "src/main.rs"
+
+[dependencies]
+eframe = { version = "0.29", default-features = false, features = ["default_fonts", "glow"] }
+ureq = { version = "2", default-features = false, features = ["tls", "gzip"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+minisign-verify = "0.2"
+base64 = "0.22"
+zip = { version = "2", default-features = false, features = ["deflate"] }

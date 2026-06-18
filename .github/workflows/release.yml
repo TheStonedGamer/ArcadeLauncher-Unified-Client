@@ -54,6 +54,21 @@ jobs:
       - name: Install npm deps
         run: npm ci
 
+      # Build the bootstrap updater and stage it as a Tauri sidecar so the
+      # bundler installs updater.exe (or `updater` on Linux) next to the app.
+      # externalBin requires the file to pre-exist with a target-triple suffix.
+      - name: Build bootstrap updater sidecar
+        shell: bash
+        run: |
+          cargo build --release -p arcade_updater --manifest-path src-tauri/Cargo.toml
+          mkdir -p src-tauri/binaries
+          TRIPLE=$(rustc -vV | sed -n 's/host: //p')
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp "src-tauri/target/release/updater.exe" "src-tauri/binaries/updater-$TRIPLE.exe"
+          else
+            cp "src-tauri/target/release/updater" "src-tauri/binaries/updater-$TRIPLE"
+          fi
+
       - name: Build + publish release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -64,5 +79,5 @@ jobs:
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', github.run_number) }}
           releaseName: "ArcadeLauncher ${{ github.ref_name }}"
           releaseBody: "See the assets to download and install this version."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false

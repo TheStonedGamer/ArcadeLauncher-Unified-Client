@@ -21,15 +21,9 @@ pub struct General {
     pub concurrent_downloads: u32,
     /// UI theme id.
     pub theme: String,
-    /// Twitch/IGDB API client id (empty = cover-art fetch disabled).
-    pub igdb_client_id: String,
-    /// Twitch/IGDB API client secret (empty = cover-art fetch disabled).
-    pub igdb_client_secret: String,
-    /// Show the current game in Discord via Rich Presence.
+    /// Show the current game in Discord via Rich Presence. The Discord
+    /// application id itself comes from the server (/api/client-config).
     pub discord_rich_presence: bool,
-    /// Discord application id for Rich Presence (empty = disabled even if the
-    /// toggle is on). The app's art assets live under this application.
-    pub discord_app_id: String,
     /// Register a global hotkey that summons/hides the launcher window.
     pub global_hotkey_enabled: bool,
     /// The accelerator for that hotkey (e.g. "Ctrl+Shift+G").
@@ -46,10 +40,7 @@ impl Default for General {
             download_limit_kbps: 0,
             concurrent_downloads: 3,
             theme: "dark".to_string(),
-            igdb_client_id: String::new(),
-            igdb_client_secret: String::new(),
             discord_rich_presence: false,
-            discord_app_id: String::new(),
             global_hotkey_enabled: false,
             global_hotkey: crate::hotkey::shortcut::DEFAULT_SHORTCUT.to_string(),
         }

@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { sessionLogin, sessionSave, sessionRestore, sessionClear } from "./api";
+import { configureFromServer } from "../presence/api";
 import type { Session } from "./types";
 
 interface SessionContextValue {
@@ -67,6 +68,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       active = false;
     };
   }, []);
+
+  // Once a session host is known (login or restore), fetch the server's Discord
+  // application id and hand it to the Rust presence manager. Best-effort.
+  useEffect(() => {
+    if (!session) return;
+    void configureFromServer(session.host);
+  }, [session?.host]);
 
   const login = useCallback(
     async (host: string, username: string, password: string, totpCode: string) => {

@@ -1,7 +1,7 @@
 {
   "name": "arcade-launcher-unified-client",
   "private": true,
-  "version": "0.9.3",
+  "version": "0.9.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,8 +14,6 @@
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-process": "^2",
-    "@tauri-apps/plugin-updater": "^2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

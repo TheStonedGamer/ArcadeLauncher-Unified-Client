@@ -13,10 +13,7 @@ const DEFAULTS: GeneralSettings = {
   downloadLimitKbps: 0,
   concurrentDownloads: 3,
   theme: "dark",
-  igdbClientId: "",
-  igdbClientSecret: "",
   discordRichPresence: false,
-  discordAppId: "",
   globalHotkeyEnabled: false,
   globalHotkey: "Ctrl+Shift+G",
 };

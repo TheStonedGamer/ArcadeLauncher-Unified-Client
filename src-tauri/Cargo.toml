@@ -1,9 +1,15 @@
 [package]
 name = "arcade_launcher"
-version = "0.9.3"
+version = "0.9.4"
 description = "ArcadeLauncher Unified Client"
 authors = ["TheStonedGamer"]
 edition = "2021"
+
+# The Steam-style bootstrap updater (updater.exe) is a sibling crate in this
+# workspace so it builds from the same `cargo`/CI invocation and shares the
+# target dir. It is bundled alongside the app and runs before it (see updater/).
+[workspace]
+members = ["updater"]
 
 [lib]
 # `_lib` suffix keeps the lib name distinct from the bin (Windows linker quirk).
@@ -47,9 +53,7 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 discord-rich-presence = "0.2"
 tauri-plugin-dialog = "2"
 
-# Desktop-only plugins (updater/process are not built for mobile targets).
+# Desktop-only plugins (not built for mobile targets).
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri-plugin-updater = "2"
-tauri-plugin-process = "2"
 # Global hotkey to summon/hide the launcher (T7b). Desktop-only.
 tauri-plugin-global-shortcut = "2"

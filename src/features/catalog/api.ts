@@ -1,7 +1,6 @@
 // Catalog IPC: the typed command calls this feature owns. Components and hooks
 // import from here, never from the raw ipc layer.
 
-import { appCacheDir, join } from "@tauri-apps/api/path";
 import { call } from "../../lib/ipc";
 import type { Game } from "./types";
 import type { CatalogPrefs } from "./prefs";
@@ -37,24 +36,4 @@ export function launchGame(game: Game): Promise<number> {
  *  Rust `art::needs_art` predicate). */
 export function needsArt(game: Game): boolean {
   return game.coverArtPath.trim() === "" && game.coverArtUrl.trim() === "";
-}
-
-/**
- * Fetch a cover for `game` from IGDB into the per-user cache, returning the
- * local image path (or null when there are no credentials / no match). The
- * cache dir is resolved here so callers only pass the credentials.
- */
-export async function fetchCoverArt(
-  game: Game,
-  clientId: string,
-  clientSecret: string,
-): Promise<string | null> {
-  const cacheDir = await join(await appCacheDir(), "covers");
-  return call<string | null>("fetch_cover_art", {
-    gameId: game.id,
-    title: game.title,
-    clientId,
-    clientSecret,
-    cacheDir,
-  });
 }

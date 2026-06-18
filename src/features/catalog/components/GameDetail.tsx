@@ -7,16 +7,12 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Game } from "../types";
 import type { ConflictPolicy, SyncReport } from "../../saves/api";
 import { yearOf, collectionsOf } from "../query";
-import { needsArt } from "../api";
 import { variantLabel, type VariantGroup } from "../variants";
 
 interface Props {
   group: VariantGroup;
   onLaunch: (game: Game) => void;
   onClose: () => void;
-  /** Fetch a cover for the game; resolves to the new path or null. Absent when
-   *  IGDB credentials aren't configured. */
-  onFetchCover?: (game: Game) => Promise<string | null>;
   onToggleFavorite?: (game: Game) => void;
   onToggleHidden?: (game: Game) => void;
   onAddCollection?: (game: Game, name: string) => void;
@@ -57,7 +53,6 @@ export function GameDetail({
   group,
   onLaunch,
   onClose,
-  onFetchCover,
   onToggleFavorite,
   onToggleHidden,
   onAddCollection,
@@ -70,17 +65,14 @@ export function GameDetail({
   savePathFor,
 }: Props) {
   const [pick, setPick] = useState<Game>(group.representative);
-  const [fetching, setFetching] = useState(false);
-  const [fetchMsg, setFetchMsg] = useState("");
   const [installing, setInstalling] = useState(false);
   const [installMsg, setInstallMsg] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
   const [syncConflicts, setSyncConflicts] = useState(0);
   const [savePath, setSavePathState] = useState(savePathFor ? savePathFor(group.representative) : "");
-  const [coverPath, setCoverPath] = useState(group.representative.coverArtPath);
   const game = group.representative;
-  const cover = coverPath ? convertFileSrc(coverPath) : game.coverArtUrl;
+  const cover = game.coverArtPath ? convertFileSrc(game.coverArtPath) : game.coverArtUrl;
 
   // Local mirrors of the overridable bits so toggles reflect immediately in the
   // open modal (the grid re-derives from prefs on close).
@@ -109,19 +101,6 @@ export function GameDetail({
     setCollections((c) => c.filter((x) => x !== name));
   };
 
-  const fetchCover = async () => {
-    if (!onFetchCover) return;
-    setFetching(true);
-    setFetchMsg("");
-    const path = await onFetchCover(game).catch(() => null);
-    setFetching(false);
-    if (path) {
-      setCoverPath(path);
-      setFetchMsg("Cover updated ✓");
-    } else {
-      setFetchMsg("No cover found — check your IGDB credentials in Settings.");
-    }
-  };
   const install = async () => {
     if (!onInstall) return;
     setInstalling(true);
@@ -240,15 +219,6 @@ export function GameDetail({
                   Add
                 </button>
               </div>
-            </div>
-          )}
-
-          {onFetchCover && needsArt(game) && (
-            <div className="detail__art">
-              <button className="detail__fetch" onClick={fetchCover} disabled={fetching}>
-                {fetching ? "Fetching…" : "Fetch cover from IGDB"}
-              </button>
-              {fetchMsg && <span className="detail__fetchmsg">{fetchMsg}</span>}
             </div>
           )}
 

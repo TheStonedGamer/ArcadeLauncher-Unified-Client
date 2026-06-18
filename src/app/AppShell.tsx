@@ -1,8 +1,8 @@
-// Top-level app shell: header with view tabs, update banner, and the active
-// feature view. As features grow (social, downloads) they add a tab here.
+// Top-level app shell: header with view tabs and the active feature view. As
+// features grow (social, downloads) they add a tab here. Updates are handled by
+// the standalone bootstrap updater before the app launches — no in-app banner.
 
 import { useState } from "react";
-import { UpdateBanner } from "../features/updater/UpdateBanner";
 import { CatalogView } from "../features/catalog/CatalogView";
 import { SettingsView } from "../features/settings/SettingsView";
 import { SocialView } from "../features/social/SocialView";
@@ -68,7 +68,6 @@ export function AppShell() {
           )}
         </div>
       </header>
-      <UpdateBanner />
       {showLogin && !session && <LoginPanel onClose={() => setShowLogin(false)} />}
       <main className="app__main">
         {view === "library" && <CatalogView />}

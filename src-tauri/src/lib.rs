@@ -21,12 +21,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init());
 
-    // Updater + process plugins are desktop-only (Steam-style admin-free updates).
+    // Updates are handled by the standalone bootstrap updater before launch, so
+    // no in-app updater/process plugins. The global-shortcut plugin is desktop-only.
     #[cfg(desktop)]
-    let builder = builder
-        .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build());
+    let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
 
     builder
         // Live social gateway connection state (one per app instance).
@@ -77,7 +75,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             catalog::commands::load_catalog,
             catalog::commands::fetch_catalog,
-            catalog::art_commands::fetch_cover_art,
             catalog::prefs_commands::load_catalog_prefs,
             catalog::prefs_commands::save_catalog_prefs,
             launch::commands::launch_game,
@@ -108,6 +105,7 @@ pub fn run() {
             download::commands::load_install_records,
             presence::commands::presence_set_playing,
             presence::commands::presence_set_idle,
+            presence::commands::presence_configure,
             hotkey::commands::hotkey_apply,
             window::commands::set_fullscreen,
             window::commands::is_fullscreen,
