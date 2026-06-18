@@ -222,8 +222,33 @@ async fn stage_emulator(
         drop(file);
         std::fs::rename(&tmp, &dest).map_err(|e| AppError::msg(format!("finalize failed: {e}")))?;
     }
+
+    // Unpack archive runtimes (.zip/.7z) into a per-emulator runtime dir so the
+    // launch layer can find the emulator's executable. Loose .exe/firmware blobs
+    // need no unpacking. A `.unpacked` marker (the source archive's name) lets us
+    // skip the expensive re-extract when the runtime is already current.
+    if em.files.len() == 1 && crate::emulators::unpack::is_archive(&em.files[0].rel) {
+        let archive = base.join(&em.files[0].rel);
+        let runtime = runtime_dir(&base, &em.id);
+        let marker = runtime.join(".unpacked");
+        let want = format!("{}:{}", em.files[0].rel, em.files[0].size);
+        let have = std::fs::read_to_string(&marker).unwrap_or_default();
+        if have.trim() != want {
+            let _ = std::fs::remove_dir_all(&runtime);
+            crate::emulators::unpack::unpack_archive(&archive, &runtime)?;
+            let _ = std::fs::write(&marker, &want);
+        }
+    }
+
     emit(downloaded, true, None);
     Ok(())
+}
+
+/// Per-emulator runtime (unpacked) directory: `<emulators>/_runtimes/<id>`.
+/// Kept under the emulators dir but namespaced so it never collides with a
+/// staged archive of the same name.
+fn runtime_dir(emulators_dir: &std::path::Path, id: &str) -> PathBuf {
+    emulators_dir.join("_runtimes").join(id)
 }
 
 /// Download (stage) one emulator's runtime files into the per-user data dir.

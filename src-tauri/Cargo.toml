@@ -1,6 +1,6 @@
 [package]
 name = "arcade_launcher"
-version = "0.9.12"
+version = "0.9.13"
 description = "ArcadeLauncher Unified Client"
 authors = ["TheStonedGamer"]
 edition = "2021"
@@ -46,6 +46,10 @@ filetime = "0.2"
 # Archive extraction for pc_archive installs (T4c). Pure-Rust deflate only (no
 # bzip2/zstd system deps) so the Windows + Linux CI build stays identical.
 zip = { version = "2", default-features = false, features = ["deflate"] }
+
+# 7-Zip extraction for emulator runtimes shipped as .7z (Dolphin, RPCS3, PCSX2).
+# Pure-Rust LZMA/LZMA2 decoder — no system deps, identical on both CI runners.
+sevenz-rust = "0.6"
 
 # Discord Rich Presence (T7a). Pure-Rust IPC over the local Discord socket
 # (unix socket on Linux, named pipe on Windows) — no system deps, identical on
