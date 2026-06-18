@@ -54,6 +54,22 @@ jobs:
       - name: Frontend build (tsc + vite)
         run: npm run build
 
+      # tauri.conf.json declares the bootstrap updater as an externalBin sidecar
+      # (binaries/updater-<triple>), and tauri-build's custom build command fails
+      # if that file is absent — so the sidecar must exist before any cargo
+      # invocation, mirroring the Release workflow.
+      - name: Build bootstrap updater sidecar
+        shell: bash
+        run: |
+          cargo build --release -p arcade_updater --manifest-path src-tauri/Cargo.toml
+          mkdir -p src-tauri/binaries
+          TRIPLE=$(rustc -vV | sed -n 's/host: //p')
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp "src-tauri/target/release/updater.exe" "src-tauri/binaries/updater-$TRIPLE.exe"
+          else
+            cp "src-tauri/target/release/updater" "src-tauri/binaries/updater-$TRIPLE"
+          fi
+
       - name: Rust unit tests
         working-directory: src-tauri
         run: cargo test --locked
