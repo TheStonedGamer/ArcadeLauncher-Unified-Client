@@ -35,12 +35,15 @@ struct PlatformEntry {
     url: String,
 }
 
-/// The Tauri platform key for the host we're running on.
-fn platform_key() -> &'static str {
+/// The Tauri platform keys for the host we're running on, in preference order.
+/// Windows: the NSIS `setup.exe` (`-nsis`) is the per-user, admin-free installer
+/// we drive; the bare key resolves to the `.msi`, which we don't. Linux: the
+/// AppImage variant is what we replace in place.
+fn platform_keys() -> &'static [&'static str] {
     if cfg!(target_os = "windows") {
-        "windows-x86_64"
+        &["windows-x86_64-nsis", "windows-x86_64"]
     } else {
-        "linux-x86_64"
+        &["linux-x86_64-appimage", "linux-x86_64"]
     }
 }
 
@@ -67,10 +70,14 @@ fn check_and_apply(status: &Arc<Mutex<Status>>) -> Result<bool, String> {
     if !is_newer(&manifest.version, env!("CARGO_PKG_VERSION")) {
         return Ok(false);
     }
-    let entry = manifest
-        .platforms
-        .get(platform_key())
-        .ok_or_else(|| format!("no artifact for {}", platform_key()))?;
+    // Prefer the platform's preferred installer variant, falling back to the
+    // bare key. On Windows the NSIS `setup.exe` is the per-user, admin-free
+    // installer we want — the bare `windows-x86_64` key resolves to the `.msi`,
+    // which we don't drive.
+    let entry = platform_keys()
+        .iter()
+        .find_map(|k| manifest.platforms.get(*k))
+        .ok_or_else(|| format!("no artifact for {}", platform_keys()[0]))?;
 
     set(status, format!("Downloading update {}…", manifest.version));
     let bytes = download(&entry.url)?;
@@ -134,9 +141,10 @@ fn verify(data: &[u8], signature_b64: &str) -> Result<(), String> {
         .map_err(|e| format!("signature verification failed: {e}"))
 }
 
-/// Apply the verified payload. On Windows the artifact is the NSIS setup zipped
-/// (`*.nsis.zip`): unzip it and run `setup.exe /S` (silent, per-user, no admin —
-/// the app isn't running so nothing is locked). On Linux it's the AppImage (or a
+/// Apply the verified payload. On Windows the artifact is the NSIS `setup.exe`
+/// delivered directly (Tauri v2); we run it `/S` (silent, per-user, no admin —
+/// the app isn't running so nothing is locked). A legacy zipped form
+/// (`*.nsis.zip`) is still handled for safety. On Linux it's the AppImage (or a
 /// `.tar.gz` of it): drop it in place of the running AppImage.
 fn install(bytes: &[u8], url: &str) -> Result<(), String> {
     if cfg!(target_os = "windows") {
@@ -187,25 +195,35 @@ fn install_windows(_bytes: &[u8]) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 fn install_windows(bytes: &[u8]) -> Result<(), String> {
-    // The NSIS artifact is delivered as a zip containing the setup .exe.
-    let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|e| format!("open zip: {e}"))?;
     let tmp = std::env::temp_dir().join("arcadelauncher-update");
     std::fs::create_dir_all(&tmp).map_err(|e| format!("temp dir: {e}"))?;
-    let mut setup_path: Option<PathBuf> = None;
-    for i in 0..zip.len() {
-        let mut f = zip.by_index(i).map_err(|e| format!("zip entry: {e}"))?;
-        let name = f.name().to_string();
-        if !name.to_lowercase().ends_with(".exe") {
-            continue;
+
+    // Tauri v2 delivers the NSIS installer directly (a raw `setup.exe`, PE magic
+    // "MZ"). A legacy zip form ("PK") is still unwrapped for safety.
+    let setup: PathBuf = if bytes.starts_with(b"PK") {
+        let mut zip =
+            zip::ZipArchive::new(Cursor::new(bytes)).map_err(|e| format!("open zip: {e}"))?;
+        let mut found: Option<PathBuf> = None;
+        for i in 0..zip.len() {
+            let mut f = zip.by_index(i).map_err(|e| format!("zip entry: {e}"))?;
+            let name = f.name().to_string();
+            if !name.to_lowercase().ends_with(".exe") {
+                continue;
+            }
+            let out = tmp.join(Path::new(&name).file_name().unwrap_or(name.as_ref()));
+            let mut buf = Vec::new();
+            f.read_to_end(&mut buf).map_err(|e| format!("zip read: {e}"))?;
+            std::fs::write(&out, &buf).map_err(|e| format!("write setup: {e}"))?;
+            found = Some(out);
+            break;
         }
-        let out = tmp.join(Path::new(&name).file_name().unwrap_or(name.as_ref()));
-        let mut buf = Vec::new();
-        f.read_to_end(&mut buf).map_err(|e| format!("zip read: {e}"))?;
-        std::fs::write(&out, &buf).map_err(|e| format!("write setup: {e}"))?;
-        setup_path = Some(out);
-        break;
-    }
-    let setup = setup_path.ok_or("no setup .exe in update zip")?;
+        found.ok_or("no setup .exe in update zip")?
+    } else {
+        let out = tmp.join("ArcadeLauncher-setup.exe");
+        std::fs::write(&out, bytes).map_err(|e| format!("write setup: {e}"))?;
+        out
+    };
+
     let status = Command::new(&setup)
         .arg("/S") // NSIS silent install
         .status()
