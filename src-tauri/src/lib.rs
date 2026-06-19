@@ -10,6 +10,7 @@ mod error;
 mod hotkey;
 mod launch;
 mod presence;
+mod requests;
 mod retroachievements;
 mod saves;
 mod session;
