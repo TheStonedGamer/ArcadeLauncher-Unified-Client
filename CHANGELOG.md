@@ -20,6 +20,10 @@ Added / Changed / Fixed / Removed.
 - Game Requests board transport: the launcher now talks to the Requests service
   using your existing sign-in (bearer token) — no separate board login — to list
   the board, search, request, upvote, rate, and (for admins) triage statuses.
+- **Requests tab**: browse and vote on game requests without leaving the
+  launcher. Search for a game and request it (dupes fold into an upvote), rate
+  games 1–5 stars, filter by status or platform, and — if you're an admin — set
+  each request's status inline.
 
 ### Changed
 - The bootstrap updater (`updater.exe`) now ships with the launcher's icon

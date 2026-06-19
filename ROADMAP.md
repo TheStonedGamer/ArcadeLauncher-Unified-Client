@@ -378,9 +378,24 @@ from scratch.
 
 **Library & launch quality**
 
-- [ ] **T12h — In-client Game Requests board.** Surface the existing
+- [~] **T12h — In-client Game Requests board.** Surface the existing
   `ArcadeLauncher-Requests` companion service inside the client (browse / upvote /
   request) instead of a separate web app.
+  - [x] **T12h-1** Pure core (`requests/api.rs`): Endpoint URL builders
+    (login/logout/me/search+platform/requests/vote/rating/status), `GameRequest`/
+    `Board`/`SearchHit`/`Me`/`CreateBody`/`RateResult` models + `parse_*`,
+    `STATUSES`/`is_valid_status`. TS side: platform filter + 1–5 star ratings
+    helpers (`applyRating`/`formatRating`/`boardPlatforms`/`filterByPlatform`).
+  - [x] **T12h-2** Rust transport (`requests/commands.rs`): seven bearer-authed
+    commands (board/me/search/create/vote/rate/status) over `https://{host}/requests`,
+    reusing the launcher's per-user token (validated against the shared
+    `launcher_tokens` table — the Requests service grew `Authorization: Bearer`
+    support). `parse_create`/`parse_vote` (+ KATs); CI green both OSes (6d947c0).
+  - [ ] **T12h-3** React UI: Requests tab + `useRequests` hook (board with star
+    ratings, platform/status filter chips, upvote, rate, search-and-request
+    composer, admin triage).
+  - [ ] **T12h-4** Deploy the bearer-aware `ArcadeLauncher-Requests` binary to
+    CT `10.0.0.210` (requires explicit authorization).
 - [ ] **T12i — Auto-sync cloud saves on launch/exit + version history.** Saves are
   manual + last-write-wins today; auto-sync on game exit and keep N restorable
   save versions to retire the conflict problem.
@@ -398,8 +413,39 @@ from scratch.
 **Bigger bets** (tie into adjacent projects)
 
 - [ ] **T12k — Remote game streaming (Sunshine/Moonlight).** Wire the launcher to
-  stream an installed game from the host to a thin client — leverages the existing
-  Moonlight/Debian-ISO work; effectively a personal GeForce-Now.
+  stream an installed game from a host PC to a thin client — leverages the existing
+  Moonlight/Debian-ISO work; effectively a personal GeForce-Now. Approach: **drive
+  the existing open-source binaries** (Sunshine as the host server, Moonlight as
+  the client) rather than reimplement the NVIDIA GameStream / Moonlight protocol —
+  the launcher orchestrates pairing + launch, the heavy lifting (NVENC/AV1 encode,
+  ENet/RTSP transport, input) stays in the upstream projects. Pure-core-first as
+  always: protocol/URL/parse logic is IO-free and KAT-tested; process + network
+  glue is the thin seam.
+  - [ ] **T12k-1** Host detection + presence (pure core): model a `StreamHost`
+    `{name, address, paired, state}`; detect a local Sunshine install/service and
+    parse its `apps.json` app list; surface host availability. No IO in the core —
+    just the config/JSON shapes + a "is this game streamable from host X" decision.
+  - [ ] **T12k-2** Sunshine host control (Rust seam): talk to Sunshine's HTTPS
+    config API (default `:47990`) to **pair** (PIN flow), list/add a launcher game
+    as a Sunshine "app" (so launching it on the host runs our game), and read
+    pairing state. Creds/host stored client-local (never in `library.json`).
+    Self-signed cert handling via rustls custom verifier (pinned, not disabled).
+  - [ ] **T12k-3** Moonlight client launch: detect/bundle the Moonlight client and
+    hand it a host+app to start a stream (URI/CLI invocation), or — stretch —
+    embed the stream. Decision point captured here: **shell out to `moonlight-qt`**
+    (fast, robust, cross-platform, GPL — keep it a separate process we invoke, not
+    linked) vs. a native embedded view (large, later). Default to shelling out.
+  - [ ] **T12k-4** Streaming UI: a **▶ Stream from host** affordance on the detail
+    panel for games marked host-installed, a host picker + pairing modal (PIN
+    entry), and a Settings → Streaming section (host address, client path/bundle
+    toggle, resolution/bitrate/HDR defaults passed through to Moonlight).
+  - [ ] **T12k-5** Reuse the Debian-ISO Moonlight thin-client work: document/wire
+    the autoinstall image as a ready-made set-top client that pairs to the same
+    host, so a TV box and the desktop launcher share one streaming setup.
+  - _Licensing note:_ Sunshine (GPL-3.0) and Moonlight (GPL-3.0) are invoked as
+    separate processes / bundled binaries, **not** statically linked into the
+    (proprietary) launcher — keeps the launcher's licensing clean. Revisit if we
+    ever embed Moonlight's renderer in-process.
 - [ ] **T12l — Mobile companion app.** Remote library browse, "install to my PC",
   chat / presence, and download-queue control from a phone.
 
