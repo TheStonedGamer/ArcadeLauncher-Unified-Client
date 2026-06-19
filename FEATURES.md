@@ -39,6 +39,11 @@ elevate (Tauri updater).
 - **ROM-variant grouping** with a picker for multi-region/-revision dumps.
 - **Detail panel** with cover/hero art and developer/publisher/franchise metadata;
   **IGDB cover-art fetch** (Twitch OAuth, creds-gated) per game.
+- **SteamGridDB cover-art picker** *(new)* — from the detail panel, **🎨 Find cover
+  art** searches SteamGridDB for the title and shows a thumbnail grid; pick one and
+  it's downloaded into the per-user art cache and set as the game's cover. Stored
+  as a client-local override (`cover_overrides` in `catalog_prefs.json`), so
+  `library.json` is never rewritten. Needs a SteamGridDB API key (Settings).
 - **Installed tab** scoping the grid to what's on disk.
 - **Controller-friendly** — full gamepad navigation and a **Big Picture**
   fullscreen mode; a **global hotkey** summons the launcher from anywhere.
@@ -60,6 +65,14 @@ elevate (Tauri updater).
 - **Download controls** — pause, resume, cancel, a configurable **bandwidth limit**,
   and a concurrency cap; a **Downloads tab** with an active-count badge shows
   live speed and the queue.
+
+### 2.2 Delta / patch updates *(new)*
+- The client tracks each install's content **version**; on sign-in a background
+  **update check** (`check_updates`) compares it against the server's current
+  manifest version per installed game and flags an **⬆ Update available** on the
+  detail panel. Applying it runs the verify engine against the new manifest, which
+  re-hashes on-disk files and **re-downloads only the changed files** — not the
+  whole game — then finalizes the record at the new version.
 
 ### 2.1 Validate & Repair *(new)*
 - A Steam-style **"Verify files"** pass (`download_verify`) re-checks every manifest
@@ -91,6 +104,15 @@ elevate (Tauri updater).
   **deployed into its emulator** (e.g. PS2 BIOS into PCSX2), so you can confirm a
   console will boot without launching a game. Backed by a read-only `firmware_status`
   command that inspects the same paths the on-launch auto-deploy writes.
+
+### 3.2 RetroAchievements *(new)*
+- A **RetroAchievements** panel (Settings) shows your **score, global rank, and
+  recent unlocks** via the RetroAchievements Web API (creds-gated on your RA
+  username + Web API key). Your RA points are mapped onto the launcher's own
+  **level curve** (the same `floor(sqrt(points/100))` the social profile uses), so
+  RA mastery previews as a launcher level. *Live in-game unlock toasts, social
+  activity events, and writing RA points into server XP are planned follow-ups —
+  standalone emulators run their own rcheevos client today.*
 
 ## 4. Accounts & cloud saves
 

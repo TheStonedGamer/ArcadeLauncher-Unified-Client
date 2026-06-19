@@ -11,6 +11,9 @@ import { useGamepadConnected } from "../gamepad/useGamepadConnected";
 import { clampDeadZone, useControllerConfig } from "../gamepad/ControllerConfigContext";
 import { EmulatorControllerEditor } from "../controller/EmulatorControllerEditor";
 import { ThemeSettings } from "../theme/ThemeSettings";
+import { useState } from "react";
+import { fetchRaSummary, type RaSummary } from "../retroachievements/api";
+import { pointsToLevel, summaryHeadline, topUnlocks, unlockLabel } from "../retroachievements/ra";
 
 export function SettingsView() {
   const { draft, loading, saved, error, set, save } = useSettings();
@@ -130,10 +133,111 @@ export function SettingsView() {
         {error && <span className="catalog__error">{error}</span>}
       </div>
 
+      <RetroAchievementsSection
+        username={draft.retroachievementsUsername}
+        apiKey={draft.retroachievementsApiKey}
+        onUsername={(v) => set("retroachievementsUsername", v)}
+        onApiKey={(v) => set("retroachievementsApiKey", v)}
+      />
+
       <EmulatorsSection />
 
       <EmulatorControllerEditor />
     </section>
+  );
+}
+
+/** RetroAchievements progress (T12a): credentials + a live summary (score, rank,
+ *  launcher-level preview, recent unlocks) pulled from the RA Web API. The
+ *  credentials are saved with the rest of General settings; the panel fetches on
+ *  demand. */
+function RetroAchievementsSection({
+  username,
+  apiKey,
+  onUsername,
+  onApiKey,
+}: {
+  username: string;
+  apiKey: string;
+  onUsername: (v: string) => void;
+  onApiKey: (v: string) => void;
+}) {
+  const [summary, setSummary] = useState<RaSummary | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const hasCreds = username.trim() !== "" && apiKey.trim() !== "";
+
+  const load = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      setSummary(await fetchRaSummary(username, apiKey));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setSummary(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <h2 className="settings__heading">RetroAchievements</h2>
+      <p className="catalog__status">
+        Show your RetroAchievements score, rank, and recent unlocks, mapped onto the launcher’s level
+        curve. Enter your username and Web API key (Save to persist them), then load your progress.
+      </p>
+      <label className="settings__field">
+        <span className="settings__label">RetroAchievements username</span>
+        <input
+          className="settings__input"
+          value={username}
+          onChange={(e) => onUsername(e.target.value)}
+          placeholder="Your RA username"
+          spellCheck={false}
+          autoComplete="off"
+        />
+      </label>
+      <label className="settings__field">
+        <span className="settings__label">Web API key</span>
+        <input
+          className="settings__input"
+          type="password"
+          value={apiKey}
+          onChange={(e) => onApiKey(e.target.value)}
+          placeholder="From retroachievements.org/settings"
+          spellCheck={false}
+          autoComplete="off"
+        />
+      </label>
+
+      <div className="settings__actions">
+        <button className="settings__save" onClick={load} disabled={!hasCreds || loading}>
+          {loading ? "Loading…" : "Load my progress"}
+        </button>
+        {error && <span className="catalog__error">{error}</span>}
+      </div>
+
+      {summary && (
+        <div className="ra-panel">
+          <div className="ra-panel__head">
+            <span className="ra-panel__headline">{summaryHeadline(summary)}</span>
+            <span className="ra-panel__level">Launcher level {pointsToLevel(summary.score)}</span>
+          </div>
+          {summary.recent.length > 0 ? (
+            <ul className="ra-panel__list">
+              {topUnlocks(summary.recent, 8).map((u, i) => (
+                <li key={`${u.title}-${u.date}-${i}`} className="ra-panel__unlock">
+                  {unlockLabel(u)}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="catalog__status">No unlocks in the last two weeks.</p>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 

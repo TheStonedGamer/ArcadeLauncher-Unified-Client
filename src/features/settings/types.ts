@@ -15,4 +15,6 @@ export interface GeneralSettings {
   controllerEnabled: boolean;
   controllerDeadZone: number;
   steamgriddbApiKey: string;
+  retroachievementsUsername: string;
+  retroachievementsApiKey: string;
 }

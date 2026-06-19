@@ -19,6 +19,8 @@ const DEFAULTS: GeneralSettings = {
   controllerEnabled: true,
   controllerDeadZone: 0.6,
   steamgriddbApiKey: "",
+  retroachievementsUsername: "",
+  retroachievementsApiKey: "",
 };
 
 export function useSettings() {

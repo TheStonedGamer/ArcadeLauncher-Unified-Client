@@ -499,6 +499,12 @@ body {
 }
 .detail__artthumb:hover { border-color: var(--accent); }
 .detail__artthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ra-panel { margin: 8px 0 4px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); }
+.ra-panel__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.ra-panel__headline { font-weight: 700; font-size: 15px; }
+.ra-panel__level { color: var(--accent); font-weight: 600; font-size: 13px; }
+.ra-panel__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ra-panel__unlock { font-size: 13px; color: var(--text); padding: 4px 0; border-top: 1px solid var(--border); }
 .detail__saves { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; align-items: flex-start; }
 .detail__saves-resolve { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .detail__saves-folder { display: flex; flex-direction: column; gap: 4px; width: 100%; }

@@ -326,10 +326,20 @@ from scratch.
 
 **High impact, strong fit**
 
-- [ ] **T12a — RetroAchievements integration.** Hook `rcheevos` into the emulator
-  launch path; show unlock toasts and feed unlocks into the **existing XP/level
-  system** (`social/profile.ts`). Unlocks also become social activity events over
-  `/ws/social`. *Best single fit for an emulator launcher; nothing exists today.*
+- [x] **T12a — RetroAchievements integration (Web API slice).** Standalone
+  emulators (PCSX2/DuckStation/RetroArch) ship their own rcheevos clients, so
+  rather than inject achievements into the launch path, this integrates the **RA
+  Web API**: pure `retroachievements/api.rs` (authed URL builders + `parse_rank_score`/
+  `parse_recent`, flexible-hardcore coercion, unknown-user handling; 6 Rust KATs)
+  + a `retroachievements_summary` command (score/rank + recent unlocks, creds from
+  Settings). Pure TS `ra.ts` maps RA points onto the **shared level curve**
+  (`levelForXp` from `social/profile.ts`) so RA mastery previews as a launcher
+  level — the seam for a future server XP sync (`pointsToLevel`/`topUnlocks`/
+  `unlockLabel`/`summaryHeadline`, 5 vitest). A **RetroAchievements** section in
+  Settings holds the creds and shows a live panel (headline, level, recent
+  unlocks). 228 vitest + 197 cargo green. *Deferred (need rcheevos in-process or
+  a server hook): live unlock toasts during play, social-activity events, and
+  writing RA points back into server XP.*
 - [x] **T12b — SteamGridDB artwork in the unified client.** Pure request/parse
   core `catalog/art.rs` (autocomplete + grids URL builders, `parse_search`/
   `parse_assets`, term encoding, extension sniffing; 6 Rust KATs) + two commands

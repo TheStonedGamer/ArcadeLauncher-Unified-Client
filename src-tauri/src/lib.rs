@@ -10,6 +10,7 @@ mod error;
 mod hotkey;
 mod launch;
 mod presence;
+mod retroachievements;
 mod saves;
 mod session;
 mod settings;
@@ -94,6 +95,7 @@ pub fn run() {
             catalog::prefs_commands::save_catalog_prefs,
             catalog::art_commands::steamgriddb_search,
             catalog::art_commands::apply_cover,
+            retroachievements::commands::retroachievements_summary,
             launch::commands::launch_game,
             launch::commands::check_runnable,
             settings::commands::load_settings,
