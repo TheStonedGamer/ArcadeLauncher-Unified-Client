@@ -20,3 +20,8 @@ serde_json = "1"
 minisign-verify = "0.2"
 base64 = "0.22"
 zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[build-dependencies]
+# Embeds the launcher icon into updater.exe so the bootstrapper matches the app
+# in Explorer/taskbar (MSVC-only; a no-op on other toolchains).
+winresource = "0.1"

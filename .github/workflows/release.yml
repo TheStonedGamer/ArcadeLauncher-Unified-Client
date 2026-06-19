@@ -5,15 +5,27 @@ name: Release
 # AppImage. Triggered only by pushing a `vX.Y.Z` tag (or manual dispatch) —
 # never on normal pushes, so it can't gate the green main build.
 #
-# Both legs run on SELF-HOSTED runners that live on the same physical Proxmox
-# host (Windows VM 131 = label `prox-win`, Linux CT 130 = label `prox-pve`).
-# These labels are deliberately Proxmox-specific so the owner's desktop PC
-# runners (which carry the generic `arcade-win`/`arcade-pve` labels) can never
-# pick up a release job — that label collision was the v0.10.3 release blocker.
-# To avoid pegging that host, the two legs are STAGGERED: the Linux job `needs`
-# the Windows job, so Windows builds first and Linux only starts once it's done.
-# Safe for a PUBLIC repo: tag-triggered only, and tags can only be pushed by
-# collaborators with write access — no fork-PR path executes code on the LAN.
+# THREE-PHASE FLOW (avoids the duplicate-release race):
+#   1. create-release  — creates ONE draft release up front and outputs its id.
+#   2. release-windows / release-linux — each uploads its artifacts to that
+#      release by `releaseId`, so neither leg ever creates a release of its own.
+#   3. publish-release — flips the draft to published once both legs succeed.
+# Previously both legs ran tauri-action with `releaseDraft: false`; because
+# GitHub's "get release by tag" never returns drafts, a leg uploading while the
+# other was still in draft couldn't see it and created a SECOND release. One won
+# and published with everything; the loser was stranded as an orphan draft. The
+# single up-front draft removes that race entirely.
+#
+# Both build legs run on SELF-HOSTED runners that live on the same physical
+# Proxmox host (Windows VM 131 = label `prox-win`, Linux CT 130 = label
+# `prox-pve`). These labels are deliberately Proxmox-specific so the owner's
+# desktop PC runners (generic `arcade-win`/`arcade-pve` labels) can never pick up
+# a release job — that label collision was the v0.10.3 release blocker. To avoid
+# pegging that host, the two legs are STAGGERED: Linux `needs` Windows, so
+# Windows builds first and Linux only starts once it's done. The trivial
+# create/publish API jobs run on GitHub-hosted `ubuntu-latest` so they never
+# touch the Proxmox host. Safe for a PUBLIC repo: tag-triggered only, and tags
+# can only be pushed by collaborators with write access.
 #
 # Requires two repo secrets before the first real release (the in-app updater
 # signs artifacts with them):
@@ -26,8 +38,38 @@ on:
   workflow_dispatch:
 
 jobs:
-  # ---- Windows leg (runs first) -------------------------------------------
+  # ---- Phase 1: create the single draft release --------------------------
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+      tag: ${{ steps.create-release.outputs.tag }}
+    steps:
+      - name: Create draft release
+        id: create-release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.ref.startsWith('refs/tags/')
+              ? context.ref.replace('refs/tags/', '')
+              : `v${context.runNumber}`;
+            core.setOutput('tag', tag);
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `ArcadeLauncher ${tag}`,
+              body: 'See the assets to download and install this version.',
+              draft: true,
+              prerelease: false,
+            });
+            return data.id;
+
+  # ---- Phase 2a: Windows leg (runs first) --------------------------------
   release-windows:
+    needs: create-release
     runs-on: [self-hosted, prox-win]
     permissions:
       contents: write
@@ -94,7 +136,7 @@ jobs:
           $triple = ((rustc -vV | Select-String '^host: ').ToString() -replace '^host: ', '').Trim()
           Copy-Item "src-tauri/target/release/updater.exe" "src-tauri/binaries/updater-$triple.exe"
 
-      - name: Build + publish release
+      - name: Build + upload Windows artifacts
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -104,15 +146,13 @@ jobs:
           # --verbose so the WiX candle/light bundler output (incl. real
           # light.exe errors) is surfaced in the job log for debugging.
           args: --verbose
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', github.run_number) }}
-          releaseName: "ArcadeLauncher ${{ github.ref_name }}"
-          releaseBody: "See the assets to download and install this version."
-          releaseDraft: false
-          prerelease: false
+          # Upload into the pre-created draft; do NOT create or publish a release
+          # here (that's what caused the duplicate-draft race).
+          releaseId: ${{ needs.create-release.outputs.release_id }}
 
-  # ---- Linux leg (runs after Windows, on the same physical host) ----------
+  # ---- Phase 2b: Linux leg (runs after Windows, on the same host) --------
   release-linux:
-    needs: release-windows
+    needs: [create-release, release-windows]
     # Run after Windows even if it failed (still serialized via needs) so a
     # Windows hiccup doesn't silently drop the Linux artifacts; only skip if the
     # whole run was cancelled.
@@ -160,15 +200,34 @@ jobs:
           TRIPLE=$(rustc -vV | sed -n 's/host: //p')
           cp "src-tauri/target/release/updater" "src-tauri/binaries/updater-$TRIPLE"
 
-      - name: Build + publish release
+      - name: Build + upload Linux artifacts
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', github.run_number) }}
-          releaseName: "ArcadeLauncher ${{ github.ref_name }}"
-          releaseBody: "See the assets to download and install this version."
-          releaseDraft: false
-          prerelease: false
+          # Upload into the same pre-created draft as the Windows leg.
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+
+  # ---- Phase 3: publish the draft once both legs uploaded ----------------
+  publish-release:
+    needs: [create-release, release-windows, release-linux]
+    # Only flip to published when BOTH build legs succeeded. If a leg failed the
+    # release stays a draft (with whatever did upload) for inspection / re-run,
+    # rather than publishing a half-complete release.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ needs.create-release.outputs.release_id }},
+              draft: false,
+              prerelease: false,
+            });
