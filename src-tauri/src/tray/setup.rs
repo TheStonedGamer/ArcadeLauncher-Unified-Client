@@ -8,7 +8,7 @@ use crate::settings::store;
 use crate::tray::behavior::{self, CloseAction};
 use std::path::PathBuf;
 use tauri::menu::{Menu, MenuItem};
-use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, WindowEvent};
 
 fn config_path(app: &AppHandle) -> Option<PathBuf> {
@@ -64,7 +64,15 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click { button: MouseButton::Left, .. } = event {
+            // A single physical left-click emits two Click events on Windows
+            // (button_state Down then Up). Act on the release edge only, or the
+            // window toggles twice and never comes to the front.
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
                 toggle_main(tray.app_handle());
             }
         })

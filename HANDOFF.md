@@ -97,6 +97,13 @@ architect-prompt doc, not source) OUT of commits — `git reset -- "# Arcade…"
   server (a minor bump would trip version-lockstep). Tagged `v0.10.1` to fire
   release.yml.
 
+- **v0.10.2 (bugfix)**: tray-click double-fire. The window "wouldn't stay in
+  front / kept minimizing" because `on_tray_icon_event` matched
+  `TrayIconEvent::Click { button: Left, .. }` — which on Windows fires TWICE per
+  physical click (button_state Down then Up), so a tray click toggled the window
+  show→hide. Fixed by matching `button_state: MouseButtonState::Up` only
+  (`tray/setup.rs`), so one click = one toggle. cargo check green.
+
 ## PS2 BIOS — now hosted on prod (2026-06-19)
 
 - `ps2-bios.bin` = **NTSC-U `scph39001`** (4 MiB, sha256 `f4c948e6…910c9d`) copied
