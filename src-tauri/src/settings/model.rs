@@ -33,6 +33,9 @@ pub struct General {
     /// Left-stick dead zone in [0,1]; deflection past this counts as a
     /// directional press. Mirrors the JS `STICK_THRESHOLD` default (0.6).
     pub controller_dead_zone: f32,
+    /// SteamGridDB API key for the cover-art picker (user-supplied; empty
+    /// disables the feature). https://www.steamgriddb.com/profile/preferences/api
+    pub steamgriddb_api_key: String,
 }
 
 impl Default for General {
@@ -50,6 +53,7 @@ impl Default for General {
             global_hotkey: crate::hotkey::shortcut::DEFAULT_SHORTCUT.to_string(),
             controller_enabled: true,
             controller_dead_zone: 0.6,
+            steamgriddb_api_key: String::new(),
         }
     }
 }

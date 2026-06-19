@@ -29,6 +29,11 @@ pub struct CatalogPrefs {
     /// when the user has pointed this game at a real save directory). Empty /
     /// absent means the managed `app_data/saves/<id>` folder is used.
     pub save_paths: BTreeMap<String, String>,
+    /// game id → absolute local cover-art path chosen by the user (e.g. from the
+    /// SteamGridDB picker). Present only when overridden; absent means the
+    /// catalog's own `coverArtPath`/`coverArtUrl` is used. Overlaid at display
+    /// time, so `library.json` is never rewritten.
+    pub cover_overrides: BTreeMap<String, String>,
 }
 
 /// Load prefs from `path`. A missing or empty file yields empty prefs, so a

@@ -92,6 +92,8 @@ pub fn run() {
             catalog::commands::fetch_catalog,
             catalog::prefs_commands::load_catalog_prefs,
             catalog::prefs_commands::save_catalog_prefs,
+            catalog::art_commands::steamgriddb_search,
+            catalog::art_commands::apply_cover,
             launch::commands::launch_game,
             launch::commands::check_runnable,
             settings::commands::load_settings,

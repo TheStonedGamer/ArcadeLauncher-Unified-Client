@@ -52,3 +52,23 @@ export function checkRunnable(game: Game): Promise<TargetStatus> {
 export function needsArt(game: Game): boolean {
   return game.coverArtPath.trim() === "" && game.coverArtUrl.trim() === "";
 }
+
+/** One SteamGridDB cover candidate (full image + thumbnail). Mirrors the Rust
+ *  `art::ArtCandidate`. */
+export interface ArtCandidate {
+  url: string;
+  thumb: string;
+}
+
+/** Search SteamGridDB for cover-art candidates for a game name (Bearer-authed
+ *  with the user's API key). Rejects when the key is missing or the request
+ *  fails; resolves to [] when nothing matches. */
+export function searchArtwork(name: string, apiKey: string): Promise<ArtCandidate[]> {
+  return call<ArtCandidate[]>("steamgriddb_search", { name, apiKey });
+}
+
+/** Download a chosen cover into the per-user art cache; resolves to its absolute
+ *  local path (which the caller records as a cover override). */
+export function applyCover(gameId: string, imageUrl: string): Promise<string> {
+  return call<string>("apply_cover", { gameId, imageUrl });
+}

@@ -14,4 +14,5 @@ export interface GeneralSettings {
   globalHotkey: string;
   controllerEnabled: boolean;
   controllerDeadZone: number;
+  steamgriddbApiKey: string;
 }

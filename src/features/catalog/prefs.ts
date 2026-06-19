@@ -17,9 +17,18 @@ export interface CatalogPrefs {
   /** game id → absolute local save folder for cloud-save sync (present only
    *  when set). Absent/empty means the managed app_data/saves/<id> folder. */
   savePaths: Record<string, string>;
+  /** game id → absolute local cover-art path chosen by the user (SteamGridDB
+   *  picker). Present only when overridden; overlaid onto coverArtPath. */
+  coverOverrides: Record<string, string>;
 }
 
-export const emptyPrefs: CatalogPrefs = { favorites: {}, hidden: {}, collections: {}, savePaths: {} };
+export const emptyPrefs: CatalogPrefs = {
+  favorites: {},
+  hidden: {},
+  collections: {},
+  savePaths: {},
+  coverOverrides: {},
+};
 
 /** Effective favorite for a game: the override if set, else the catalog value. */
 export function effectiveFavorite(prefs: CatalogPrefs, game: Game): boolean {
@@ -47,12 +56,16 @@ export function applyPrefs(games: Game[], prefs: CatalogPrefs): Game[] {
     const favorite = effectiveFavorite(prefs, g);
     const hidden = effectiveHidden(prefs, g);
     const cols = prefs.collections[g.id];
-    if (favorite === g.favorite && hidden === g.hidden && cols === undefined) return g;
+    const cover = prefs.coverOverrides[g.id];
+    if (favorite === g.favorite && hidden === g.hidden && cols === undefined && !cover) return g;
     return {
       ...g,
       favorite,
       hidden,
       collections: cols !== undefined ? cols.join("\n") : g.collections,
+      // A chosen cover overrides the catalog's path (and wins over any URL,
+      // which the detail/card render only when there's no local path).
+      coverArtPath: cover || g.coverArtPath,
     };
   });
 }
@@ -61,6 +74,22 @@ export function applyPrefs(games: Game[], prefs: CatalogPrefs): Game[] {
  *  managed folder is used). */
 export function effectiveSavePath(prefs: CatalogPrefs, game: Game): string {
   return prefs.savePaths[game.id] ?? "";
+}
+
+/** Effective cover-art path for a game: the override if set, else the catalog's
+ *  own path. */
+export function effectiveCover(prefs: CatalogPrefs, game: Game): string {
+  return prefs.coverOverrides[game.id] || game.coverArtPath;
+}
+
+/** Set (or clear, when blank) a game's cover-art override to an absolute local
+ *  path (e.g. the file the SteamGridDB picker just downloaded). */
+export function setCoverOverride(prefs: CatalogPrefs, gameId: string, path: string): CatalogPrefs {
+  const trimmed = path.trim();
+  const next = { ...prefs.coverOverrides };
+  if (trimmed) next[gameId] = trimmed;
+  else delete next[gameId];
+  return { ...prefs, coverOverrides: next };
 }
 
 /** Set (or clear, when blank) a game's save-folder override. */

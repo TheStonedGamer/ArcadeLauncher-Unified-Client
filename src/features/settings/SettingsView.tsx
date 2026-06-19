@@ -109,6 +109,19 @@ export function SettingsView() {
         onDeadZone={(v) => set("controllerDeadZone", v)}
       />
 
+      <label className="settings__field">
+        <span className="settings__label">SteamGridDB API key (for the cover-art picker)</span>
+        <input
+          className="settings__input"
+          type="password"
+          value={draft.steamgriddbApiKey}
+          onChange={(e) => set("steamgriddbApiKey", e.target.value)}
+          placeholder="Paste your key from steamgriddb.com/profile/preferences/api"
+          spellCheck={false}
+          autoComplete="off"
+        />
+      </label>
+
       <div className="settings__actions">
         <button className="settings__save" onClick={onSave}>
           Save

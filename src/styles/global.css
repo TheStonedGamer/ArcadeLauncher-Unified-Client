@@ -491,6 +491,14 @@ body {
 .detail__install-btn:disabled { opacity: .65; cursor: default; }
 .detail__update-btn { align-self: flex-start; border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .detail__update-btn:disabled { opacity: .65; cursor: default; }
+.detail__artwork { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; align-items: flex-start; }
+.detail__artgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; }
+.detail__artthumb {
+  padding: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+  background: var(--panel-2); cursor: pointer; aspect-ratio: 600 / 900;
+}
+.detail__artthumb:hover { border-color: var(--accent); }
+.detail__artthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .detail__saves { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; align-items: flex-start; }
 .detail__saves-resolve { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .detail__saves-folder { display: flex; flex-direction: column; gap: 4px; width: 100%; }

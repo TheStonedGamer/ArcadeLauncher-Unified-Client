@@ -330,10 +330,18 @@ from scratch.
   launch path; show unlock toasts and feed unlocks into the **existing XP/level
   system** (`social/profile.ts`). Unlocks also become social activity events over
   `/ws/social`. *Best single fit for an emulator launcher; nothing exists today.*
-- [ ] **T12b — SteamGridDB artwork in the unified client.** The server already
-  uses SteamGridDB but the client only fetches IGDB covers. Add a hero / logo /
-  grid / icon art picker to the detail panel, mirroring the existing
-  `fetch_cover_art` (IGDB) pattern. *Low effort, high visual payoff.*
+- [x] **T12b — SteamGridDB artwork in the unified client.** Pure request/parse
+  core `catalog/art.rs` (autocomplete + grids URL builders, `parse_search`/
+  `parse_assets`, term encoding, extension sniffing; 6 Rust KATs) + two commands
+  in `art_commands.rs`: `steamgriddb_search` (name → game id → grid candidates,
+  Bearer-authed with the user's key) and `apply_cover` (download a chosen cover
+  into `<app_data>/art/`, return the local path). The cover is recorded as a
+  per-game override in `catalog_prefs.json` (`cover_overrides`, overlaid in
+  `applyPrefs` onto `coverArtPath` — never rewrites `library.json`; pure
+  `setCoverOverride`/`effectiveCover` + KATs). Detail panel adds a **🎨 Find cover
+  art** picker (thumbnail grid → click to apply). API key lives in Settings →
+  General. *Scoped to covers (grids) — the only artwork slot the catalog renders;
+  hero/logo/icon need new model fields, deferred.* 223 vitest + 191 cargo green.
 - [x] **T12c — Delta / patch updates.** Pure update-detection core in
   `download/records.rs` (`update_available` + `InstallRecords::mark_updates`, 2
   Rust KATs) + a `check_updates` command that compares each installed game's

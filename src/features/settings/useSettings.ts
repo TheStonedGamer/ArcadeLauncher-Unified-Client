@@ -18,6 +18,7 @@ const DEFAULTS: GeneralSettings = {
   globalHotkey: "Ctrl+Shift+G",
   controllerEnabled: true,
   controllerDeadZone: 0.6,
+  steamgriddbApiKey: "",
 };
 
 export function useSettings() {

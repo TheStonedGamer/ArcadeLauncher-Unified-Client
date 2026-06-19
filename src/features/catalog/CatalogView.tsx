@@ -24,6 +24,8 @@ import { groupVariants, type VariantGroup } from "./variants";
 import { useCatalogPrefs } from "./useCatalogPrefs";
 import { applyPrefs } from "./prefs";
 import { useSession } from "../session/SessionContext";
+import { useSettings } from "../settings/useSettings";
+import { searchArtwork, applyCover } from "./api";
 import { installGame, updateGame, verifyGame } from "../download/api";
 import { useInstallOverlay } from "../download/useInstallOverlay";
 import { effectiveInstallState } from "../download/installState";
@@ -41,6 +43,7 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
   const { games, loading, error, status, load, syncFromServer, launch } = useCatalog();
   const prefs = useCatalogPrefs();
   const { session } = useSession();
+  const { draft: settings } = useSettings();
   const installOverlay = useInstallOverlay(session);
 
   // Install trigger (T4d-3): start the engine for a server game using the
@@ -72,6 +75,23 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
       await updateGame(session.host, session.token, game.id);
     },
     [session],
+  );
+
+  // Artwork picker (T12b): search SteamGridDB for covers (needs the user's API
+  // key) and apply a chosen one — download it, then record the cover override so
+  // the grid + detail panel show it without rewriting library.json.
+  const apiKey = settings.steamgriddbApiKey?.trim() ?? "";
+  const findArtwork = useCallback(
+    (game: Game) => searchArtwork(game.title, apiKey),
+    [apiKey],
+  );
+  const pickArtwork = useCallback(
+    async (game: Game, url: string): Promise<string> => {
+      const localPath = await applyCover(game.id, url);
+      prefs.setCover(game.id, localPath);
+      return localPath;
+    },
+    [prefs],
   );
 
   // Cloud-save sync (T8): diff the per-user save folder against the server and
@@ -345,6 +365,8 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
           canSync={!!session}
           onSetSavePath={prefs.setSavePath}
           savePathFor={(g) => prefs.prefs.savePaths[g.id] ?? ""}
+          onFindArtwork={apiKey ? findArtwork : undefined}
+          onPickArtwork={apiKey ? pickArtwork : undefined}
         />
       )}
 

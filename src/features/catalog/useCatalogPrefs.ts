@@ -10,6 +10,7 @@ import {
   addToCollection,
   emptyPrefs,
   removeFromCollection,
+  setCoverOverride,
   setSavePath,
   toggleFavorite,
   toggleHidden,
@@ -24,6 +25,8 @@ export interface CatalogPrefsApi {
   addToCollection: (game: Game, name: string) => void;
   removeFromCollection: (game: Game, name: string) => void;
   setSavePath: (game: Game, path: string) => void;
+  /** Record (or clear, when blank) a game's cover-art override to a local path. */
+  setCover: (gameId: string, path: string) => void;
 }
 
 export function useCatalogPrefs(): CatalogPrefsApi {
@@ -54,5 +57,6 @@ export function useCatalogPrefs(): CatalogPrefsApi {
     addToCollection: (game, name) => mutate((p) => addToCollection(p, game, name)),
     removeFromCollection: (game, name) => mutate((p) => removeFromCollection(p, game, name)),
     setSavePath: (game, path) => mutate((p) => setSavePath(p, game, path)),
+    setCover: (gameId, path) => mutate((p) => setCoverOverride(p, gameId, path)),
   };
 }

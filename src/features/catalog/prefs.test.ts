@@ -3,9 +3,11 @@ import {
   addToCollection,
   applyPrefs,
   effectiveCollections,
+  effectiveCover,
   effectiveSavePath,
   emptyPrefs,
   removeFromCollection,
+  setCoverOverride,
   setSavePath,
   toggleFavorite,
   toggleHidden,
@@ -57,9 +59,27 @@ describe("catalog prefs overlay", () => {
     expect(merged).toBe(g);
   });
 
+  it("overlays a cover override onto coverArtPath", () => {
+    const g = game({ id: "a", coverArtPath: "/cat/a.png" });
+    const prefs = setCoverOverride(emptyPrefs, "a", "/art/a.png");
+    const [merged] = applyPrefs([g], prefs);
+    expect(merged.coverArtPath).toBe("/art/a.png");
+    expect(effectiveCover(prefs, g)).toBe("/art/a.png");
+    // Clearing the override falls back to the catalog path.
+    const cleared = setCoverOverride(prefs, "a", "  ");
+    expect(cleared.coverOverrides.a).toBeUndefined();
+    expect(applyPrefs([g], cleared)[0].coverArtPath).toBe("/cat/a.png");
+  });
+
   it("overrides favorite and hidden when set", () => {
     const g = game({ id: "a", favorite: false, hidden: false });
-    const prefs: CatalogPrefs = { favorites: { a: true }, hidden: { a: true }, collections: {}, savePaths: {} };
+    const prefs: CatalogPrefs = {
+      favorites: { a: true },
+      hidden: { a: true },
+      collections: {},
+      savePaths: {},
+      coverOverrides: {},
+    };
     const [merged] = applyPrefs([g], prefs);
     expect(merged.favorite).toBe(true);
     expect(merged.hidden).toBe(true);
