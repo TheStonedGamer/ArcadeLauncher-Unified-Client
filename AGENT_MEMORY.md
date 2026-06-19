@@ -9,7 +9,7 @@
 ## Index
 
 - [Controller remap editor](#controller-config) — _project_ — Per-emulator host-button to SDL-token rebinding, saved+applied to native configs.
-- [BIOS/firmware auto-deploy](#firmware-deploy) — _project_ — On-launch self-heal of server-staged BIOS/firmware into installed emulators.
+- [BIOS/firmware auto-deploy](#firmware-deploy) — _project_ — On-launch self-heal of server-staged BIOS/firmware into installed emulators; read-only deployment status in Settings.
 - [Release process](#release-process) — _reference_ — Releases are tag-triggered; normal pushes only run CI.
 
 ---
@@ -25,9 +25,9 @@ Rust: src-tauri/src/controller/{model,commands,serializers,ini,bios}.rs. Host bu
 <!-- am:start id=firmware-deploy type=project -->
 ### BIOS/firmware auto-deploy
 _Updated 2026-06-19_
-> On-launch self-heal of server-staged BIOS/firmware into installed emulators.
+> On-launch self-heal of server-staged BIOS/firmware into installed emulators; read-only deployment status in Settings.
 
-src-tauri/src/emulators/firmware.rs, ensure_all() spawned on a background thread in lib.rs setup(). Mirrors the C++ AssetEnsure worker. Deploys: scph1001.bin (PS1 BIOS) -> DuckStation bios/ + settings.ini [BIOS]; ps2-bios.bin -> PCSX2 bios/ + PCSX2.ini [Folders]Bios/[Filenames]BIOS (deploy_pcsx2_bios); xemu-firmware/ (bios.bin/mcpx.bin/hdd.qcow2) -> xemu.toml [sys.files] in place; PS3UPDAT.PUP -> rpcs3 --installfw headless (guarded by dev_flash marker). Firmware staged loose at <app_data>/emulators/ (app id com.thestonedgamer.arcadelauncher). NOTE: PS2 BIOS (ps2-bios.bin) is currently staged LOCALLY ONLY from a self-dumped console BIOS; the server does not host it yet. Provide your own legally-dumped PS2 BIOS — do not redistribute Sony firmware.
+src-tauri/src/emulators/firmware.rs, ensure_all() spawned on a background thread in lib.rs setup(). Mirrors the C++ AssetEnsure worker. Deploys: scph1001.bin (PS1 BIOS) -> DuckStation bios/ + settings.ini [BIOS]; ps2-bios.bin -> PCSX2 bios/ + PCSX2.ini [Folders]Bios/[Filenames]BIOS (deploy_pcsx2_bios); xemu-firmware/ (bios.bin/mcpx.bin/hdd.qcow2) -> xemu.toml [sys.files] in place; PS3UPDAT.PUP -> rpcs3 --installfw headless (guarded by dev_flash marker). Firmware staged loose at <app_data>/emulators/ (app id com.thestonedgamer.arcadelauncher). status_all() is a read-only sibling (firmware_status command) that reports per-console installed/staged/deployed without writing; surfaced as the "Firmware deployment" panel in SettingsView (FirmwareStatusGroup, useEmulators.firmware). PS2 BIOS is now HOSTED ON PROD: ps2-bios.bin (NTSC-U scph39001, sha256 f4c948e6...910c9d) lives at root@10.0.0.210:/srv/arcade-library/emulators/ and is auto-listed by /api/emulators as firmware "PlayStation 2 BIOS (PCSX2)" (server emulator_meta in manifest.rs). Clients stage it via /emulators/ps2-bios.bin then deploy into PCSX2 automatically. Still: provide only legally self-dumped Sony firmware; swap the dump (same filename) to change region — clients re-verify by size and re-pull.
 <!-- am:end -->
 
 <!-- am:start id=release-process type=reference -->
