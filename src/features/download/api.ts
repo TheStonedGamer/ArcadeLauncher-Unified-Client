@@ -27,6 +27,21 @@ export function verifyGame(host: string, token: string, gameId: string): Promise
   return call("download_verify", { host, token, gameId });
 }
 
+/** Check installed games for available updates against the server's current
+ *  manifest versions, flipping records to `updateAvailable`/`installed`. Returns
+ *  the refreshed overlay so the catalog reflects updates without a reload. */
+export function checkUpdates(host: string, token: string): Promise<InstallStateMap> {
+  return call<InstallStateMap>("check_updates", { host, token });
+}
+
+/** Apply an available update by re-pulling only the changed files. This is the
+ *  same engine pass as `verifyGame` (re-hash on-disk files vs the new manifest,
+ *  download mismatches), which finalizes the record at the new version — clearing
+ *  the `updateAvailable` flag. Same progress/status events as a normal install. */
+export function updateGame(host: string, token: string, gameId: string): Promise<void> {
+  return call("download_verify", { host, token, gameId });
+}
+
 export function pauseDownload(gameId: string): Promise<void> {
   return call("download_pause", { gameId });
 }

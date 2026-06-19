@@ -9,14 +9,20 @@
 
 import { useEffect, useState } from "react";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { loadInstallRecords } from "./api";
-import { applyInstallStatus, type InstallStateMap } from "./installState";
+import { checkUpdates, loadInstallRecords } from "./api";
+import { applyInstallStatus, mergeUpdateCheck, type InstallStateMap } from "./installState";
 import type { StatusEvent } from "./types";
 
 const STATUS_EVENT = "download://status";
 
-export function useInstallOverlay(): InstallStateMap {
+/** Loads the install overlay and, when a `session` is supplied, runs a one-shot
+ *  update check (T12c) that flips on-disk records to `updateAvailable` when the
+ *  server advertises a newer build. The check re-runs whenever the session
+ *  identity changes (sign-in/out). */
+export function useInstallOverlay(session?: { host: string; token: string } | null): InstallStateMap {
   const [map, setMap] = useState<InstallStateMap>({});
+  const host = session?.host ?? null;
+  const token = session?.token ?? null;
 
   useEffect(() => {
     let alive = true;
@@ -43,6 +49,24 @@ export function useInstallOverlay(): InstallStateMap {
       unlisten?.();
     };
   }, []);
+
+  // One-shot update check once we have a session. Records already overlaid by
+  // live download events win (spread first), so an in-flight install isn't
+  // clobbered by a stale `installed`/`updateAvailable` from the check.
+  useEffect(() => {
+    if (!host || !token) return;
+    let alive = true;
+    checkUpdates(host, token)
+      .then((refreshed) => {
+        if (alive) setMap((m) => mergeUpdateCheck(m, refreshed));
+      })
+      .catch(() => {
+        /* offline / no Tauri runtime — keep the existing overlay */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [host, token]);
 
   return map;
 }

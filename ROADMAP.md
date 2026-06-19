@@ -276,12 +276,14 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
   setVoiceHandler routing voice_signal frames) → `useVoice` RTCPeerConnection
   engine (getUserMedia, offer/answer, trickle ICE, remote `<audio>`, mute) →
   📞 call button in ChatPane + CallBar overlay (Accept/Decline, Mute, Hang up).
-  **TURN (done in code):** client fetches per-call ICE servers from
+  **TURN (deployed):** client fetches per-call ICE servers from
   `GET /api/social/turn` (`social_turn_servers` → `useVoice` iceProvider, STUN
   fallback). Server endpoint mints short-lived coturn REST creds; coturn deploy
-  artifacts live in the server repo `deploy/turn/`. **Pending live deploy:** stand
-  up coturn on 10.0.0.180, set `ARCADE_TURN_SECRET`/`ARCADE_TURN_URLS` on the
-  server, optional nginx-stream for TURN-over-443 (user to supply nginx creds).
+  artifacts live in the server repo `deploy/turn/`. **Live as of 2026-06-19:**
+  `arcade-coturn` (coturn/coturn:4.6) runs on the Docker host `10.0.0.180`,
+  `turnserver` listening on `:3478` (verified reachable); server env
+  `ARCADE_TURN_SECRET`/`ARCADE_TURN_URLS` wired. Optional follow-up: TURN-over-443
+  via nginx-stream (not required for LAN/most-NAT traversal).
 - [x] **T10b** First signed release on both OSes. Repo secrets configured
   2026-06-16; **v0.9.2** published 2026-06-17 (CI run 27692555393, both OSes
   green). Assets: NSIS `.exe`, `.deb`, `.rpm`, AppImage + `.sig` sidecars and
@@ -332,9 +334,16 @@ from scratch.
   uses SteamGridDB but the client only fetches IGDB covers. Add a hero / logo /
   grid / icon art picker to the detail panel, mirroring the existing
   `fetch_cover_art` (IGDB) pattern. *Low effort, high visual payoff.*
-- [ ] **T12c — Delta / patch updates.** Manifests are already per-file SHA-256 and
-  `download_verify` already diffs disk vs manifest. Extend that logic to "update
-  available" so a game update re-pulls **only changed files**, not the whole game.
+- [x] **T12c — Delta / patch updates.** Pure update-detection core in
+  `download/records.rs` (`update_available` + `InstallRecords::mark_updates`, 2
+  Rust KATs) + a `check_updates` command that compares each installed game's
+  recorded version against the server's current manifest version and flips
+  records `installed`↔`updateAvailable`. `useInstallOverlay(session)` runs a
+  one-shot check on sign-in and merges via pure `mergeUpdateCheck` (preserves
+  in-flight states; TS KATs in `installState.test.ts`). The detail panel shows an
+  **⬆ Update available** button that calls `updateGame` → `download_verify`,
+  which re-pulls **only the changed files** and finalizes at the new version. 222
+  vitest + 184 cargo green.
 
 **Social & multiplayer** (extends the existing WebRTC / gateway stack)
 

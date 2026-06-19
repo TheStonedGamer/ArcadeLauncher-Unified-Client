@@ -20,6 +20,9 @@ interface Props {
   onRemoveCollection?: (game: Game, name: string) => void;
   /** Start installing the game from the server. Absent for non-server games. */
   onInstall?: (game: Game) => Promise<void>;
+  /** Apply an available update (re-pull only changed files). Absent for
+   *  non-server games. */
+  onUpdate?: (game: Game) => Promise<void>;
   /** Whether a session is available to authorize the install. */
   canInstall?: boolean;
   /** Sync this game's cloud saves with the chosen conflict policy. Absent for
@@ -59,6 +62,7 @@ export function GameDetail({
   onAddCollection,
   onRemoveCollection,
   onInstall,
+  onUpdate,
   canInstall,
   onSyncSaves,
   canSync,
@@ -116,6 +120,20 @@ export function GameDetail({
     }
   };
 
+  const update = async () => {
+    if (!onUpdate) return;
+    setInstalling(true);
+    setInstallMsg("");
+    try {
+      await onUpdate(pick);
+      setInstallMsg("Update started — only changed files are downloaded. See the Downloads tab.");
+    } catch (e) {
+      setInstallMsg(`Couldn't start update: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setInstalling(false);
+    }
+  };
+
   const syncSaves = async (policy: ConflictPolicy) => {
     if (!onSyncSaves) return;
     setSyncing(true);
@@ -144,6 +162,8 @@ export function GameDetail({
   const inProgress = state === "installing";
   // Offer Install for server-backed games that aren't already installed.
   const installable = !!onInstall && pick.serverBacked && !installed;
+  // Offer Update for installed server games the server advertises a newer build for.
+  const updatable = !!onUpdate && pick.serverBacked && state === "updateAvailable";
 
   // Diagnose the selected dump's launch readiness so we can show a specific
   // reason ("file moved", "emulator not installed", …) instead of letting the
@@ -326,6 +346,16 @@ export function GameDetail({
             </div>
           ) : (
             <div className="detail__launch-wrap">
+              {updatable && (
+                <button
+                  className="detail__fetch detail__update-btn"
+                  onClick={update}
+                  disabled={installing || inProgress || !canInstall}
+                  title={canInstall ? "" : "Sign in to update"}
+                >
+                  {inProgress ? "⬆ Updating…" : installing ? "Starting…" : "⬆ Update available"}
+                </button>
+              )}
               <button
                 className="detail__launch"
                 onClick={() => onLaunch(pick)}
@@ -334,6 +364,7 @@ export function GameDetail({
                 ▶ {state === "updateAvailable" ? "Launch (update available)" : "Launch"}
                 {hasVariants ? ` — ${variantLabel(pick) || "Base"}` : ""}
               </button>
+              {updatable && installMsg && <span className="detail__fetchmsg">{installMsg}</span>}
               {runStatus && !runStatus.runnable && (
                 <span className="detail__fetchmsg detail__launch-reason">{runStatus.message}</span>
               )}

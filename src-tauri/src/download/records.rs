@@ -118,6 +118,35 @@ impl InstallRecords {
             .collect()
     }
 
+    /// Apply a `game_id → server content version` map to the installed records,
+    /// flipping `Installed` → `UpdateAvailable` where the server advertises a
+    /// different, non-empty version (and back to `Installed` if a previously
+    /// flagged game is now current again — e.g. after the user updated). Only
+    /// on-disk records are considered; in-flight/failed ones are left alone.
+    /// Returns the ids whose state changed, so the caller can log/notify.
+    pub fn mark_updates(&mut self, server_versions: &BTreeMap<String, String>) -> Vec<String> {
+        let mut changed = Vec::new();
+        for rec in self.records.values_mut() {
+            let server = match server_versions.get(&rec.game_id) {
+                Some(v) => v,
+                None => continue,
+            };
+            let want = if update_available(&rec.version, server) {
+                InstallState::UpdateAvailable
+            } else {
+                InstallState::Installed
+            };
+            // Only nudge between the two on-disk states; never resurrect a
+            // Failed/Installing/NotInstalled record from a version check.
+            let is_on_disk = matches!(rec.state, InstallState::Installed | InstallState::UpdateAvailable);
+            if is_on_disk && rec.state != want {
+                rec.state = want;
+                changed.push(rec.game_id.clone());
+            }
+        }
+        changed
+    }
+
     /// Ids that are fully installed (or have an update available — still on disk).
     pub fn installed_ids(&self) -> Vec<&str> {
         self.records
@@ -126,6 +155,16 @@ impl InstallRecords {
             .map(|r| r.game_id.as_str())
             .collect()
     }
+}
+
+/// Whether the server advertises a newer build than what's installed. An update
+/// is available only when the server version is non-empty and differs from the
+/// installed one — an empty/unknown server version never nags (we don't flag an
+/// update we can't substantiate). Versions are compared as opaque trimmed
+/// strings, mirroring the C++ client's `version != installedVersion` check.
+pub fn update_available(installed_version: &str, server_version: &str) -> bool {
+    let server = server_version.trim();
+    !server.is_empty() && server != installed_version.trim()
 }
 
 /// Load records from `path`. A missing or empty file yields an empty set, so a
@@ -216,6 +255,44 @@ mod tests {
         assert_eq!(m.get("b").map(String::as_str), Some("installing"));
         assert_eq!(m.get("c").map(String::as_str), Some("failed"));
         assert_eq!(m.len(), 3);
+    }
+
+    #[test]
+    fn update_available_compares_trimmed_nonempty() {
+        assert!(update_available("1.0", "1.1"));
+        assert!(!update_available("1.0", "1.0"));
+        assert!(!update_available("1.0", "  1.0 ")); // trimmed equal
+        assert!(update_available("1.0", " 1.2 "));
+        // Empty/unknown server version never flags an update.
+        assert!(!update_available("1.0", ""));
+        assert!(!update_available("1.0", "   "));
+        // An installed game with no recorded version updates to any real version.
+        assert!(update_available("", "1.0"));
+    }
+
+    #[test]
+    fn mark_updates_flips_on_disk_states_only() {
+        let mut r = InstallRecords::default();
+        r.upsert(InstallRecord { game_id: "a".into(), state: InstallState::Installed, version: "1.0".into(), ..Default::default() });
+        r.upsert(InstallRecord { game_id: "b".into(), state: InstallState::Installed, version: "2.0".into(), ..Default::default() });
+        r.upsert(InstallRecord { game_id: "c".into(), state: InstallState::UpdateAvailable, version: "3.0".into(), ..Default::default() });
+        r.upsert(InstallRecord { game_id: "d".into(), state: InstallState::Failed, version: "1.0".into(), ..Default::default() });
+
+        let mut versions = BTreeMap::new();
+        versions.insert("a".to_string(), "1.1".to_string()); // newer → flag
+        versions.insert("b".to_string(), "2.0".to_string()); // same → stays Installed
+        versions.insert("c".to_string(), "3.0".to_string()); // now current → clear flag
+        versions.insert("d".to_string(), "9.9".to_string()); // Failed → untouched
+        let mut changed = r.mark_updates(&versions);
+        changed.sort();
+
+        assert_eq!(changed, vec!["a", "c"]);
+        assert_eq!(r.state_of("a"), InstallState::UpdateAvailable);
+        assert_eq!(r.state_of("b"), InstallState::Installed);
+        assert_eq!(r.state_of("c"), InstallState::Installed);
+        assert_eq!(r.state_of("d"), InstallState::Failed);
+        // A second pass with the same versions is a no-op (idempotent).
+        assert!(r.mark_updates(&versions).is_empty());
     }
 
     #[test]

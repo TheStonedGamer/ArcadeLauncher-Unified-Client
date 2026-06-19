@@ -121,6 +121,7 @@ pub fn run() {
             download::commands::download_resume,
             download::commands::download_cancel,
             download::commands::load_install_records,
+            download::commands::check_updates,
             emulators::commands::list_emulators,
             emulators::commands::download_emulator,
             emulators::commands::download_all_emulators,

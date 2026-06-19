@@ -168,6 +168,61 @@ pub fn load_install_records(
     Ok(records.state_map())
 }
 
+/// Check installed games for available updates: for each on-disk record, fetch
+/// the server's current manifest version and compare it to the installed one,
+/// flipping `installed` ↔ `updateAvailable` accordingly. Returns the refreshed
+/// `game_id → catalog state string` overlay (same shape as `load_install_records`),
+/// so the catalog reflects updates without a reload. Best-effort per game: a
+/// failed manifest fetch leaves that record's state unchanged.
+#[tauri::command]
+pub async fn check_updates(
+    app: tauri::AppHandle,
+    host: String,
+    token: String,
+) -> AppResult<std::collections::BTreeMap<String, String>> {
+    use crate::download::records;
+
+    let host = normalize_host(&host);
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| AppError::msg(format!("no config dir: {e}")))?;
+    let records_path = config_dir.join("install_records.json");
+
+    let recs = records::load(&records_path)?;
+    let installed: Vec<String> = recs.installed_ids().iter().map(|s| s.to_string()).collect();
+    if installed.is_empty() {
+        return Ok(recs.state_map());
+    }
+
+    // Fetch each installed game's current manifest version (Bearer-authed).
+    let client = reqwest::Client::new();
+    let mut server_versions = std::collections::BTreeMap::new();
+    for id in installed {
+        let url = format!("https://{host}/api/games/{id}/manifest");
+        let resp = match client.get(&url).bearer_auth(&token).send().await {
+            Ok(r) if r.status().is_success() => r,
+            _ => continue, // best-effort: skip games we can't reach
+        };
+        let body = match resp.text().await {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        if let Ok(manifest) = Manifest::parse(&body) {
+            server_versions.insert(id, manifest.version);
+        }
+    }
+
+    // Apply under the same load-modify-save discipline the engine uses, so a
+    // concurrent install can't clobber the records.
+    let mut recs = records::load(&records_path)?;
+    let changed = recs.mark_updates(&server_versions);
+    if !changed.is_empty() {
+        records::save(&records_path, &recs)?;
+    }
+    Ok(recs.state_map())
+}
+
 /// Pause an active install (its `.part` files are kept for resume).
 #[tauri::command]
 pub fn download_pause(manager: State<'_, DownloadManager>, game_id: String) {

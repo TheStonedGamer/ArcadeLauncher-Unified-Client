@@ -489,6 +489,8 @@ body {
 .detail__install { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 10px; }
 .detail__install-btn { background: var(--accent); color: #06210f; }
 .detail__install-btn:disabled { opacity: .65; cursor: default; }
+.detail__update-btn { align-self: flex-start; border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.detail__update-btn:disabled { opacity: .65; cursor: default; }
 .detail__saves { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; align-items: flex-start; }
 .detail__saves-resolve { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .detail__saves-folder { display: flex; flex-direction: column; gap: 4px; width: 100%; }

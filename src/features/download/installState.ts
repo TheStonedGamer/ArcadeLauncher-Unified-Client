@@ -47,3 +47,37 @@ export function effectiveInstallState(
 export function isInstalled(state: string): boolean {
   return state === "installed" || state === "updateAvailable";
 }
+
+/** Whether an installed game has a newer build on the server. Mirrors the Rust
+ *  `update_available`: a non-empty server version that differs from the installed
+ *  one. Used by the detail panel to offer an "Update" action. */
+export function hasUpdate(state: string): boolean {
+  return state === "updateAvailable";
+}
+
+/** Whether the server advertises a different, non-empty content version than
+ *  what's installed (the pure decision behind the `updateAvailable` state).
+ *  Kept in lockstep with the Rust `update_available` so client and core agree. */
+export function updateAvailable(installedVersion: string, serverVersion: string): boolean {
+  const server = serverVersion.trim();
+  return server !== "" && server !== installedVersion.trim();
+}
+
+/** Transient, in-flight states a live `download://` event owns; an update check
+ *  must never overwrite these with a disk-snapshot state. */
+const IN_FLIGHT = new Set(["installing", "paused", "failed"]);
+
+/** Merge a fresh update-check result onto the current overlay. The check is
+ *  newer than the original disk seed, so it overrides `installed`↔`updateAvailable`;
+ *  but any in-flight state set by a live download event (this session's own
+ *  install/verify) is preserved, since those are fresher still. */
+export function mergeUpdateCheck(
+  current: InstallStateMap,
+  refreshed: InstallStateMap,
+): InstallStateMap {
+  const next: InstallStateMap = { ...current, ...refreshed };
+  for (const [id, state] of Object.entries(current)) {
+    if (IN_FLIGHT.has(state)) next[id] = state;
+  }
+  return next;
+}

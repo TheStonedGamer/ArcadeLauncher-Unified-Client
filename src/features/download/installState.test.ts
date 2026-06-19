@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   applyInstallStatus,
   effectiveInstallState,
+  hasUpdate,
   isInstalled,
   mapDownloadStatus,
+  mergeUpdateCheck,
+  updateAvailable,
   type InstallStateMap,
 } from "./installState";
 import type { DownloadStatus } from "./types";
@@ -53,5 +56,47 @@ describe("isInstalled", () => {
     expect(isInstalled("updateAvailable")).toBe(true);
     expect(isInstalled("installing")).toBe(false);
     expect(isInstalled("notInstalled")).toBe(false);
+  });
+});
+
+describe("hasUpdate", () => {
+  it("is true only for the updateAvailable state", () => {
+    expect(hasUpdate("updateAvailable")).toBe(true);
+    expect(hasUpdate("installed")).toBe(false);
+    expect(hasUpdate("notInstalled")).toBe(false);
+  });
+});
+
+describe("updateAvailable", () => {
+  it("flags a differing, non-empty server version (trimmed)", () => {
+    expect(updateAvailable("1.0", "1.1")).toBe(true);
+    expect(updateAvailable("1.0", "1.0")).toBe(false);
+    expect(updateAvailable("1.0", "  1.0 ")).toBe(false);
+    expect(updateAvailable("", "1.0")).toBe(true);
+  });
+  it("never flags on an empty/unknown server version", () => {
+    expect(updateAvailable("1.0", "")).toBe(false);
+    expect(updateAvailable("1.0", "   ")).toBe(false);
+  });
+});
+
+describe("mergeUpdateCheck", () => {
+  it("lets the check override a stale disk-seed state", () => {
+    const merged = mergeUpdateCheck({ a: "installed" }, { a: "updateAvailable" });
+    expect(merged.a).toBe("updateAvailable");
+  });
+  it("preserves in-flight states a live download event set", () => {
+    const merged = mergeUpdateCheck(
+      { a: "installing", b: "paused", c: "failed", d: "installed" },
+      { a: "installed", b: "installed", c: "installed", d: "updateAvailable" },
+    );
+    expect(merged.a).toBe("installing");
+    expect(merged.b).toBe("paused");
+    expect(merged.c).toBe("failed");
+    expect(merged.d).toBe("updateAvailable");
+  });
+  it("includes keys only present in the refreshed map", () => {
+    const merged = mergeUpdateCheck({}, { z: "updateAvailable" });
+    expect(merged.z).toBe("updateAvailable");
   });
 });

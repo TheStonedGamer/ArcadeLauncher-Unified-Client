@@ -24,7 +24,7 @@ import { groupVariants, type VariantGroup } from "./variants";
 import { useCatalogPrefs } from "./useCatalogPrefs";
 import { applyPrefs } from "./prefs";
 import { useSession } from "../session/SessionContext";
-import { installGame, verifyGame } from "../download/api";
+import { installGame, updateGame, verifyGame } from "../download/api";
 import { useInstallOverlay } from "../download/useInstallOverlay";
 import { effectiveInstallState } from "../download/installState";
 import { syncSaves, type ConflictPolicy, type SyncReport } from "../saves/api";
@@ -40,8 +40,8 @@ interface CatalogViewProps {
 export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
   const { games, loading, error, status, load, syncFromServer, launch } = useCatalog();
   const prefs = useCatalogPrefs();
-  const installOverlay = useInstallOverlay();
   const { session } = useSession();
+  const installOverlay = useInstallOverlay(session);
 
   // Install trigger (T4d-3): start the engine for a server game using the
   // signed-in session's host + token. Disabled in the UI when no session.
@@ -60,6 +60,16 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
     async (game: Game) => {
       if (!session) throw new Error("sign in to verify");
       await verifyGame(session.host, session.token, game.id);
+    },
+    [session],
+  );
+
+  // Apply an available update (T12c): re-pull only the changed files via the
+  // verify engine pass, which finalizes the record at the new version.
+  const startUpdate = useCallback(
+    async (game: Game) => {
+      if (!session) throw new Error("sign in to update");
+      await updateGame(session.host, session.token, game.id);
     },
     [session],
   );
@@ -329,6 +339,7 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
           onAddCollection={prefs.addToCollection}
           onRemoveCollection={prefs.removeFromCollection}
           onInstall={startInstall}
+          onUpdate={startUpdate}
           canInstall={!!session}
           onSyncSaves={runSaveSync}
           canSync={!!session}
