@@ -6,7 +6,10 @@ name: Release
 # never on normal pushes, so it can't gate the green main build.
 #
 # Both legs run on SELF-HOSTED runners that live on the same physical Proxmox
-# host (Windows VM 131 = label `arcade-win`, Linux CT 130 = label `arcade-pve`).
+# host (Windows VM 131 = label `prox-win`, Linux CT 130 = label `prox-pve`).
+# These labels are deliberately Proxmox-specific so the owner's desktop PC
+# runners (which carry the generic `arcade-win`/`arcade-pve` labels) can never
+# pick up a release job — that label collision was the v0.10.3 release blocker.
 # To avoid pegging that host, the two legs are STAGGERED: the Linux job `needs`
 # the Windows job, so Windows builds first and Linux only starts once it's done.
 # Safe for a PUBLIC repo: tag-triggered only, and tags can only be pushed by
@@ -25,7 +28,7 @@ on:
 jobs:
   # ---- Windows leg (runs first) -------------------------------------------
   release-windows:
-    runs-on: [self-hosted, arcade-win]
+    runs-on: [self-hosted, prox-win]
     permissions:
       contents: write
     steps:
@@ -114,7 +117,7 @@ jobs:
     # Windows hiccup doesn't silently drop the Linux artifacts; only skip if the
     # whole run was cancelled.
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, arcade-pve]
+    runs-on: [self-hosted, prox-pve]
     permissions:
       contents: write
     # lld speeds the Rust link step.
