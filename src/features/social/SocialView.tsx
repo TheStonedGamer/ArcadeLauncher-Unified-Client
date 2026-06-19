@@ -2,6 +2,7 @@
 // and the active conversation on the right. State + actions come from useSocial;
 // this component is composition only.
 
+import { useState } from "react";
 import { useSocial } from "./useSocial";
 import { useProfile } from "./useProfile";
 import { useFriendMeta } from "./useFriendMeta";
@@ -9,6 +10,7 @@ import { usePrivacy } from "./usePrivacy";
 import { useVoice } from "./useVoice";
 import { fetchTurnServers } from "./api";
 import { FriendList } from "./components/FriendList";
+import { RequestsPanel } from "./components/RequestsPanel";
 import { AddFriend } from "./components/AddFriend";
 import { StatusPicker } from "./components/StatusPicker";
 import { ChatPane } from "./components/ChatPane";
@@ -39,6 +41,8 @@ export function SocialView() {
       ? async () => (await fetchTurnServers(auth.host, auth.token)).iceServers
       : undefined,
   });
+  const [rosterTab, setRosterTab] = useState<"friends" | "requests">("friends");
+  const requestCount = social.incoming.length + social.outgoing.length;
   const peer = social.friends.find((f) => f.accountId === social.selectedPeer) ?? null;
   const callPeerName =
     social.friends.find((f) => f.accountId === voice.call.peerId)?.username ?? "";
@@ -77,13 +81,36 @@ export function SocialView() {
               friendIds={new Set(social.friends.map((f) => f.accountId))}
             />
           )}
-          <FriendList
-            friends={social.friends}
-            selectedPeer={social.selectedPeer}
-            onSelect={social.select}
-            meta={auth ? friendMeta : undefined}
-            ignore={auth ? { isIgnored: privacy.isIgnored, toggleIgnore: privacy.toggleIgnore } : undefined}
-          />
+          <div className="social__rostertabs">
+            <button
+              className={`social__rostertab${rosterTab === "friends" ? " social__rostertab--active" : ""}`}
+              onClick={() => setRosterTab("friends")}
+            >
+              Friends
+            </button>
+            <button
+              className={`social__rostertab${rosterTab === "requests" ? " social__rostertab--active" : ""}`}
+              onClick={() => setRosterTab("requests")}
+            >
+              Requests
+              {requestCount > 0 && <span className="social__rosterbadge">{requestCount}</span>}
+            </button>
+          </div>
+          {rosterTab === "friends" ? (
+            <FriendList
+              friends={social.friends}
+              selectedPeer={social.selectedPeer}
+              onSelect={social.select}
+              meta={auth ? friendMeta : undefined}
+              ignore={auth ? { isIgnored: privacy.isIgnored, toggleIgnore: privacy.toggleIgnore } : undefined}
+            />
+          ) : (
+            <RequestsPanel
+              incoming={social.incoming}
+              outgoing={social.outgoing}
+              onRespond={social.respondToRequest}
+            />
+          )}
         </aside>
         <section className="social__chat">
           <ChatPane

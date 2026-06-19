@@ -77,6 +77,12 @@ impl Endpoint {
         format!("https://{}/api/social/friends/request", self.host)
     }
 
+    /// REST URL to respond to / unwind a friendship (POST, body carries
+    /// `{userId, action}` where action ∈ accept|decline|cancel|remove|ignore).
+    pub fn friend_respond_url(&self) -> String {
+        format!("https://{}/api/social/friends/respond", self.host)
+    }
+
     /// REST URL for the caller's privacy policies (GET) / update (PUT).
     pub fn privacy_url(&self) -> String {
         format!("https://{}/api/social/privacy", self.host)
@@ -148,6 +154,7 @@ mod tests {
         assert_eq!(e.search_url("a b"), "https://arcade.example.com/api/social/search?q=a%20b");
         assert_eq!(e.search_url("plain"), "https://arcade.example.com/api/social/search?q=plain");
         assert_eq!(e.friend_request_url(), "https://arcade.example.com/api/social/friends/request");
+        assert_eq!(e.friend_respond_url(), "https://arcade.example.com/api/social/friends/respond");
         assert_eq!(e.privacy_url(), "https://arcade.example.com/api/social/privacy");
         assert_eq!(e.ignores_url(), "https://arcade.example.com/api/social/ignores");
         assert_eq!(e.turn_url(), "https://arcade.example.com/api/social/turn");

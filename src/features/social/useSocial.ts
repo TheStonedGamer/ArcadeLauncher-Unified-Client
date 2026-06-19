@@ -9,7 +9,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { NullGateway, type Gateway, type GatewayState } from "./gateway";
 import { DemoGateway } from "./demoGateway";
 import { WsGateway } from "./wsGateway";
-import { attachmentLink, uploadAttachment } from "./api";
+import { attachmentLink, uploadAttachment, respondToFriendRequest, type FriendAction } from "./api";
 import { outbound } from "./protocol";
 import {
   applyFriendList,
@@ -22,7 +22,7 @@ import {
   optimisticEdit,
   type SocialState,
 } from "./reducer";
-import { sortedFriends, totalUnread } from "./selectors";
+import { incomingRequests, outgoingRequests, sortedFriends, totalUnread } from "./selectors";
 import { presenceFrameInput, type SelfStatus } from "./statusMenu";
 import type { Conversation, Friend } from "./types";
 
@@ -30,6 +30,13 @@ export interface SocialApi {
   state: GatewayState;
   connected: boolean;
   friends: Friend[];
+  /** Pending incoming friend requests (drives the Requests tab + badge). */
+  incoming: Friend[];
+  /** Pending outgoing friend requests I've sent. */
+  outgoing: Friend[];
+  /** Accept/decline an incoming request, cancel an outgoing one, or remove a
+   *  friend. Refreshes the roster from the server afterwards. */
+  respondToRequest: (userId: number, action: FriendAction) => void;
   selfId: number;
   selectedPeer: number | null;
   select: (peerId: number | null) => void;
@@ -128,6 +135,16 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     gatewayRef.current = gw;
     gw.onFrame((msg) => {
       if (msg.type === "voice_signal") voiceHandlerRef.current(msg.fromId, msg.payload);
+      // A friend_* frame means the relationship graph changed (new request,
+      // accept, or removal). The reducer can't synthesize the row, so re-pull the
+      // authoritative roster — this is what keeps the Requests tab live.
+      if (
+        msg.type === "friend_request" ||
+        msg.type === "friend_accepted" ||
+        msg.type === "friend_removed"
+      ) {
+        gw.fetchFriends().then((friends) => setSocial((prev) => applyFriendList(prev, friends)));
+      }
       setSocial((prev) => applyInbound(prev, msg, Date.now()));
     });
     gw.onState((s) => {
@@ -223,6 +240,20 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     if (selectedPeer != null) gatewayRef.current?.send(outbound.typing(selectedPeer));
   }, [selectedPeer]);
 
+  const respondToRequest = useCallback(
+    (userId: number, action: FriendAction) => {
+      if (!host || !token || !userId) return;
+      respondToFriendRequest(host, token, userId, action)
+        .then(() =>
+          gatewayRef.current
+            ?.fetchFriends()
+            .then((friends) => setSocial((prev) => applyFriendList(prev, friends))),
+        )
+        .catch((e) => console.error("friend respond failed", e));
+    },
+    [host, token],
+  );
+
   const voiceSend = useCallback((to: number, payload: unknown) => {
     if (to) gatewayRef.current?.send(outbound.voiceSignal(to, payload));
   }, []);
@@ -263,6 +294,8 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
   }, []);
 
   const friends = useMemo(() => sortedFriends(social), [social]);
+  const incoming = useMemo(() => incomingRequests(social), [social]);
+  const outgoing = useMemo(() => outgoingRequests(social), [social]);
   const unreadTotal = useMemo(() => totalUnread(social), [social]);
   const conversation =
     selectedPeer != null ? social.conversations[selectedPeer] ?? { ...EMPTY_CONV, peerId: selectedPeer } : null;
@@ -271,6 +304,9 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     state,
     connected: state === "connected",
     friends,
+    incoming,
+    outgoing,
+    respondToRequest,
     selfId: social.selfId,
     selectedPeer,
     select,

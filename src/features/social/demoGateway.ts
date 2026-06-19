@@ -15,6 +15,8 @@ const DEMO_FRIENDS: Friend[] = [
   { accountId: 3, username: "pixelpat", presence: "online", relation: "accepted", currentGameId: "", currentGameTitle: "", statusText: "drawing sprites", lastOnline: 0, favorite: false, nickname: "Pat", lastInteract: 150 },
   { accountId: 4, username: "n64kid", presence: "away", relation: "accepted", currentGameId: "", currentGameTitle: "", statusText: "brb", lastOnline: 0, favorite: false, nickname: "", lastInteract: 100 },
   { accountId: 5, username: "ghost", presence: "offline", relation: "accepted", currentGameId: "", currentGameTitle: "", statusText: "", lastOnline: 0, favorite: false, nickname: "", lastInteract: 0 },
+  { accountId: 6, username: "newcomer", presence: "online", relation: "request_received", currentGameId: "", currentGameTitle: "", statusText: "", lastOnline: 0, favorite: false, nickname: "", lastInteract: 0 },
+  { accountId: 7, username: "speedrunner", presence: "away", relation: "request_sent", currentGameId: "", currentGameTitle: "", statusText: "", lastOnline: 0, favorite: false, nickname: "", lastInteract: 0 },
 ];
 
 export class DemoGateway implements Gateway {

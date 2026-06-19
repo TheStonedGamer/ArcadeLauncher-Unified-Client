@@ -42,6 +42,11 @@ export function incomingRequests(state: SocialState): Friend[] {
   return state.friends.filter((f) => f.relation === "request_received");
 }
 
+/** Pending outgoing friend requests I've sent that aren't accepted yet. */
+export function outgoingRequests(state: SocialState): Friend[] {
+  return state.friends.filter((f) => f.relation === "request_sent");
+}
+
 /** Total unread across all conversations — drives the nav badge. */
 export function totalUnread(state: SocialState): number {
   return Object.values(state.conversations).reduce((sum, c) => sum + c.unread, 0);

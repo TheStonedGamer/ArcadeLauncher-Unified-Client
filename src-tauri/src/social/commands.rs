@@ -496,6 +496,52 @@ pub async fn social_friend_request(host: String, token: String, username: String
     Ok(if r.status.is_empty() { "request_sent".to_string() } else { r.status })
 }
 
+/// Respond to or unwind a friendship (the Requests tab Accept/Decline, plus
+/// cancel/remove/ignore). `action` ∈ accept|decline|cancel|remove|ignore; the
+/// server applies it against the pending/accepted row and notifies the peer
+/// (except `ignore`, which is silent). Returns the server's status string
+/// (e.g. "accepted" / "removed").
+#[tauri::command]
+pub async fn social_friend_respond(
+    host: String,
+    token: String,
+    user_id: u64,
+    action: String,
+) -> AppResult<String> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Body {
+        user_id: u64,
+        action: String,
+    }
+    #[derive(Deserialize)]
+    struct Resp {
+        #[serde(default)]
+        status: String,
+    }
+
+    let endpoint = Endpoint::new(host, token);
+    let client = http_client();
+    let resp = client
+        .post(endpoint.friend_respond_url())
+        .bearer_auth(endpoint.token())
+        .json(&Body { user_id, action })
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("friend response failed: {e}")))?;
+    let status = resp.status();
+    if !status.is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        let reason = if body.trim().is_empty() { status.to_string() } else { body };
+        return Err(AppError::msg(format!("friend response failed: {reason}")));
+    }
+    let r: Resp = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid friend-response payload: {e}")))?;
+    Ok(r.status)
+}
+
 /// The caller's privacy policies (ROADMAP T9f / 1.1b). `friend_policy` ∈
 /// everyone|mutual|nobody; `dm_policy` ∈ everyone|friends|nobody.
 #[derive(Debug, Clone, Serialize, Deserialize)]

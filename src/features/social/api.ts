@@ -79,6 +79,22 @@ export function sendFriendRequest(host: string, token: string, username: string)
   return call("social_friend_request", { host, token, username });
 }
 
+/** How to respond to / unwind a friendship. `accept`/`decline` answer an
+ *  incoming request; `cancel` withdraws one I sent; `remove` un-friends; `ignore`
+ *  silently drops an incoming request without telling the sender. */
+export type FriendAction = "accept" | "decline" | "cancel" | "remove" | "ignore";
+
+/** Respond to a friend request (or remove a friend); resolves to the server's
+ *  status string (e.g. "accepted" / "removed"). */
+export function respondToFriendRequest(
+  host: string,
+  token: string,
+  userId: number,
+  action: FriendAction,
+): Promise<string> {
+  return call("social_friend_respond", { host, token, userId, action });
+}
+
 /** Fetch the caller's friend-request + DM privacy policies. */
 export function fetchPrivacy(host: string, token: string): Promise<Privacy> {
   return call("social_privacy_get", { host, token });

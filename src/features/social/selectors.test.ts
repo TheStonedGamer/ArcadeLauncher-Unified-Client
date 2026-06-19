@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyFriendList, applyInbound, initialSocialState, type SocialState } from "./reducer";
-import { displayName, incomingRequests, onlineCount, sortedFriends, totalUnread } from "./selectors";
+import { displayName, incomingRequests, onlineCount, outgoingRequests, sortedFriends, totalUnread } from "./selectors";
 import type { Friend } from "./types";
 
 const NOW = 1_700_000_000_000;
@@ -68,6 +68,15 @@ describe("requests + counts", () => {
       friend({ accountId: 2, relation: "request_received", username: "pat" }),
     ]);
     expect(incomingRequests(s).map((f) => f.accountId)).toEqual([2]);
+  });
+
+  it("outgoingRequests lists request_sent only", () => {
+    const s = withFriends([
+      friend({ accountId: 1, relation: "accepted" }),
+      friend({ accountId: 2, relation: "request_received" }),
+      friend({ accountId: 3, relation: "request_sent", username: "sam" }),
+    ]);
+    expect(outgoingRequests(s).map((f) => f.accountId)).toEqual([3]);
   });
 
   it("onlineCount counts reachable accepted friends", () => {

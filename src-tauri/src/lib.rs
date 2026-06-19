@@ -108,6 +108,7 @@ pub fn run() {
             social::commands::social_friendmeta_set,
             social::commands::social_user_search,
             social::commands::social_friend_request,
+            social::commands::social_friend_respond,
             social::commands::social_privacy_get,
             social::commands::social_privacy_set,
             social::commands::social_ignores_get,

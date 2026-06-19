@@ -424,6 +424,39 @@ body {
 }
 .social__chat { min-width: 0; display: flex; }
 
+/* Roster tabs (Friends / Requests) */
+.social__rostertabs { display: flex; gap: 4px; padding: 4px 2px 8px; }
+.social__rostertab {
+  flex: 1; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border);
+  background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.social__rostertab:hover { border-color: var(--accent); }
+.social__rostertab--active { border-color: var(--accent); color: var(--accent); background: var(--panel-2); }
+.social__rosterbadge {
+  min-width: 16px; height: 16px; padding: 0 5px; border-radius: 8px;
+  background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px;
+}
+
+/* Pending friend requests */
+.requests { display: flex; flex-direction: column; gap: 6px; }
+.requests__section { margin-bottom: 4px; }
+.requests__heading {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted); padding: 8px 10px 4px;
+}
+.requests__items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.requests__row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; flex-wrap: wrap; }
+.requests__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.requests__pendinglabel { font-size: 11px; color: var(--muted); }
+.requests__actions { display: flex; gap: 4px; }
+.requests__accept, .requests__decline, .requests__ignore, .requests__actions button {
+  padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border);
+  background: transparent; color: var(--text); cursor: pointer; font-size: 11px; font-weight: 600;
+}
+.requests__accept { border-color: var(--accent); background: var(--accent); color: #fff; }
+.requests__decline:hover, .requests__ignore:hover { border-color: var(--accent); }
+
 /* Friend roster */
 .friendlist { display: flex; flex-direction: column; gap: 2px; }
 .friendlist__items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
