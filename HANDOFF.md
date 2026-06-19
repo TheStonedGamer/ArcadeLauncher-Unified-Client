@@ -6,9 +6,11 @@ left* is [`ROADMAP.md`](ROADMAP.md); this file captures *current state*, the
 Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit via
 `npm run memory -- set …`, never by hand).
 
-Last updated: 2026-06-19. **Unifying client + server onto a shared 0.10.0 version
-line** (client was 0.9.21, server 1.2.27) so the `major.minor` client↔server
-lockstep lines up at `0.10`. PS2 BIOS hosted on prod and wired end-to-end.
+Last updated: 2026-06-19. Client + server share a `0.10` `major.minor` lockstep
+line. PS2 BIOS hosted on prod and wired end-to-end. **T12a/T12b/T12c features are
+done, committed, and on `main` (CI green); `v0.10.3` is tagged but the Release
+workflow is NOT green yet — blocked on the Windows runner. See "v0.10.3 release —
+BLOCKED" below before doing anything else.**
 
 ---
 
@@ -104,6 +106,64 @@ architect-prompt doc, not source) OUT of commits — `git reset -- "# Arcade…"
   show→hide. Fixed by matching `button_state: MouseButtonState::Up` only
   (`tray/setup.rs`), so one click = one toggle. cargo check green.
 
+- **v0.10.3 (T12a/T12b/T12c — features DONE, release BLOCKED)**: three Phase-T12
+  features, each a separate commit on `main`, all green on CI (228 vitest, 197
+  cargo, tsc clean, no build warnings):
+  - **T12a — RetroAchievements** (`344a114`): RA Web API slice
+    (`retroachievements/api.rs` + `commands.rs`, 6 KATs) — score/rank/recent
+    unlocks; RA points mapped onto the shared level curve. Settings panel. Deferred:
+    in-game toasts, social activity, server XP write-back.
+  - **T12b — SteamGridDB cover-art picker** (`9ad29bd`): pure `catalog/art.rs`
+    (search/grids parsing, 6 KATs) + `steamgriddb_search`/`apply_cover`; "🎨 Find
+    cover art" thumbnail picker in the detail panel, stored as a non-destructive
+    `cover_overrides` prefs entry. API key in Settings.
+  - **T12c — Delta/patch updates** (`cb853e8`): version-compare core
+    (`update_available`/`mark_updates`, Rust KATs) + `check_updates` command; the
+    overlay flags **⬆ Update available** on sign-in and re-pulls only changed files
+    via the verify engine.
+  - ROADMAP/FEATURES updated. Version bumped to 0.10.3 in all four files
+    (`54b8cbf`), `v0.10.3` tag pushed.
+
+## v0.10.3 release — BLOCKED on the Windows runner (2026-06-19)
+
+The features are done; the **Release workflow is not green**. `release-linux`
+succeeds; **`release-windows` fails**. Root cause is the runner topology, not our
+code. What the debugging found, in order (each fixed in `release.yml`, commits on
+`main`):
+
+1. `dtolnay/rust-toolchain@stable`'s internal "parse toolchain version" step runs
+   under `bash`; on the Windows runner `bash` resolves to **System32 WSL bash**
+   (no distro) → exit 1. Replaced with a PowerShell rustup step.
+2. `shell: pwsh` → **pwsh (PowerShell Core) is not installed** on the runner. Use
+   `shell: powershell` (Windows PowerShell 5.1).
+3. `rustup` **not on PATH** in that PowerShell. The step now locates/installs
+   rustup in `%USERPROFILE%\.cargo\bin`, installs via `rustup-init` if missing, and
+   appends that dir to `GITHUB_PATH` for later steps. Toolchain step now passes.
+4. Now **WiX `light.exe` "failed to run"** during MSI bundling (NSIS + updater
+   artifacts build fine; only the `msi` target fails). Fresh bundler-tools cache
+   (`-v1`→`-v2`) did NOT fix it, so it's not a corrupt cache. v0.10.2 built the MSI
+   fine 50 min earlier on the same workflow → environment regression on the runner.
+   Owner chose to **keep the MSI and debug** (not drop the `msi` target). Last
+   release run was building with `args: --verbose` to surface light.exe's real
+   error when the owner redirected to the runner fix below.
+
+**The real fix the owner wants — pin builds to the Proxmox runners.** There are
+**two online Windows runners sharing the `arcade-win` label**, so release jobs land
+nondeterministically:
+- `arcade-win-runner` — the **Proxmox** Windows VM (intended Windows builder).
+- `pc-win-runner` — the owner's **desktop PC** (has the WSL-bash / no-pwsh /
+  rustup-not-on-PATH / WiX env that produced all the failures above).
+- `pc-wsl-runner` — labelled `arcade-pve` (Linux); the Proxmox Linux CT builder.
+
+Owner's directive: **"move the runners back to Proxmox — prox Windows builds the
+Windows client, prox-pve builds the Linux client and the server."** Action for next
+session: give the Proxmox runners **distinct labels** (e.g. `prox-win` /
+`prox-pve`) so they no longer collide with the desktop PC, and point
+`release.yml`'s `runs-on` at those labels (and the Server repo's release workflow at
+`prox-pve`). Either relabel `pc-win-runner` off `arcade-win` or take it offline so
+Windows release jobs only land on the Proxmox VM. Once builds run on the Proxmox VM
+(which has a working toolchain + WiX), re-tag `v0.10.3` and confirm both legs green.
+
 ## PS2 BIOS — now hosted on prod (2026-06-19)
 
 - `ps2-bios.bin` = **NTSC-U `scph39001`** (4 MiB, sha256 `f4c948e6…910c9d`) copied
@@ -118,6 +178,12 @@ architect-prompt doc, not source) OUT of commits — `git reset -- "# Arcade…"
 
 ## NEXT STEP
 
+- **PRIMARY — unblock the `v0.10.3` release** by fixing the runner topology (see
+  "v0.10.3 release — BLOCKED" above): relabel/pin the Proxmox runners
+  (`prox-win` / `prox-pve`), retarget `release.yml` (and the Server release
+  workflow) at them, take the desktop `pc-win-runner` off the `arcade-win` label,
+  then re-tag `v0.10.3` and confirm BOTH legs green. The features are already
+  merged to `main`; this is purely a build-infra fix.
 - ~~OPTIONAL — deploy the new server binary to CT `10.0.0.210`~~ **DONE
   2026-06-19**: rebuilt server `1.2.27` (commit `3b043f2`) on the CT and swapped
   the binary; `/api/health` now reports `1.2.27` so the "PlayStation 2 BIOS
@@ -146,7 +212,11 @@ No roadmap blockers remain. Net-new feature backlog now lives in
 
 ## Repo facts
 
-- Client: `TheStonedGamer/ArcadeLauncher-Unified-Client`, branch `main`, **v0.9.21**.
+- Client: `TheStonedGamer/ArcadeLauncher-Unified-Client`, branch `main`, **v0.10.3
+  tagged** (release pending — Windows runner fix). Self-hosted runners:
+  `arcade-win-runner` (Proxmox Win VM) + `pc-win-runner` (desktop) both on label
+  `arcade-win`; `pc-wsl-runner` on `arcade-pve` (Linux). The label collision is the
+  release blocker — see above.
 - Server: `TheStonedGamer/ArcadeLauncher-Server`, branch `main`; `VERSION` file is
   source of truth, push to `main` auto-bumps (bot commit → `git pull --rebase`
   before pushing). Runs as systemd `arcadelauncher-server` on CT `10.0.0.210:8721`,
