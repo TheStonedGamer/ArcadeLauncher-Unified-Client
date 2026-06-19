@@ -14,6 +14,7 @@ import type { NavIntent } from "../gamepad/input";
 import { ControllerHints } from "../gamepad/ControllerHints";
 import { CatalogGrid } from "./components/CatalogGrid";
 import { ContinuePlayingRow } from "./components/ContinuePlayingRow";
+import { LibraryStatsPanel } from "./components/LibraryStatsPanel";
 import { recentlyPlayed } from "./stats";
 import { CardContextMenu, type CardMenuTarget } from "./components/CardContextMenu";
 import { Sidebar } from "./components/Sidebar";
@@ -284,6 +285,8 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
               {bigPicture ? "Exit Big Picture" : "Big Picture"}
             </button>
           </div>
+
+          {showContinue && <LibraryStatsPanel games={merged} />}
 
           {continueGames.length > 0 && (
             <ContinuePlayingRow games={continueGames} nowMs={Date.now()} onLaunch={launch} />

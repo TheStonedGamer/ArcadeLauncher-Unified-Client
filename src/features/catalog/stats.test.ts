@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   recentlyPlayed,
   mostPlayed,
+  playtimeBars,
   libraryStats,
   formatDuration,
   formatLastPlayed,
@@ -82,6 +83,33 @@ describe("mostPlayed", () => {
       game({ id: "d", title: "D", playtimeSeconds: 9999, hidden: true }),
     ];
     expect(mostPlayed(games).map((g) => g.id)).toEqual(["b", "a"]);
+  });
+});
+
+describe("playtimeBars", () => {
+  it("returns most-played with fractions relative to the leader", () => {
+    const games = [
+      game({ id: "a", title: "A", playtimeSeconds: 1000 }),
+      game({ id: "b", title: "B", playtimeSeconds: 4000 }),
+      game({ id: "c", title: "C", playtimeSeconds: 2000 }),
+      game({ id: "z", title: "Z", playtimeSeconds: 0 }),
+    ];
+    const bars = playtimeBars(games);
+    expect(bars.map((b) => b.game.id)).toEqual(["b", "c", "a"]);
+    expect(bars.map((b) => b.fraction)).toEqual([1, 0.5, 0.25]);
+  });
+
+  it("returns an empty list when nothing has been played", () => {
+    expect(playtimeBars([game({ id: "a", title: "A" })])).toEqual([]);
+  });
+
+  it("respects the limit", () => {
+    const games = [
+      game({ id: "a", title: "A", playtimeSeconds: 100 }),
+      game({ id: "b", title: "B", playtimeSeconds: 200 }),
+      game({ id: "c", title: "C", playtimeSeconds: 300 }),
+    ];
+    expect(playtimeBars(games, 2).map((b) => b.game.id)).toEqual(["c", "b"]);
   });
 });
 

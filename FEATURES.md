@@ -32,6 +32,10 @@ elevate (Tauri updater).
   click a tile to launch directly. Backed by a pure `catalog/stats.ts` core
   (`recentlyPlayed` / `mostPlayed` / `libraryStats` / `formatDuration` /
   `formatLastPlayed`) over the playtime + last-played data the launcher tracks.
+- **Library stats dashboard** *(new)* — a collapsible panel atop the catalog with
+  headline numbers (games / played / total playtime) and a **"Most Played" bar
+  chart**, backed by the same pure `stats.ts` core (`playtimeBars` /
+  `libraryStats`).
 - **ROM-variant grouping** with a picker for multi-region/-revision dumps.
 - **Detail panel** with cover/hero art and developer/publisher/franchise metadata;
   **IGDB cover-art fetch** (Twitch OAuth, creds-gated) per game.

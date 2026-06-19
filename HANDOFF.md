@@ -75,8 +75,14 @@ architect-prompt doc, not source) OUT of commits — `git reset -- "# Arcade…"
   `catalog/stats.ts` core (`recentlyPlayed`/`mostPlayed`/`libraryStats`/
   `formatDuration`/`formatLastPlayed`, 10 KATs) + `ContinuePlayingRow.tsx` +
   `.continue-*` CSS + `?catalog-demo` preview seed. Pure TS/React/CSS (no Rust);
-  194 tests + build green; CI-only push (no tag/release). ROADMAP T12j marked
-  in-progress (stats dashboard half still open).
+  194 tests + build green; CI-only push (no tag/release).
+- **T12j (part 2 — DONE)**: library stats dashboard — a collapsible panel atop
+  the catalog with headline numbers (games / played / total time) + a "Most
+  Played" bar chart. Pure `playtimeBars` added to `stats.ts` (3 KATs) +
+  `LibraryStatsPanel.tsx` + `.stats-*` CSS. 197 tests + build green; verified in
+  browser preview (figures + proportional bars, no console errors). **T12j
+  complete** except deferred weekly-recap (needs per-session history) and
+  HowLongToBeat (external API).
 
 ## PS2 BIOS — now hosted on prod (2026-06-19)
 

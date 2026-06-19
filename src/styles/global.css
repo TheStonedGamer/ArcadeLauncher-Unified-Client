@@ -213,6 +213,48 @@ body {
 }
 
 /* "Continue Playing" strip above the grid (recently played, launch on click). */
+/* Library stats dashboard (collapsible) shown atop the catalog. */
+.stats-panel { margin: 2px 0 14px; }
+.stats-panel__toggle {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: none; cursor: pointer; padding: 6px 2px;
+  font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted); text-align: left;
+}
+.stats-panel__toggle:hover { color: var(--text); }
+.stats-panel__toggle-caret { font-size: 10px; }
+.stats-panel__toggle-summary {
+  margin-left: auto; font-weight: 500; text-transform: none;
+  letter-spacing: 0; color: var(--muted);
+}
+.stats-panel__body { padding: 10px 2px 4px; }
+.stats-panel__figures { display: flex; gap: 28px; margin-bottom: 16px; }
+.stats-figure { display: flex; flex-direction: column; gap: 2px; }
+.stats-figure__value { font-size: 22px; font-weight: 700; }
+.stats-figure__label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--muted);
+}
+.stats-panel__chart-heading {
+  margin: 0 0 8px; font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--muted);
+}
+.stats-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.stats-bar {
+  display: grid; grid-template-columns: 160px 1fr 64px; align-items: center;
+  gap: 12px; font-size: 13px;
+}
+.stats-bar__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stats-bar__track {
+  height: 10px; border-radius: 5px; background: var(--surface-2, rgba(127,127,127,.18));
+  overflow: hidden;
+}
+.stats-bar__fill {
+  display: block; height: 100%; border-radius: 5px;
+  background: var(--accent, #5b8cff); min-width: 2px;
+}
+.stats-bar__value { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
 .continue-row { margin: 4px 0 18px; }
 .continue-row__heading {
   margin: 0 0 10px; font-size: 13px; font-weight: 700;

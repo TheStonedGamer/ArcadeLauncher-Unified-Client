@@ -35,6 +35,24 @@ export function mostPlayed(games: Game[], limit = 8): Game[] {
     .slice(0, Math.max(0, limit));
 }
 
+export interface PlaytimeBar {
+  game: Game;
+  /** This game's playtime as a fraction (0..1) of the most-played game's, for
+   *  drawing a relative bar. The top game is always 1. */
+  fraction: number;
+}
+
+/** Most-played games paired with a 0..1 bar fraction relative to the leader, for
+ *  a "top played" chart. Empty when nothing has been played. */
+export function playtimeBars(games: Game[], limit = 5): PlaytimeBar[] {
+  const top = mostPlayed(games, limit);
+  const max = top.length > 0 ? top[0].playtimeSeconds : 0;
+  return top.map((game) => ({
+    game,
+    fraction: max > 0 ? game.playtimeSeconds / max : 0,
+  }));
+}
+
 export interface LibraryStats {
   totalGames: number;
   playedGames: number;

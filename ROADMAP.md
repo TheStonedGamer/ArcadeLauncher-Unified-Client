@@ -357,13 +357,16 @@ from scratch.
 - [ ] **T12i — Auto-sync cloud saves on launch/exit + version history.** Saves are
   manual + last-write-wins today; auto-sync on game exit and keep N restorable
   save versions to retire the conflict problem.
-- [~] **T12j — "Continue playing" row + stats dashboard.** Use the playtime we
-  already track to surface most-played, weekly recap, and time-to-beat
-  (HowLongToBeat).
+- [x] **T12j — "Continue playing" row + stats dashboard.** Use the playtime we
+  already track to surface most-played and headline library numbers.
   - [x] "Continue Playing" row atop the catalog (recently-played, click-to-launch)
         backed by a pure `stats.ts` core (`recentlyPlayed`/`mostPlayed`/
         `libraryStats`/`formatDuration`/`formatLastPlayed`).
-  - [ ] Stats dashboard (weekly recap, most-played, HowLongToBeat).
+  - [x] Library stats dashboard: collapsible panel with headline numbers
+        (games / played / total time) + a "Most Played" bar chart, backed by
+        pure `playtimeBars` + `libraryStats`.
+  - [ ] _Deferred:_ weekly recap (needs per-session history; we only track
+        cumulative playtime + lastPlayed) and HowLongToBeat (external API).
 
 **Bigger bets** (tie into adjacent projects)
 
