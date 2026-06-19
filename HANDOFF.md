@@ -124,7 +124,26 @@ architect-prompt doc, not source) OUT of commits — `git reset -- "# Arcade…"
   - ROADMAP/FEATURES updated. Version bumped to 0.10.3 in all four files
     (`54b8cbf`), `v0.10.3` tag pushed.
 
-## v0.10.3 release — BLOCKED on the Windows runner (2026-06-19)
+## Runner topology FIXED — release ready to re-tag (2026-06-19)
+
+The label collision is resolved. The Proxmox runners now carry **distinct**
+labels and the release workflows are pinned to them:
+- Proxmox Win VM `arcade-win-runner` → added label **`prox-win`**.
+- Proxmox Linux CT `pc-wsl-runner` (client) + `arcade-pve-runner` (server) →
+  added label **`prox-pve`**.
+- Desktop `pc-win-runner` → **`arcade-win` removed** (can no longer grab release
+  jobs; left with `self-hosted,X64,Windows`).
+- `release.yml`: `release-windows` → `prox-win`, `release-linux` → `prox-pve`
+  (commit `0250474`, pushed `main`). Server `server-release.yml` → `prox-pve`
+  (commit `71aa32f`, pushed `main`) — verified the server release run picked up
+  the CT (status in_progress, not stuck queued).
+
+**Remaining: re-tag `v0.10.3`** to fire the Windows release on the Proxmox VM
+(which has the working toolchain + WiX), then confirm BOTH legs green. The old
+tag still points at the pre-fix commit — delete & re-push it:
+`git tag -d v0.10.3 && git push origin :refs/tags/v0.10.3 && git tag v0.10.3 && git push origin v0.10.3`.
+
+### Original blocker (for reference) — Windows runner env on the desktop PC
 
 The features are done; the **Release workflow is not green**. `release-linux`
 succeeds; **`release-windows` fails**. Root cause is the runner topology, not our
@@ -178,12 +197,10 @@ Windows release jobs only land on the Proxmox VM. Once builds run on the Proxmox
 
 ## NEXT STEP
 
-- **PRIMARY — unblock the `v0.10.3` release** by fixing the runner topology (see
-  "v0.10.3 release — BLOCKED" above): relabel/pin the Proxmox runners
-  (`prox-win` / `prox-pve`), retarget `release.yml` (and the Server release
-  workflow) at them, take the desktop `pc-win-runner` off the `arcade-win` label,
-  then re-tag `v0.10.3` and confirm BOTH legs green. The features are already
-  merged to `main`; this is purely a build-infra fix.
+- **PRIMARY — re-tag `v0.10.3`** to fire the Windows release on the now-pinned
+  Proxmox VM, then confirm BOTH legs green. The runner topology is already fixed
+  (see "Runner topology FIXED" above) — relabel + workflow retarget are done and
+  pushed. Only the re-tag + green-confirm remain.
 - ~~OPTIONAL — deploy the new server binary to CT `10.0.0.210`~~ **DONE
   2026-06-19**: rebuilt server `1.2.27` (commit `3b043f2`) on the CT and swapped
   the binary; `/api/health` now reports `1.2.27` so the "PlayStation 2 BIOS
