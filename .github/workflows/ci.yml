@@ -3,6 +3,16 @@ name: CI
 # Enforces the project rule: every push must be green on BOTH Windows and Linux
 # before anything can ship. Frontend typecheck/build + Rust compile + unit tests
 # run on both OSes.
+#
+# Runs on the SELF-HOSTED Proxmox runners (Windows VM 131 = label `prox-win`,
+# Linux CT 130 = label `prox-pve`) — the same hosts the Release workflow uses, so
+# CI and release build in identical environments. The two legs are STAGGERED
+# (Linux `needs` Windows) so they don't peg the shared physical host at once.
+#
+# Self-hosted Windows note: do NOT use dtolnay/rust-toolchain or `shell: bash` on
+# `prox-win`. Their internal bash can resolve to System32 WSL bash (no distro)
+# and fail. The Windows leg manages rustup via Windows PowerShell and runs its
+# shell steps in PowerShell; the Linux leg keeps dtolnay + bash.
 
 on:
   push:
@@ -11,26 +21,89 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            rustflags: ""
-          - os: ubuntu-22.04
-            # Use lld for the link step — much faster than the default bfd.
-            rustflags: "-C link-arg=-fuse-ld=lld"
-    runs-on: ${{ matrix.os }}
+  # ---- Windows leg (runs first) -------------------------------------------
+  windows:
+    runs-on: [self-hosted, prox-win]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Manage the toolchain with Windows PowerShell instead of
+      # dtolnay/rust-toolchain (whose bash step trips the System32 WSL trap).
+      - name: Ensure Rust stable toolchain (Windows PowerShell, no WSL bash)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
+          $rustup = Join-Path $cargoBin "rustup.exe"
+          if (-not (Test-Path $rustup)) {
+            Write-Host "rustup not found at $rustup; installing via rustup-init"
+            $init = Join-Path $env:TEMP "rustup-init.exe"
+            Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $init -UseBasicParsing
+            & $init -y --default-toolchain stable --profile minimal
+            if ($LASTEXITCODE -ne 0) { throw "rustup-init failed ($LASTEXITCODE)" }
+          }
+          & $rustup default stable
+          & $rustup update stable --no-self-update
+          Add-Content -Path $env:GITHUB_PATH -Value $cargoBin
+          & (Join-Path $cargoBin "rustc.exe") -vV
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+          shared-key: ci-windows
+
+      - name: Install npm deps
+        run: npm ci
+
+      - name: Frontend unit tests (vitest)
+        run: npm test
+
+      - name: Frontend build (tsc + vite)
+        run: npm run build
+
+      # tauri.conf.json declares the bootstrap updater as an externalBin sidecar
+      # (binaries/updater-<triple>), and tauri-build's custom build command fails
+      # if that file is absent — so the sidecar must exist before any cargo
+      # invocation, mirroring the Release workflow. PowerShell (not bash) here.
+      - name: Build bootstrap updater sidecar
+        shell: powershell
+        run: |
+          cargo build --release -p arcade_updater --manifest-path src-tauri/Cargo.toml
+          New-Item -ItemType Directory -Force src-tauri/binaries | Out-Null
+          $triple = ((rustc -vV | Select-String '^host: ').ToString() -replace '^host: ', '').Trim()
+          Copy-Item "src-tauri/target/release/updater.exe" "src-tauri/binaries/updater-$triple.exe"
+
+      - name: Rust unit tests
+        working-directory: src-tauri
+        run: cargo test --locked
+
+      - name: Rust compile check (release)
+        working-directory: src-tauri
+        run: cargo check --release --locked
+
+  # ---- Linux leg (runs after Windows, on the same physical host) ----------
+  linux:
+    needs: windows
+    # Run after Windows even if it failed (still serialized via needs) so a
+    # Windows hiccup doesn't hide a Linux break; only skip if the run was
+    # cancelled.
+    if: ${{ !cancelled() }}
+    runs-on: [self-hosted, prox-pve]
+    # Use lld for the link step — much faster than the default bfd.
     env:
-      RUSTFLAGS: ${{ matrix.rustflags }}
+      RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Linux Tauri deps
-        if: matrix.os == 'ubuntu-22.04'
         run: |
-          # Remove broken Microsoft apt sources that return 403 on GitHub runners.
+          # Remove broken Microsoft apt sources that 403 on some hosts.
           sudo rm -f /etc/apt/sources.list.d/azure-cli.list \
                      /etc/apt/sources.list.d/microsoft-prod.list \
                      /etc/apt/sources.list.d/dotnetdev.list \
@@ -50,7 +123,7 @@ jobs:
         with:
           workspaces: src-tauri
           cache-on-failure: true
-          shared-key: ci-${{ matrix.os }}
+          shared-key: ci-linux
 
       - name: Install npm deps
         run: npm ci
@@ -61,21 +134,13 @@ jobs:
       - name: Frontend build (tsc + vite)
         run: npm run build
 
-      # tauri.conf.json declares the bootstrap updater as an externalBin sidecar
-      # (binaries/updater-<triple>), and tauri-build's custom build command fails
-      # if that file is absent — so the sidecar must exist before any cargo
-      # invocation, mirroring the Release workflow.
       - name: Build bootstrap updater sidecar
         shell: bash
         run: |
           cargo build --release -p arcade_updater --manifest-path src-tauri/Cargo.toml
           mkdir -p src-tauri/binaries
           TRIPLE=$(rustc -vV | sed -n 's/host: //p')
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            cp "src-tauri/target/release/updater.exe" "src-tauri/binaries/updater-$TRIPLE.exe"
-          else
-            cp "src-tauri/target/release/updater" "src-tauri/binaries/updater-$TRIPLE"
-          fi
+          cp "src-tauri/target/release/updater" "src-tauri/binaries/updater-$TRIPLE"
 
       - name: Rust unit tests
         working-directory: src-tauri
