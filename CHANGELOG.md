@@ -16,7 +16,10 @@ Added / Changed / Fixed / Removed.
 ### Added
 - In-client Game Requests board (pure core): browse/upvote/request games, a
   client-side platform filter, platform-scoped search, and community 1–5 star
-  game ratings (averaged). Transport + UI to follow.
+  game ratings (averaged). UI to follow.
+- Game Requests board transport: the launcher now talks to the Requests service
+  using your existing sign-in (bearer token) — no separate board login — to list
+  the board, search, request, upvote, rate, and (for admins) triage statuses.
 
 ### Changed
 - The bootstrap updater (`updater.exe`) now ships with the launcher's icon

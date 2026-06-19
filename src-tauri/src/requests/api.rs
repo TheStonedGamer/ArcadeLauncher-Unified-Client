@@ -192,7 +192,7 @@ pub struct Me {
 /// Outbound body for `POST /api/requests`. Field names match the service's
 /// `CreateRequest` (snake_case); `igdb_id == 0` means a free-text request that
 /// can't be deduped to an existing board row.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CreateBody {
     pub igdb_id: u64,
     pub title: String,
@@ -271,6 +271,38 @@ pub struct RateResult {
 
 /// Parse the rating-upsert response.
 pub fn parse_rate(body: &str) -> Result<RateResult, serde_json::Error> {
+    serde_json::from_str(body)
+}
+
+/// The `POST /api/requests` response: `{ok, id}` where `id` is the board row that
+/// now carries the request (a new row, or the existing one a dupe was folded into).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CreateResult {
+    #[serde(default)]
+    pub ok: bool,
+    #[serde(default)]
+    pub id: u64,
+}
+
+/// Parse the create-request response.
+pub fn parse_create(body: &str) -> Result<CreateResult, serde_json::Error> {
+    serde_json::from_str(body)
+}
+
+/// The `POST /api/requests/:id/vote` response: `{ok, id, voted}` where `voted` is
+/// true when this call inserted a fresh upvote (false if the user already had one).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VoteResult {
+    #[serde(default)]
+    pub ok: bool,
+    #[serde(default)]
+    pub id: u64,
+    #[serde(default)]
+    pub voted: bool,
+}
+
+/// Parse the vote response.
+pub fn parse_vote(body: &str) -> Result<VoteResult, serde_json::Error> {
     serde_json::from_str(body)
 }
 
@@ -422,6 +454,28 @@ mod tests {
         let long = "x".repeat(600);
         let capped = CreateBody::from_hit(&hit, &long);
         assert_eq!(capped.note.chars().count(), 500);
+    }
+
+    #[test]
+    fn parses_create_result() {
+        let r = parse_create(r#"{"ok":true,"id":17}"#).unwrap();
+        assert!(r.ok);
+        assert_eq!(r.id, 17);
+        // Missing fields default rather than erroring.
+        let bare = parse_create(r#"{}"#).unwrap();
+        assert!(!bare.ok);
+        assert_eq!(bare.id, 0);
+    }
+
+    #[test]
+    fn parses_vote_result() {
+        let fresh = parse_vote(r#"{"ok":true,"id":4,"voted":true}"#).unwrap();
+        assert!(fresh.ok);
+        assert_eq!(fresh.id, 4);
+        assert!(fresh.voted);
+        // Already-voted: voted=false.
+        let dup = parse_vote(r#"{"ok":true,"id":4,"voted":false}"#).unwrap();
+        assert!(!dup.voted);
     }
 
     #[test]
