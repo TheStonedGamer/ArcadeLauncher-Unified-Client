@@ -1,0 +1,100 @@
+name: Announce changelog to Discord
+
+# When a GitHub Release is published (the Release workflow's publish-release job
+# flips the draft live), post that version's CHANGELOG.md section to a Discord
+# channel via an incoming webhook. No bot process to host — just an HTTP POST.
+#
+# Setup (one time): create a Discord channel webhook (Channel → Edit → Integra-
+# tions → Webhooks → New Webhook → Copy URL) and store it as the repo secret
+# DISCORD_WEBHOOK_URL (Settings → Secrets and variables → Actions). Without that
+# secret the job no-ops, so forks and tag-less testing never fail.
+
+on:
+  release:
+    types: [published]
+  # Manual re-send: run from the Actions tab and pass a tag to re-announce.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to announce (e.g. v0.10.4)"
+        required: true
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Post changelog section to Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TAG: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DISCORD_WEBHOOK_URL:-}" ]; then
+            echo "DISCORD_WEBHOOK_URL secret not set — skipping announcement."
+            exit 0
+          fi
+
+          # Tag vX.Y.Z -> changelog heading "## [X.Y.Z]".
+          VERSION="${TAG#v}"
+          HDR="## [$VERSION]"
+
+          # Pull the lines under our "## [VERSION]" heading up to (not including)
+          # the next "## [" heading. Literal string match on the heading prefix —
+          # NOT a dynamic regex — so version dots/brackets can't be misread as
+          # regex metacharacters. The `/^## \[/` test is a literal regex in the
+          # awk program (not built from a shell var), so it's safe.
+          SECTION="$(awk -v hdr="$HDR" '
+            /^## \[/ {
+              if (substr($0, 1, length(hdr)) == hdr) { grab=1; next }
+              else if (grab) { exit }
+              else { next }
+            }
+            grab { print }
+          ' CHANGELOG.md)"
+
+          # Trim leading and trailing blank lines, preserve internal ones.
+          SECTION="$(printf '%s\n' "$SECTION" | awk '
+            { lines[NR]=$0 }
+            END {
+              s=1; while (s<=NR && lines[s] ~ /^[[:space:]]*$/) s++
+              e=NR; while (e>=1  && lines[e] ~ /^[[:space:]]*$/) e--
+              for (i=s; i<=e; i++) print lines[i]
+            }')"
+
+          # Fall back to a link if this version has no changelog entry.
+          if [ -z "$(printf '%s' "$SECTION" | tr -d '[:space:]')" ]; then
+            SECTION="No changelog entry for ${TAG}. See the release page."
+          fi
+
+          # Discord embed descriptions cap at 4096 chars; leave headroom.
+          SECTION="$(printf '%s' "$SECTION" | head -c 3900)"
+
+          URL="${RELEASE_URL:-https://github.com/${REPO}/releases/tag/${TAG}}"
+
+          # Build the payload with jq so newlines/quotes are escaped correctly.
+          PAYLOAD="$(jq -n \
+            --arg title "ArcadeLauncher ${TAG}" \
+            --arg url "$URL" \
+            --arg desc "$SECTION" \
+            '{
+              username: "ArcadeLauncher Releases",
+              embeds: [{
+                title: $title,
+                url: $url,
+                description: $desc,
+                color: 5814783
+              }]
+            }')"
+
+          # Fail the job if Discord rejects the post (4xx/5xx).
+          curl -fsS -X POST \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$DISCORD_WEBHOOK_URL"
+          echo "Announced ${TAG} to Discord."

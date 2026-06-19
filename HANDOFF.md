@@ -30,8 +30,15 @@ release work pending — next session picks up from ROADMAP Phase T12.**
    (`catalog_prefs.json`, `install_records.json`, `controller_profiles.json`).
 4. **No new system dependencies** that diverge Win/Linux (no OpenSSL → rustls;
    no OS keychain → obfuscate-at-rest; pure-Rust crates only).
-5. **Releases:** bump version in all four files (below), commit, push `main`,
-   confirm CI green, then push a `vX.Y.Z` tag. Signing secrets are configured.
+5. **Releases:** bump version in all four files (below), **update `CHANGELOG.md`**
+   (rename `[Unreleased]` → `[X.Y.Z] - YYYY-MM-DD`, open a fresh `[Unreleased]`),
+   commit, push `main`, confirm CI green, then push a `vX.Y.Z` tag. Signing
+   secrets are configured.
+6. **Changelog is mandatory + user-facing.** Every shipped change lands an entry
+   under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md) (Added/Changed/Fixed/
+   Removed), written for users, not commit-speak. On release-publish,
+   `.github/workflows/discord-changelog.yml` posts that version's section to
+   Discord verbatim — the changelog *is* the announcement, so keep it clean.
 
 ## Local verification (run before every commit)
 
@@ -42,7 +49,8 @@ cd src-tauri && cargo test --locked       # Rust KATs
 cd src-tauri && cargo check --release --locked   # must be warning-clean
 ```
 
-CI mirror: `.github/workflows/ci.yml` on windows-latest + ubuntu-22.04.
+CI mirror: `.github/workflows/ci.yml` on the self-hosted Proxmox runners
+(`prox-win` + `prox-pve`, Linux staggered after Windows).
 
 ## Cutting a release (version lives in FOUR places)
 
