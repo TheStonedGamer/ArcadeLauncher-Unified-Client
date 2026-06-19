@@ -47,14 +47,28 @@ jobs:
 
       # NB: do NOT use dtolnay/rust-toolchain here. Its internal "parse toolchain
       # version" step runs under `bash`, and on this self-hosted Windows runner
-      # `bash` can resolve to System32 WSL bash (no distro) and fail. rustup is
-      # already installed on the runner, so select the toolchain via pwsh instead.
+      # `bash` can resolve to System32 WSL bash (no distro) and fail. Manage the
+      # toolchain with Windows PowerShell instead: locate (or install) rustup in
+      # %USERPROFILE%\.cargo\bin and export that dir to GITHUB_PATH so the later
+      # tauri-action / cargo steps find cargo + rustc.
       - name: Ensure Rust stable toolchain (Windows PowerShell, no WSL bash)
         shell: powershell
         run: |
-          rustup default stable
-          rustup update stable --no-self-update
-          rustc -vV
+          $ErrorActionPreference = "Stop"
+          $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
+          $rustup = Join-Path $cargoBin "rustup.exe"
+          if (-not (Test-Path $rustup)) {
+            Write-Host "rustup not found at $rustup; installing via rustup-init"
+            $init = Join-Path $env:TEMP "rustup-init.exe"
+            Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $init -UseBasicParsing
+            & $init -y --default-toolchain stable --profile minimal
+            if ($LASTEXITCODE -ne 0) { throw "rustup-init failed ($LASTEXITCODE)" }
+          }
+          & $rustup default stable
+          & $rustup update stable --no-self-update
+          # Make cargo/rustc available to every later step in this job.
+          Add-Content -Path $env:GITHUB_PATH -Value $cargoBin
+          & (Join-Path $cargoBin "rustc.exe") -vV
 
       - uses: swatinem/rust-cache@v2
         with:
