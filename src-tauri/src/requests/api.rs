@@ -58,9 +58,15 @@ impl Endpoint {
         self.join("api/me")
     }
 
-    /// `GET /api/search?q=` — IGDB search for a release to request.
-    pub fn search_url(&self, query: &str) -> String {
-        format!("{}?q={}", self.join("api/search"), encode_param(query))
+    /// `GET /api/search?q=&platform=` — IGDB search for a release to request.
+    /// A blank `platform` omits the filter (the service treats it as "any").
+    pub fn search_url(&self, query: &str, platform: &str) -> String {
+        let base = format!("{}?q={}", self.join("api/search"), encode_param(query));
+        if platform.trim().is_empty() {
+            base
+        } else {
+            format!("{base}&platform={}", encode_param(platform.trim()))
+        }
     }
 
     /// `GET`/`POST /api/requests` — list the board / create a request.
@@ -73,6 +79,11 @@ impl Endpoint {
         self.join(&format!("api/requests/{id}/vote"))
     }
 
+    /// `POST /api/requests/:id/rating` — community 1–5 star game rating.
+    pub fn rating_url(&self, id: u64) -> String {
+        self.join(&format!("api/requests/{id}/rating"))
+    }
+
     /// `POST /api/requests/:id/status` — admin status change.
     pub fn status_url(&self, id: u64) -> String {
         self.join(&format!("api/requests/{id}/status"))
@@ -81,7 +92,7 @@ impl Endpoint {
 
 /// One row on the request board. Mirrors the service's `GET /api/requests` item
 /// (already camelCase on the wire), re-serialised verbatim to the webview.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameRequest {
     pub id: u64,
@@ -109,11 +120,20 @@ pub struct GameRequest {
     pub created_at: i64,
     #[serde(default)]
     pub voted_by_me: bool,
+    /// Average community game rating (0.0 when nobody has rated yet).
+    #[serde(default)]
+    pub rating_avg: f64,
+    /// Number of ratings contributing to `rating_avg`.
+    #[serde(default)]
+    pub rating_count: i64,
+    /// The caller's own rating (0 = not rated).
+    #[serde(default)]
+    pub my_rating: i64,
 }
 
 /// The full `GET /api/requests` body: the board plus whether the caller is an
 /// admin (admins get the triage status control).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Board {
     #[serde(default)]
@@ -234,6 +254,26 @@ pub fn parse_me(body: &str) -> Result<Me, serde_json::Error> {
     serde_json::from_str(body)
 }
 
+/// The `POST /api/requests/:id/rating` response: the caller's stored rating plus
+/// the freshly-recomputed average/count for the row.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RateResult {
+    #[serde(default)]
+    pub id: u64,
+    #[serde(default)]
+    pub my_rating: i64,
+    #[serde(default)]
+    pub rating_avg: f64,
+    #[serde(default)]
+    pub rating_count: i64,
+}
+
+/// Parse the rating-upsert response.
+pub fn parse_rate(body: &str) -> Result<RateResult, serde_json::Error> {
+    serde_json::from_str(body)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -250,14 +290,24 @@ mod tests {
         assert_eq!(e.me_url(), "https://arcade.example/requests/api/me");
         assert_eq!(e.requests_url(), "https://arcade.example/requests/api/requests");
         assert_eq!(e.vote_url(7), "https://arcade.example/requests/api/requests/7/vote");
+        assert_eq!(e.rating_url(7), "https://arcade.example/requests/api/requests/7/rating");
         assert_eq!(e.status_url(7), "https://arcade.example/requests/api/requests/7/status");
     }
 
     #[test]
-    fn search_url_encodes_the_query() {
+    fn search_url_encodes_query_and_optional_platform() {
         assert_eq!(
-            ep().search_url("Final Fantasy VII"),
+            ep().search_url("Final Fantasy VII", ""),
             "https://arcade.example/requests/api/search?q=Final%20Fantasy%20VII"
+        );
+        assert_eq!(
+            ep().search_url("Gran Turismo", "PS2"),
+            "https://arcade.example/requests/api/search?q=Gran%20Turismo&platform=PS2"
+        );
+        // Whitespace-only platform is treated as no filter.
+        assert_eq!(
+            ep().search_url("Halo", "  "),
+            "https://arcade.example/requests/api/search?q=Halo"
         );
     }
 
@@ -286,6 +336,32 @@ mod tests {
         assert_eq!(r.title, "DOOM");
         assert_eq!(r.votes, 5);
         assert!(r.voted_by_me);
+    }
+
+    #[test]
+    fn parses_rating_fields_with_defaults() {
+        // Row carrying ratings.
+        let rated = parse_board(
+            r#"{"requests":[{"id":1,"ratingAvg":4.5,"ratingCount":8,"myRating":5}]}"#,
+        )
+        .unwrap();
+        assert_eq!(rated.requests[0].rating_avg, 4.5);
+        assert_eq!(rated.requests[0].rating_count, 8);
+        assert_eq!(rated.requests[0].my_rating, 5);
+        // Unrated row (fields absent) defaults to zeros.
+        let bare = parse_board(r#"{"requests":[{"id":2}]}"#).unwrap();
+        assert_eq!(bare.requests[0].rating_avg, 0.0);
+        assert_eq!(bare.requests[0].rating_count, 0);
+        assert_eq!(bare.requests[0].my_rating, 0);
+    }
+
+    #[test]
+    fn parses_rate_result() {
+        let r = parse_rate(r#"{"ok":true,"id":3,"myRating":4,"ratingAvg":3.75,"ratingCount":12}"#).unwrap();
+        assert_eq!(r.id, 3);
+        assert_eq!(r.my_rating, 4);
+        assert_eq!(r.rating_avg, 3.75);
+        assert_eq!(r.rating_count, 12);
     }
 
     #[test]

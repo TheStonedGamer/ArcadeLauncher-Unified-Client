@@ -10,6 +10,10 @@ import {
   statusCounts,
   applyVote,
   applyStatus,
+  applyRating,
+  formatRating,
+  boardPlatforms,
+  filterByPlatform,
   releaseYear,
   requestSubtitle,
   alreadyRequested,
@@ -29,6 +33,9 @@ function req(p: Partial<GameRequest> & { id: number }): GameRequest {
     votes: 0,
     createdAt: 0,
     votedByMe: false,
+    ratingAvg: 0,
+    ratingCount: 0,
+    myRating: 0,
     ...p,
   };
 }
@@ -124,6 +131,66 @@ describe("applyStatus", () => {
     expect(next.find((r) => r.id === 1)!.status).toBe("declined");
     // Declined sinks below the still-pending row.
     expect(next.map((r) => r.id)).toEqual([2, 1]);
+  });
+});
+
+describe("applyRating", () => {
+  it("sets myRating and trusts the server avg/count, no re-sort", () => {
+    const board = [
+      req({ id: 1, votes: 5, createdAt: 1 }),
+      req({ id: 2, votes: 9, createdAt: 2 }),
+    ];
+    const next = applyRating(board, 1, 4, 4.5, 8);
+    const r1 = next.find((r) => r.id === 1)!;
+    expect(r1.myRating).toBe(4);
+    expect(r1.ratingAvg).toBe(4.5);
+    expect(r1.ratingCount).toBe(8);
+    // Order is preserved (rating never reorders the board).
+    expect(next.map((r) => r.id)).toEqual([1, 2]);
+  });
+
+  it("leaves other rows and the input untouched", () => {
+    const board = [req({ id: 1 }), req({ id: 2 })];
+    const next = applyRating(board, 1, 5, 5, 1);
+    expect(next.find((r) => r.id === 2)!.myRating).toBe(0);
+    expect(board[0].myRating).toBe(0);
+  });
+});
+
+describe("formatRating", () => {
+  it("formats avg + count, or Unrated when none", () => {
+    expect(formatRating({ ratingAvg: 4.5, ratingCount: 8 })).toBe("★ 4.5 (8)");
+    expect(formatRating({ ratingAvg: 3, ratingCount: 1 })).toBe("★ 3.0 (1)");
+    expect(formatRating({ ratingAvg: 0, ratingCount: 0 })).toBe("Unrated");
+  });
+});
+
+describe("boardPlatforms", () => {
+  it("collects distinct platforms, splitting comma-joined, sorted", () => {
+    const board = [
+      req({ id: 1, platform: "PC, Switch" }),
+      req({ id: 2, platform: "PC" }),
+      req({ id: 3, platform: "PS5" }),
+      req({ id: 4, platform: "" }),
+    ];
+    expect(boardPlatforms(board)).toEqual(["PC", "PS5", "Switch"]);
+  });
+});
+
+describe("filterByPlatform", () => {
+  const board = [
+    req({ id: 1, platform: "PC, Switch" }),
+    req({ id: 2, platform: "PS5" }),
+  ];
+
+  it("returns all when platform is null or blank", () => {
+    expect(filterByPlatform(board, null)).toHaveLength(2);
+    expect(filterByPlatform(board, "  ")).toHaveLength(2);
+  });
+
+  it("matches a comma-part case-insensitively", () => {
+    expect(filterByPlatform(board, "switch").map((r) => r.id)).toEqual([1]);
+    expect(filterByPlatform(board, "PS5").map((r) => r.id)).toEqual([2]);
   });
 });
 

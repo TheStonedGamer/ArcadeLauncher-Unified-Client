@@ -20,6 +20,12 @@ export interface GameRequest {
   /** Unix seconds the request was created. */
   createdAt: number;
   votedByMe: boolean;
+  /** Average community game rating (0 when nobody has rated). */
+  ratingAvg: number;
+  /** Number of ratings behind `ratingAvg`. */
+  ratingCount: number;
+  /** The caller's own rating, 1–5 (0 = not yet rated). */
+  myRating: number;
 }
 
 /** One IGDB search hit when composing a new request. Mirrors Rust `SearchHit`. */
@@ -104,6 +110,51 @@ export function applyVote(requests: GameRequest[], id: number): GameRequest[] {
 export function applyStatus(requests: GameRequest[], id: number, status: RequestStatus): GameRequest[] {
   const next = requests.map((r) => (r.id === id ? { ...r, status } : r));
   return sortBoard(next);
+}
+
+/** Optimistically fold a fresh rating into the board. The server returns the
+ *  authoritative `avg`/`count` after an upsert, so we trust those rather than
+ *  recomputing locally; `stars` becomes the caller's `myRating`. Rows are not
+ *  re-sorted — rating doesn't affect board order (status→votes→age). */
+export function applyRating(
+  requests: GameRequest[],
+  id: number,
+  stars: number,
+  avg: number,
+  count: number,
+): GameRequest[] {
+  return requests.map((r) =>
+    r.id === id ? { ...r, myRating: stars, ratingAvg: avg, ratingCount: count } : r,
+  );
+}
+
+/** Format a row's rating for display, e.g. "★ 4.5 (8)", or "Unrated" when none. */
+export function formatRating(r: Pick<GameRequest, "ratingAvg" | "ratingCount">): string {
+  if (r.ratingCount <= 0) return "Unrated";
+  return `★ ${r.ratingAvg.toFixed(1)} (${r.ratingCount})`;
+}
+
+/** The distinct platforms present on the board, sorted, for filter chips. A row's
+ *  `platform` may itself be comma-joined (e.g. "PC, Switch"); each part counts. */
+export function boardPlatforms(requests: GameRequest[]): string[] {
+  const set = new Set<string>();
+  for (const r of requests) {
+    for (const p of r.platform.split(",").map((s) => s.trim()).filter(Boolean)) {
+      set.add(p);
+    }
+  }
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+/** Show only rows whose platform covers `platform` (case-insensitive, matches a
+ *  comma-part), or all rows when `platform` is null. */
+export function filterByPlatform(requests: GameRequest[], platform: string | null): GameRequest[] {
+  if (!platform) return requests;
+  const want = platform.trim().toLowerCase();
+  if (!want) return requests;
+  return requests.filter((r) =>
+    r.platform.split(",").some((p) => p.trim().toLowerCase() === want),
+  );
 }
 
 /** Release year for display, or "" when the date is unknown (0). */
