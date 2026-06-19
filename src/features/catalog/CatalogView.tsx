@@ -13,6 +13,8 @@ import { setFullscreen } from "../gamepad/api";
 import type { NavIntent } from "../gamepad/input";
 import { ControllerHints } from "../gamepad/ControllerHints";
 import { CatalogGrid } from "./components/CatalogGrid";
+import { ContinuePlayingRow } from "./components/ContinuePlayingRow";
+import { recentlyPlayed } from "./stats";
 import { CardContextMenu, type CardMenuTarget } from "./components/CardContextMenu";
 import { Sidebar } from "./components/Sidebar";
 import { GameDetail } from "./components/GameDetail";
@@ -144,6 +146,15 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
   const sidebar = useMemo(() => buildSidebar(merged), [merged]);
   const groups = useMemo(() => groupVariants(applyQuery(merged, query)), [merged, query]);
 
+  // "Continue Playing" strip: only when browsing All Games with no active search,
+  // so it doesn't fight a filtered/searched result set. Recomputed from the
+  // prefs-overlaid catalog (hidden games excluded inside recentlyPlayed).
+  const showContinue = query.filter.kind === "all" && query.search.trim() === "";
+  const continueGames = useMemo(
+    () => (showContinue ? recentlyPlayed(merged) : []),
+    [showContinue, merged],
+  );
+
   const setFilter = (filter: Filter) => setQuery((q) => ({ ...q, filter }));
 
   // --- Controller / Big Picture navigation (T7c) ---
@@ -273,6 +284,10 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
               {bigPicture ? "Exit Big Picture" : "Big Picture"}
             </button>
           </div>
+
+          {continueGames.length > 0 && (
+            <ContinuePlayingRow games={continueGames} nowMs={Date.now()} onLaunch={launch} />
+          )}
 
           <CatalogGrid
             groups={groups}

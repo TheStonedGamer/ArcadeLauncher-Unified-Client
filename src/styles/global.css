@@ -212,6 +212,48 @@ body {
   box-shadow: 0 0 0 2px var(--accent);
 }
 
+/* "Continue Playing" strip above the grid (recently played, launch on click). */
+.continue-row { margin: 4px 0 18px; }
+.continue-row__heading {
+  margin: 0 0 10px; font-size: 13px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+}
+.continue-row__track {
+  display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+.continue-card {
+  flex: 0 0 auto; width: 150px;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 0; border: none; background: none; color: inherit;
+  cursor: pointer; text-align: left;
+}
+.continue-card__art {
+  position: relative; width: 150px; aspect-ratio: 3 / 4; border-radius: 6px;
+  overflow: hidden; background: var(--panel-2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .08s ease, border-color .08s ease;
+}
+.continue-card:hover .continue-card__art,
+.continue-card:focus-visible .continue-card__art {
+  transform: translateY(-2px); border-color: var(--accent);
+}
+.continue-card__art img { width: 100%; height: 100%; object-fit: cover; }
+.continue-card__placeholder { padding: 8px; font-size: 12px; color: var(--muted); text-align: center; }
+/* Play overlay, revealed on hover/focus. */
+.continue-card__play {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 30px; color: #fff; text-shadow: 0 2px 6px #000;
+  background: rgba(13, 17, 23, 0.35); opacity: 0; transition: opacity .1s ease;
+}
+.continue-card:hover .continue-card__play,
+.continue-card:focus-visible .continue-card__play { opacity: 1; }
+.continue-card__title {
+  font-size: 13px; font-weight: 600; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.continue-card__meta { font-size: 11px; color: var(--muted); }
+
 /* Right-click context menu for a game tile. */
 .card-menu {
   position: fixed; z-index: 1000; min-width: 180px;

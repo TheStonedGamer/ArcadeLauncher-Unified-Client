@@ -29,6 +29,29 @@ export interface CatalogState {
   setCover: (id: string, coverArtPath: string) => void;
 }
 
+// Browser-preview seed: `?catalog-demo` populates a handful of games (some with
+// playtime/lastPlayed) so UI like the "Continue Playing" row is visible without a
+// Tauri backend. Never hit on the shipping path (no query param in the app).
+function seedCatalogDemo(): Game[] {
+  const now = Math.floor(Date.now() / 1000);
+  const base = (id: string, title: string, platform: string): Game => ({
+    id, title, platform, installState: "installed",
+    coverArtPath: "", coverArtUrl: "", developer: "", publisher: "", franchise: "",
+    genres: "", contentPath: "", releaseDate: 0, playtimeSeconds: 0, lastPlayed: 0,
+    igdbRating: 0, summary: "", serverBacked: false, favorite: false, hidden: false,
+    collections: "", launchUri: "", exePath: "", emulatorPath: "", romPath: "",
+    arguments: "", launchOptions: "", preLaunchCmd: "", postExitCmd: "",
+  });
+  return [
+    { ...base("z", "The Legend of Zelda", "NES"), playtimeSeconds: 12 * 3600 + 5 * 60, lastPlayed: now - 3600 },
+    { ...base("m", "Super Metroid", "SNES"), playtimeSeconds: 6 * 3600, lastPlayed: now - 2 * 86400 },
+    { ...base("h", "Halo: Combat Evolved", "Xbox"), playtimeSeconds: 45 * 60, lastPlayed: now - 9 * 86400 },
+    { ...base("c", "Crystalis", "NES"), playtimeSeconds: 3 * 3600 + 30 * 60, lastPlayed: now - 20 * 86400 },
+    { ...base("o", "Ocarina of Time", "N64"), playtimeSeconds: 22 * 3600, lastPlayed: now - 40 * 86400 },
+    base("u", "Unplayed Game", "PC"),
+  ];
+}
+
 export function useCatalog(): CatalogState {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,6 +81,12 @@ export function useCatalog(): CatalogState {
   }, []);
 
   const load = useCallback(async (path?: string) => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("catalog-demo")) {
+      const demo = seedCatalogDemo();
+      setGames(demo);
+      setStatus(`Loaded ${demo.length} demo games`);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
