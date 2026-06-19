@@ -897,6 +897,93 @@ body {
 }
 .profile__save:disabled { opacity: .5; cursor: default; }
 .profile__loading, .profile__error { padding: 28px 18px; text-align: center; color: var(--muted); }
+
+/* ── Appearance / theme picker (Settings) ──────────────────────────────── */
+.theme-modes { display: flex; gap: 10px; margin: 6px 0 14px; }
+.theme-mode {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 8px 14px 6px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--panel-2); color: var(--muted); cursor: pointer; font-size: 12px;
+}
+.theme-mode:hover { color: var(--text); }
+.theme-mode--active { color: var(--text); border-color: var(--accent); }
+.theme-mode__swatch {
+  width: 42px; height: 30px; border-radius: 6px; border: 1px solid var(--border);
+  overflow: hidden; display: block; position: relative;
+}
+.theme-mode__bar { position: absolute; top: 0; left: 0; right: 0; height: 9px; display: block; }
+.theme-accents { display: flex; gap: 10px; margin: 6px 0 4px; }
+.theme-accent {
+  width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent;
+  cursor: pointer; padding: 0; outline-offset: 2px;
+}
+.theme-accent--active { border-color: var(--text); box-shadow: 0 0 0 2px var(--bg) inset; }
+
+/* ── Help button + shortcuts modal ─────────────────────────────────────── */
+.app__helpbtn {
+  width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border);
+  background: transparent; color: var(--muted); cursor: pointer; font-weight: 700;
+  line-height: 1; font-size: 14px;
+}
+.app__helpbtn:hover { color: var(--text); border-color: var(--accent); }
+
+.shortcuts {
+  position: fixed; inset: 0; background: rgba(1, 4, 9, .6); z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.shortcuts__card {
+  width: min(680px, 100%); max-height: 86vh; overflow: auto;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  padding: 20px 24px;
+}
+.shortcuts__head { display: flex; align-items: center; margin-bottom: 14px; }
+.shortcuts__title { margin: 0; font-size: 17px; font-weight: 700; }
+.shortcuts__close {
+  margin-left: auto; background: none; border: none; color: var(--muted);
+  font-size: 24px; line-height: 1; cursor: pointer;
+}
+.shortcuts__close:hover { color: var(--text); }
+.shortcuts__groups {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px;
+}
+.shortcuts__group-title {
+  margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--muted);
+}
+.shortcuts__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.shortcuts__row { display: flex; align-items: baseline; gap: 10px; font-size: 13px; }
+.shortcuts__keys {
+  flex: none; padding: 2px 7px; border-radius: 6px; background: var(--panel-2);
+  border: 1px solid var(--border); font-family: inherit; font-size: 12px; color: var(--text);
+}
+.shortcuts__desc { color: var(--muted); }
+
+/* ── First-run onboarding overlay ──────────────────────────────────────── */
+.onboarding {
+  position: fixed; inset: 0; background: rgba(1, 4, 9, .72); z-index: 60;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.onboarding__card {
+  width: min(460px, 100%); background: var(--panel); border: 1px solid var(--border);
+  border-radius: 16px; padding: 26px 28px;
+}
+.onboarding__step-count {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+}
+.onboarding__title { margin: 8px 0 10px; font-size: 20px; font-weight: 700; }
+.onboarding__body { margin: 0 0 18px; color: var(--muted); line-height: 1.5; }
+.onboarding__dots { display: flex; gap: 7px; margin-bottom: 20px; }
+.onboarding__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.onboarding__dot--on { background: var(--accent); }
+.onboarding__actions { display: flex; align-items: center; }
+.onboarding__skip { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; }
+.onboarding__skip:hover { color: var(--text); }
+.onboarding__nav { margin-left: auto; display: flex; gap: 8px; }
+.onboarding__btn {
+  padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 13px;
+}
+.onboarding__btn--primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .profile__error { color: #ff8b8b; }
 
 /* ── Downloads panel ──────────────────────────────────────────────────────── */

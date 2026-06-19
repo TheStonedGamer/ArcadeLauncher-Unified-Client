@@ -378,7 +378,12 @@ from scratch.
 
 **Polish**
 
-- [ ] **T12m — Custom themes / accent color + first-launch onboarding wizard.**
+- [x] **T12m — Custom themes / accent color + first-launch onboarding wizard.**
+  - [x] Theme system: Dark / Midnight / Light modes + 6 accent presets, applied
+        live via CSS vars on `:root` and persisted (pure `theme.ts`). Appearance
+        section in Settings.
+  - [x] First-run onboarding overlay (5 steps, pure `onboarding.ts`).
+  - [x] Keyboard-shortcut help overlay (`?`), pure `help/shortcuts.ts`.
 
 ---
 

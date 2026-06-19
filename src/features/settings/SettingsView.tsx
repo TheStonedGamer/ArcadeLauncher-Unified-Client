@@ -10,6 +10,7 @@ import type { EmulatorProgress, EmulatorStatus, FirmwareStatus } from "../emulat
 import { useGamepadConnected } from "../gamepad/useGamepadConnected";
 import { clampDeadZone, useControllerConfig } from "../gamepad/ControllerConfigContext";
 import { EmulatorControllerEditor } from "../controller/EmulatorControllerEditor";
+import { ThemeSettings } from "../theme/ThemeSettings";
 
 export function SettingsView() {
   const { draft, loading, saved, error, set, save } = useSettings();
@@ -26,6 +27,8 @@ export function SettingsView() {
 
   return (
     <section className="settings">
+      <ThemeSettings />
+
       <h2 className="settings__heading">General</h2>
 
       <label className="settings__check">

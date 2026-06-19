@@ -84,6 +84,19 @@ architect-prompt doc, not source) OUT of commits — `git reset -- "# Arcade…"
   complete** except deferred weekly-recap (needs per-session history) and
   HowLongToBeat (external API).
 
+- **v0.10.1 (T12m — DONE)**: personalization + first-run polish, all pure-core +
+  thin-UI, no server contract change. (1) **Themes** — Dark/Midnight/Light modes +
+  6 accent presets, applied live via CSS vars on `:root` + persisted to
+  localStorage (`theme.prefs`); pure `theme/theme.ts` (7 KATs); `applyStoredTheme()`
+  runs in `main.tsx` pre-render; Appearance section in Settings. (2) **Onboarding**
+  — 5-step first-run overlay, pure `onboarding/onboarding.ts` (6 KATs), `onboarding.done`
+  flag. (3) **Shortcuts help** — `?` (or header button) opens a cheat-sheet, pure
+  `help/shortcuts.ts` (isHelpHotkey/isEditableTag). 216 tests + build green; verified
+  in preview (onboarding steps, live theme swap, `?`/Esc). **This is the first
+  PATCH release of the unified line** — keeps `major.minor = 0.10` matching the live
+  server (a minor bump would trip version-lockstep). Tagged `v0.10.1` to fire
+  release.yml.
+
 ## PS2 BIOS — now hosted on prod (2026-06-19)
 
 - `ps2-bios.bin` = **NTSC-U `scph39001`** (4 MiB, sha256 `f4c948e6…910c9d`) copied

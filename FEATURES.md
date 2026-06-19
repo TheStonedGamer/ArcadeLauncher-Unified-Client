@@ -128,14 +128,28 @@ reconciliation of the friend list and open conversations.
   deployed coturn TURN server** for symmetric-NAT / off-LAN traversal, with
   short-lived TURN credentials minted on demand from `GET /api/social/turn`.
 
-## 6. Platform & packaging
+## 6. Personalization & onboarding *(new)*
+
+- **Themes** — **Dark / Midnight / Light** color modes plus **6 accent presets**,
+  chosen in Settings → Appearance. Changes apply **instantly** (CSS variables on
+  `:root`) and persist per device; the resolution logic is a pure, unit-tested
+  `theme.ts` core.
+- **First-run onboarding** — a 5-step guided overlay introduces the library,
+  sign-in, Continue Playing, Friends, and personalization; shown once and
+  dismissable with Skip.
+- **Keyboard-shortcut help** — press **`?`** (or the header **?** button) for a
+  cheat-sheet of keyboard and controller shortcuts.
+
+## 7. Platform & packaging
 
 - **One codebase, both OSes** — Windows and Linux (deb / rpm / AppImage + Arch
   PKGBUILD), CI green on both before release.
 - **Auto-update** via the signed Tauri updater; **version lockstep** with the
   server (client refuses to connect unless `major.minor` matches). Client and
-  server are released on a **shared version line** (currently **0.10.0**) so a
-  coordinated `x.x.0` bump keeps both sides in lockstep.
+  server are released on a **shared version line** (`major.minor`, currently
+  **0.10**) so a coordinated `x.x.0` bump keeps both sides in lockstep;
+  client-only feature releases are **patch** bumps (e.g. `0.10.1`) that preserve
+  `major.minor`.
 
 ---
 
