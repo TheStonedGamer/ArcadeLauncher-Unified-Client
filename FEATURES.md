@@ -115,15 +115,18 @@ reconciliation of the friend list and open conversations.
 - **Privacy** — who-can-friend-me and who-can-DM-me policies plus a persistent
   per-user ignore list.
 - **Voice calls** — peer-to-peer **WebRTC** voice (mute, busy auto-decline),
-  signaled over the server's `voice_signal` relay; ICE via STUN, with TURN wired
-  for symmetric-NAT traversal once a coturn server is deployed.
+  signaled over the server's `voice_signal` relay. ICE uses public STUN **plus a
+  deployed coturn TURN server** for symmetric-NAT / off-LAN traversal, with
+  short-lived TURN credentials minted on demand from `GET /api/social/turn`.
 
 ## 6. Platform & packaging
 
 - **One codebase, both OSes** — Windows and Linux (deb / rpm / AppImage + Arch
   PKGBUILD), CI green on both before release.
 - **Auto-update** via the signed Tauri updater; **version lockstep** with the
-  server (client refuses to connect unless `major.minor` matches).
+  server (client refuses to connect unless `major.minor` matches). Client and
+  server are released on a **shared version line** (currently **0.10.0**) so a
+  coordinated `x.x.0` bump keeps both sides in lockstep.
 
 ---
 
