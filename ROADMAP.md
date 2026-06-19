@@ -314,6 +314,67 @@ work on top of parity. Each item still ships green on both OSes.
 
 ---
 
+## Phase T12 — Beyond parity (planned)
+
+Net-new capability on top of full parity. No roadmap blockers remain, so these
+are value-driven, independently shippable, and each still lands green on both
+OSes. Roughly ordered by impact-for-effort; pull forward whatever fits. Each
+reuses plumbing the client already has rather than introducing a new subsystem
+from scratch.
+
+**High impact, strong fit**
+
+- [ ] **T12a — RetroAchievements integration.** Hook `rcheevos` into the emulator
+  launch path; show unlock toasts and feed unlocks into the **existing XP/level
+  system** (`social/profile.ts`). Unlocks also become social activity events over
+  `/ws/social`. *Best single fit for an emulator launcher; nothing exists today.*
+- [ ] **T12b — SteamGridDB artwork in the unified client.** The server already
+  uses SteamGridDB but the client only fetches IGDB covers. Add a hero / logo /
+  grid / icon art picker to the detail panel, mirroring the existing
+  `fetch_cover_art` (IGDB) pattern. *Low effort, high visual payoff.*
+- [ ] **T12c — Delta / patch updates.** Manifests are already per-file SHA-256 and
+  `download_verify` already diffs disk vs manifest. Extend that logic to "update
+  available" so a game update re-pulls **only changed files**, not the whole game.
+
+**Social & multiplayer** (extends the existing WebRTC / gateway stack)
+
+- [ ] **T12d — Game invites + "Joinable" presence / party launch.** Add an invite
+  frame over the gateway and a "Join" action on top of the in-game presence we
+  already broadcast.
+- [ ] **T12e — Screen share / video calls.** `useVoice.ts` already owns the full
+  WebRTC offer/answer/ICE/TURN flow; adding a video / `getDisplayMedia` track is
+  incremental, not a new subsystem.
+- [ ] **T12f — Group DMs / channels.** Multi-party rooms over the same gateway +
+  reducer (DMs are strictly 1:1 today).
+- [ ] **T12g — Group voice (3+).** Small mesh now (SFU later) on top of the current
+  P2P 1:1 voice.
+
+**Library & launch quality**
+
+- [ ] **T12h — In-client Game Requests board.** Surface the existing
+  `ArcadeLauncher-Requests` companion service inside the client (browse / upvote /
+  request) instead of a separate web app.
+- [ ] **T12i — Auto-sync cloud saves on launch/exit + version history.** Saves are
+  manual + last-write-wins today; auto-sync on game exit and keep N restorable
+  save versions to retire the conflict problem.
+- [ ] **T12j — "Continue playing" row + stats dashboard.** Use the playtime we
+  already track to surface most-played, weekly recap, and time-to-beat
+  (HowLongToBeat).
+
+**Bigger bets** (tie into adjacent projects)
+
+- [ ] **T12k — Remote game streaming (Sunshine/Moonlight).** Wire the launcher to
+  stream an installed game from the host to a thin client — leverages the existing
+  Moonlight/Debian-ISO work; effectively a personal GeForce-Now.
+- [ ] **T12l — Mobile companion app.** Remote library browse, "install to my PC",
+  chat / presence, and download-queue control from a phone.
+
+**Polish**
+
+- [ ] **T12m — Custom themes / accent color + first-launch onboarding wizard.**
+
+---
+
 ## Execution order
 
 Top-down by foundational value: **T4 (downloads) → T5 → T6 → T7 → T8 → T9 →

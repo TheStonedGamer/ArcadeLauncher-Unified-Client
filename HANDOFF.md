@@ -91,9 +91,8 @@ architect-prompt doc, not source) OUT of commits — `git reset -- "# Arcade…"
   ps2-bios.bin` with the PAL dump (same filename) + update `SHA256SUMS`; clients
   re-verify by size and re-pull.
 
-No roadmap blockers remain. Other optional infra:
-- **TURN deploy** — coturn on `10.0.0.180` + server env for symmetric-NAT voice.
-- **7z/rar extraction** — if non-zip `pc_archive` titles matter.
+No roadmap blockers remain. Net-new feature backlog now lives in
+[`ROADMAP.md`](ROADMAP.md) **Phase T12 — Beyond parity**.
 
 ---
 
