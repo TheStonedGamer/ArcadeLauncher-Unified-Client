@@ -45,7 +45,16 @@ jobs:
           node-version: 20
           cache: npm
 
-      - uses: dtolnay/rust-toolchain@stable
+      # NB: do NOT use dtolnay/rust-toolchain here. Its internal "parse toolchain
+      # version" step runs under `bash`, and on this self-hosted Windows runner
+      # `bash` can resolve to System32 WSL bash (no distro) and fail. rustup is
+      # already installed on the runner, so select the toolchain via pwsh instead.
+      - name: Ensure Rust stable toolchain (pwsh, no WSL bash)
+        shell: pwsh
+        run: |
+          rustup default stable
+          rustup update stable --no-self-update
+          rustc -vV
 
       - uses: swatinem/rust-cache@v2
         with:
@@ -59,13 +68,14 @@ jobs:
       # Build the bootstrap updater and stage it as a Tauri sidecar so the
       # bundler installs updater.exe next to the app. externalBin requires the
       # file to pre-exist with a target-triple suffix.
+      # pwsh (not bash) to avoid the System32 WSL-bash trap on this runner.
       - name: Build bootstrap updater sidecar
-        shell: bash
+        shell: pwsh
         run: |
           cargo build --release -p arcade_updater --manifest-path src-tauri/Cargo.toml
-          mkdir -p src-tauri/binaries
-          TRIPLE=$(rustc -vV | sed -n 's/host: //p')
-          cp "src-tauri/target/release/updater.exe" "src-tauri/binaries/updater-$TRIPLE.exe"
+          New-Item -ItemType Directory -Force src-tauri/binaries | Out-Null
+          $triple = ((rustc -vV | Select-String '^host: ').ToString() -replace '^host: ', '').Trim()
+          Copy-Item "src-tauri/target/release/updater.exe" "src-tauri/binaries/updater-$triple.exe"
 
       - name: Build + publish release
         uses: tauri-apps/tauri-action@v0
