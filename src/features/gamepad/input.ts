@@ -48,7 +48,9 @@ export const BTN = {
   GUIDE: 16,
 } as const;
 
-/** Left-stick deflection past this counts as a directional press. */
+/** Default left-stick deflection past which a deflection counts as a
+ *  directional press. The user can override this in Settings → Controller
+ *  (the "dead zone"); it's threaded through `stickDirection`/`diffIntents`. */
 export const STICK_THRESHOLD = 0.6;
 
 const EMPTY: PadSnapshot = { buttons: [], axes: [] };
@@ -66,12 +68,15 @@ function edge(curr: PadSnapshot, prev: PadSnapshot, i: number): boolean {
 /** Quantize the left stick to a discrete direction, treating the dead zone and
  *  sub-threshold deflection as neutral. The dominant axis wins so a diagonal
  *  doesn't fire two intents. Returns "" for neutral. */
-export function stickDirection(axes: number[]): "" | "up" | "down" | "left" | "right" {
+export function stickDirection(
+  axes: number[],
+  deadZone: number = STICK_THRESHOLD,
+): "" | "up" | "down" | "left" | "right" {
   const x = axes[0] ?? 0;
   const y = axes[1] ?? 0;
   const ax = Math.abs(x);
   const ay = Math.abs(y);
-  if (ax < STICK_THRESHOLD && ay < STICK_THRESHOLD) return "";
+  if (ax < deadZone && ay < deadZone) return "";
   if (ax >= ay) return x < 0 ? "left" : "right";
   // Standard mapping: +Y is down.
   return y < 0 ? "up" : "down";
@@ -83,12 +88,16 @@ export function stickDirection(axes: number[]): "" | "up" | "down" | "left" | "r
  * physical action maps to exactly one intent. Order is stable so tests are
  * deterministic.
  */
-export function diffIntents(curr: PadSnapshot, prev: PadSnapshot = EMPTY): NavIntent[] {
+export function diffIntents(
+  curr: PadSnapshot,
+  prev: PadSnapshot = EMPTY,
+  deadZone: number = STICK_THRESHOLD,
+): NavIntent[] {
   const out: NavIntent[] = [];
 
   // Directional: D-pad edges OR the stick crossing into a direction this frame.
-  const dirNow = stickDirection(curr.axes);
-  const dirPrev = stickDirection(prev.axes);
+  const dirNow = stickDirection(curr.axes, deadZone);
+  const dirPrev = stickDirection(prev.axes, deadZone);
   const stickEdge = dirNow !== "" && dirNow !== dirPrev;
 
   if (edge(curr, prev, BTN.DPAD_UP) || (stickEdge && dirNow === "up")) out.push("up");

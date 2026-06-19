@@ -1,14 +1,26 @@
 // General settings form bound to useSettings. Edits are kept in a draft and
 // persisted to config.json on Save.
 
+import { useCallback } from "react";
 import { useSettings } from "./useSettings";
 import { useSession } from "../session/SessionContext";
 import { useEmulators } from "../emulators/useEmulators";
 import { formatBytes } from "../download/selectors";
 import type { EmulatorProgress, EmulatorStatus } from "../emulators/api";
+import { useGamepadConnected } from "../gamepad/useGamepadConnected";
+import { clampDeadZone, useControllerConfig } from "../gamepad/ControllerConfigContext";
+import { EmulatorControllerEditor } from "../controller/EmulatorControllerEditor";
 
 export function SettingsView() {
   const { draft, loading, saved, error, set, save } = useSettings();
+  const { refresh: refreshController } = useControllerConfig();
+
+  // Re-read controller prefs into the live context after a save so an
+  // enable/dead-zone change applies without restarting the app.
+  const onSave = useCallback(async () => {
+    await save();
+    await refreshController();
+  }, [save, refreshController]);
 
   if (loading) return <p className="catalog__status">Loading settings…</p>;
 
@@ -87,8 +99,15 @@ export function SettingsView() {
         />
       </label>
 
+      <ControllerSection
+        enabled={draft.controllerEnabled}
+        deadZone={draft.controllerDeadZone}
+        onToggle={(v) => set("controllerEnabled", v)}
+        onDeadZone={(v) => set("controllerDeadZone", v)}
+      />
+
       <div className="settings__actions">
-        <button className="settings__save" onClick={save}>
+        <button className="settings__save" onClick={onSave}>
           Save
         </button>
         {saved && <span className="settings__saved">Saved ✓</span>}
@@ -96,7 +115,83 @@ export function SettingsView() {
       </div>
 
       <EmulatorsSection />
+
+      <EmulatorControllerEditor />
     </section>
+  );
+}
+
+/** The button→action map shown read-only so users know the bindings without a
+ *  controller plugged in. Mirrors `diffIntents` in gamepad/input.ts. */
+const CONTROLLER_BINDINGS: { btn: string; action: string }[] = [
+  { btn: "A", action: "Select / launch" },
+  { btn: "B", action: "Back" },
+  { btn: "X", action: "Context menu" },
+  { btn: "Y", action: "Search" },
+  { btn: "LB / RB", action: "Previous / next tab" },
+  { btn: "LT / RT", action: "Page up / down" },
+  { btn: "D-pad / Left stick", action: "Move" },
+  { btn: "Start", action: "Open Settings" },
+  { btn: "Guide", action: "Toggle Big Picture" },
+];
+
+/** Controller/gamepad navigation: enable toggle, stick dead-zone tuning, live
+ *  connection status, and the (currently fixed) button map for reference. */
+function ControllerSection({
+  enabled,
+  deadZone,
+  onToggle,
+  onDeadZone,
+}: {
+  enabled: boolean;
+  deadZone: number;
+  onToggle: (value: boolean) => void;
+  onDeadZone: (value: number) => void;
+}) {
+  const connected = useGamepadConnected();
+
+  return (
+    <>
+      <h2 className="settings__heading">Controller</h2>
+      <p className="catalog__status">
+        Navigate the launcher with a gamepad. Status:{" "}
+        <strong>{connected ? "controller connected" : "no controller detected"}</strong>.
+      </p>
+
+      <label className="settings__check">
+        <input type="checkbox" checked={enabled} onChange={(e) => onToggle(e.target.checked)} />
+        Enable controller navigation
+      </label>
+
+      <label className="settings__field">
+        <span className="settings__label">
+          Stick dead zone: {Math.round(deadZone * 100)}%
+        </span>
+        <input
+          className="settings__input settings__input--range"
+          type="range"
+          min={5}
+          max={95}
+          step={5}
+          disabled={!enabled}
+          value={Math.round(deadZone * 100)}
+          onChange={(e) => onDeadZone(clampDeadZone(Number(e.target.value) / 100))}
+        />
+      </label>
+      <p className="catalog__status">
+        Lower = the stick reacts to smaller movements; raise it if the cursor drifts on its own.
+      </p>
+
+      <h3 className="emu-group">Button map</h3>
+      <ul className="cc-bindings">
+        {CONTROLLER_BINDINGS.map((b) => (
+          <li key={b.btn} className="cc-bindings__row">
+            <span className="cc-bindings__btn">{b.btn}</span>
+            <span className="cc-bindings__action">{b.action}</span>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

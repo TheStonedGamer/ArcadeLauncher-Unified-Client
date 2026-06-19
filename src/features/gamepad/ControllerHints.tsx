@@ -4,6 +4,7 @@
 // vs an open detail modal).
 
 import { useGamepadConnected } from "./useGamepadConnected";
+import { useControllerConfig } from "./ControllerConfigContext";
 
 export type HintContext = "grid" | "detail";
 
@@ -30,7 +31,9 @@ const DETAIL_HINTS: Hint[] = [
 
 export function ControllerHints({ context = "grid" }: { context?: HintContext }) {
   const connected = useGamepadConnected();
-  if (!connected) return null;
+  const { enabled } = useControllerConfig();
+  // Hide the prompts when a controller is unplugged or navigation is turned off.
+  if (!connected || !enabled) return null;
   const hints = context === "detail" ? DETAIL_HINTS : GRID_HINTS;
   return (
     <div className="cc-hints" role="presentation">

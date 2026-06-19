@@ -1,14 +1,15 @@
 {
   "name": "arcade-launcher-unified-client",
   "private": true,
-  "version": "0.9.16",
+  "version": "0.9.17",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "memory": "node scripts/memory.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

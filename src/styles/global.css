@@ -349,6 +349,35 @@ body {
   background: rgba(255,255,255,.16); font-weight: 700; font-size: 12px;
 }
 .cc-hints__label { opacity: .85; }
+.settings__input--range { max-width: 240px; padding: 0; }
+.cc-bindings { list-style: none; margin: 6px 0 4px; padding: 0; display: grid; gap: 4px; max-width: 360px; }
+.cc-bindings__row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,.04);
+  font-size: 13px;
+}
+.cc-bindings__btn {
+  flex: 0 0 130px; font-weight: 700;
+  display: inline-flex; align-items: center;
+}
+.cc-bindings__action { opacity: .85; }
+
+/* ── Per-emulator controller remap editor ─────────────────────────────────── */
+.cc-editor { margin-top: 24px; }
+.cc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px 16px;
+  margin: 10px 0 4px;
+  max-width: 720px;
+}
+.cc-grid__row { display: flex; align-items: center; gap: 12px; }
+.cc-grid__label { flex: 0 0 150px; font-weight: 600; font-size: 13px; }
+.cc-grid__select { flex: 1 1 auto; min-width: 0; }
+.cc-grid__select--remapped {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
 .detail__install { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 10px; }
 .detail__install-btn { background: var(--accent); color: #06210f; }
 .detail__install-btn:disabled { opacity: .65; cursor: default; }

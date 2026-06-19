@@ -7,10 +7,25 @@ import { useEffect, useRef } from "react";
 import { diffIntents, type NavIntent, type PadSnapshot } from "./input";
 import { useWindowFocused } from "./useWindowFocused";
 
-export function useGamepad(onIntent: (intent: NavIntent) => void, enabled = true): void {
+export interface GamepadOptions {
+  /** Master on/off for controller navigation (Settings → Controller). */
+  enabled?: boolean;
+  /** Left-stick dead zone in [0,1]; falls back to the core default. */
+  deadZone?: number;
+}
+
+export function useGamepad(
+  onIntent: (intent: NavIntent) => void,
+  options: GamepadOptions = {},
+): void {
+  const { enabled = true, deadZone } = options;
   const prev = useRef<PadSnapshot>({ buttons: [], axes: [] });
   const cb = useRef(onIntent);
   cb.current = onIntent;
+  // Keep the live dead zone in a ref so changing it doesn't tear down the RAF
+  // loop; the tick reads the current value each frame.
+  const deadZoneRef = useRef(deadZone);
+  deadZoneRef.current = deadZone;
   // CRITICAL focus gate: only act on controller input while we're the
   // foreground window (alt-tab / minimize / a launched game in front → ignore).
   const focused = useWindowFocused();
@@ -35,7 +50,8 @@ export function useGamepad(onIntent: (intent: NavIntent) => void, enabled = true
         // nothing — so a button held across the blur isn't seen as a fresh
         // press (edge) the instant focus returns.
         if (focusedRef.current) {
-          for (const intent of diffIntents(snap, prev.current)) cb.current(intent);
+          for (const intent of diffIntents(snap, prev.current, deadZoneRef.current))
+            cb.current(intent);
         }
         prev.current = snap;
       }

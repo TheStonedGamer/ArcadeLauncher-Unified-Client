@@ -19,6 +19,13 @@ describe("stickDirection", () => {
     expect(stickDirection([0.9, 0.7])).toBe("right");
     expect(stickDirection([0.1, 0.8])).toBe("down");
   });
+  it("honors a custom dead zone", () => {
+    // 0.5 is below the default 0.6 dead zone (neutral) but above a 0.3 one.
+    expect(stickDirection([0.5, 0])).toBe("");
+    expect(stickDirection([0.5, 0], 0.3)).toBe("right");
+    // A larger dead zone swallows a deflection the default would accept.
+    expect(stickDirection([0.7, 0], 0.9)).toBe("");
+  });
 });
 
 describe("diffIntents — buttons", () => {
@@ -61,5 +68,13 @@ describe("diffIntents — stick", () => {
     const up = pad([], [0, -0.9]);
     const left = pad([], [-0.9, 0]);
     expect(diffIntents(left, up)).toEqual(["left"]);
+  });
+  it("threads a custom dead zone through to the stick", () => {
+    const neutral = pad([], [0, 0]);
+    const half = pad([], [0.5, 0]);
+    // Below the default dead zone → nothing.
+    expect(diffIntents(half, neutral)).toEqual([]);
+    // With a looser dead zone the same deflection registers.
+    expect(diffIntents(half, neutral, 0.3)).toEqual(["right"]);
   });
 });

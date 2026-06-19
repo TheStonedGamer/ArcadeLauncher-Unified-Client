@@ -12,4 +12,6 @@ export interface GeneralSettings {
   discordRichPresence: boolean;
   globalHotkeyEnabled: boolean;
   globalHotkey: string;
+  controllerEnabled: boolean;
+  controllerDeadZone: number;
 }

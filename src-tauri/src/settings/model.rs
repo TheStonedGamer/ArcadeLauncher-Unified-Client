@@ -28,6 +28,11 @@ pub struct General {
     pub global_hotkey_enabled: bool,
     /// The accelerator for that hotkey (e.g. "Ctrl+Shift+G").
     pub global_hotkey: String,
+    /// Enable controller/gamepad navigation of the UI.
+    pub controller_enabled: bool,
+    /// Left-stick dead zone in [0,1]; deflection past this counts as a
+    /// directional press. Mirrors the JS `STICK_THRESHOLD` default (0.6).
+    pub controller_dead_zone: f32,
 }
 
 impl Default for General {
@@ -43,6 +48,8 @@ impl Default for General {
             discord_rich_presence: false,
             global_hotkey_enabled: false,
             global_hotkey: crate::hotkey::shortcut::DEFAULT_SHORTCUT.to_string(),
+            controller_enabled: true,
+            controller_dead_zone: 0.6,
         }
     }
 }

@@ -22,7 +22,7 @@ use tauri::Manager;
 /// Candidate executable names (case-insensitive) for a platform's emulator, most
 /// specific first. Returns an empty slice for platforms we don't emulate (Steam,
 /// Epic, PC) so those fall through to their own launch target untouched.
-fn exe_candidates(platform: &str) -> &'static [&'static str] {
+pub(crate) fn exe_candidates(platform: &str) -> &'static [&'static str] {
     match platform.to_ascii_lowercase().as_str() {
         // Nintendo handhelds/consoles via Mesen (NES/SNES/GB/GBC/GBA…).
         "nes" | "snes" | "gb" | "gbc" | "gba" => &["Mesen.exe"],
@@ -41,7 +41,7 @@ fn exe_candidates(platform: &str) -> &'static [&'static str] {
 }
 
 /// The local emulators dir (`<app_data>/emulators`), mirroring `commands.rs`.
-fn emulators_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
+pub(crate) fn emulators_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
     app.path().app_data_dir().ok().map(|d| d.join("emulators"))
 }
 
@@ -49,7 +49,7 @@ fn emulators_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
 /// runtimes root (`<emulators>/_runtimes`). Candidates are tried in order, and
 /// for each we walk every runtime dir, so the most-preferred exe wins even if a
 /// less-preferred one sorts earlier on disk.
-fn find_exe(runtimes_root: &Path, candidates: &[&str]) -> Option<PathBuf> {
+pub(crate) fn find_exe(runtimes_root: &Path, candidates: &[&str]) -> Option<PathBuf> {
     for want in candidates {
         if let Some(hit) = walk_for(runtimes_root, &want.to_ascii_lowercase(), 6) {
             return Some(hit);

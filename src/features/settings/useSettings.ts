@@ -16,6 +16,8 @@ const DEFAULTS: GeneralSettings = {
   discordRichPresence: false,
   globalHotkeyEnabled: false,
   globalHotkey: "Ctrl+Shift+G",
+  controllerEnabled: true,
+  controllerDeadZone: 0.6,
 };
 
 export function useSettings() {

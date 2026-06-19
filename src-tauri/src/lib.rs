@@ -3,6 +3,7 @@
 //! in `catalog/` and `launch/` so this file never grows.
 
 mod catalog;
+mod controller;
 mod download;
 mod emulators;
 mod error;
@@ -59,6 +60,18 @@ pub fn run() {
                     }
                     tray::setup::apply_launch_minimized(handle, cfg.launch_minimized);
                 }
+
+                // Self-heal server-staged BIOS/firmware into each installed
+                // emulator (PS1 BIOS, OG Xbox firmware, PS3 firmware), mirroring
+                // the native client's on-launch deploy. Best-effort on a
+                // background thread so a slow firmware install never blocks boot;
+                // no-op for emulators that aren't installed yet.
+                let fw_handle = handle.clone();
+                std::thread::spawn(move || {
+                    for line in emulators::firmware::ensure_all(&fw_handle) {
+                        eprintln!("firmware: {line}");
+                    }
+                });
             }
             Ok(())
         })
@@ -124,6 +137,12 @@ pub fn run() {
             session::store::session_clear,
             saves::commands::saves_plan,
             saves::commands::saves_sync,
+            controller::commands::controller_host_buttons,
+            controller::commands::controller_sdl_tokens,
+            controller::commands::controller_targets,
+            controller::commands::controller_load_profiles,
+            controller::commands::controller_save_profile,
+            controller::commands::controller_apply,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

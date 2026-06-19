@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCatalog } from "./useCatalog";
 import { useGamepad } from "../gamepad/useGamepad";
+import { useControllerConfig } from "../gamepad/ControllerConfigContext";
 import { nextIndex, pageIndex } from "../gamepad/navigate";
 import { setFullscreen } from "../gamepad/api";
 import type { NavIntent } from "../gamepad/input";
@@ -189,7 +190,8 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
     [selected, groups, focusIndex, bigPicture, launch, toggleBigPicture],
   );
 
-  useGamepad(onIntent);
+  const controller = useControllerConfig();
+  useGamepad(onIntent, { enabled: controller.enabled, deadZone: controller.deadZone });
 
   return (
     <section className={`catalog${bigPicture ? " catalog--bigpicture" : ""}`}>
