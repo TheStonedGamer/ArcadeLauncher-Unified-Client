@@ -33,6 +33,25 @@ pub fn matches(expected_hex: &str, actual: &[u8]) -> bool {
     sha256_hex(actual).eq_ignore_ascii_case(expected_hex)
 }
 
+/// SHA-256 of a file on disk as a lowercase hex string, streamed in fixed-size
+/// blocks so a multi-GB file is hashed without buffering it in memory. Mirrors
+/// the C++ client's `Sha256File`, used to validate already-present files during a
+/// "verify & repair" pass before deciding whether to re-download them.
+pub fn sha256_file(path: &std::path::Path) -> std::io::Result<String> {
+    use std::io::Read;
+    let mut f = std::fs::File::open(path)?;
+    let mut h = Sha256::new();
+    let mut buf = [0u8; 64 * 1024];
+    loop {
+        let n = f.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        h.update(&buf[..n]);
+    }
+    Ok(hex(&h.finalize()))
+}
+
 /// A streaming SHA-256 the download transport feeds chunks into as they arrive,
 /// so a large file is verified without buffering it in memory.
 #[derive(Default)]
@@ -75,6 +94,16 @@ mod tests {
     #[test]
     fn empty_expected_is_a_match() {
         assert!(matches("", b"anything"));
+    }
+
+    #[test]
+    fn sha256_file_matches_oneshot() {
+        let dir = std::env::temp_dir().join(format!("verify_file_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("data.bin");
+        std::fs::write(&p, b"abc").unwrap();
+        assert_eq!(sha256_file(&p).unwrap(), ABC);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

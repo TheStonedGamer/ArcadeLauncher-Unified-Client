@@ -180,6 +180,11 @@ pub struct InstallContext {
     /// archive to extract after verification (then deleted). `None` = the files
     /// are the install as-is (no extraction step).
     pub archive: Option<String>,
+    /// Verify-and-repair mode: re-hash every already-present file (size +
+    /// SHA-256) instead of trusting its existence, re-downloading any that are
+    /// missing or corrupt. Mirrors the C++ client's Validate & Repair pass. A
+    /// normal install leaves this false and fast-skips files already on disk.
+    pub verify: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -303,9 +308,25 @@ async fn download_file(
     let Some(target) = resolve_target(&ctx.install_dir, &file.path) else {
         return Outcome::Failed(format!("unsafe manifest path: {}", file.path));
     };
-    // Already finalized from a previous run? Skip re-downloading.
+    // Already finalized from a previous run? In a normal install, trust it and
+    // skip. In verify-and-repair mode, re-check it the way the C++ client does —
+    // size first (cheap), then full SHA-256 — and only skip when both match;
+    // otherwise fall through to re-download a clean copy.
     if target.exists() {
-        return Outcome::Completed;
+        if !ctx.verify {
+            return Outcome::Completed;
+        }
+        let size_ok = std::fs::metadata(&target).map(|m| m.len() == file.size).unwrap_or(false);
+        if size_ok && (file.sha256.is_empty()
+            || crate::download::verify::sha256_file(&target)
+                .map(|h| h.eq_ignore_ascii_case(&file.sha256))
+                .unwrap_or(false))
+        {
+            return Outcome::Completed;
+        }
+        // Corrupt or wrong-size: drop it so the download below starts fresh
+        // (no stale `.part` resume off a bad file).
+        let _ = std::fs::remove_file(&target);
     }
     if let Some(parent) = target.parent() {
         if let Err(e) = std::fs::create_dir_all(parent) {

@@ -58,13 +58,29 @@ pub struct ControllerTargetDto {
     pub installed: bool,
 }
 
-/// The emulators the remap editor offers. Today only the two validated native
-/// targets (PCSX2 / DuckStation); profiles for others could persist but aren't
-/// written to disk, so we don't surface them yet.
+/// Every emulator the launcher ships, in display order. Five have a validated
+/// native writer (`native_writer = true`, config applied to disk); the rest
+/// auto-bind controllers and have no per-button config file, so their profiles
+/// persist but aren't written — the UI shows them as "auto-binds" targets.
+const TARGETS: &[(&str, &str)] = &[
+    ("pcsx2", "PCSX2 (PS2)"),
+    ("duckstation", "DuckStation (PS1)"),
+    ("dolphin", "Dolphin (GameCube / Wii)"),
+    ("rpcs3", "RPCS3 (PS3)"),
+    ("ryujinx", "Ryujinx (Switch)"),
+    ("xemu", "xemu (Xbox)"),
+    ("xenia", "Xenia (Xbox 360)"),
+    ("mesen", "Mesen (NES)"),
+    ("gopher64", "gopher64 (N64)"),
+];
+
+/// The emulators the remap editor offers — all nine the launcher ships. Those
+/// with a native serializer apply to disk; the auto-bind ones still appear so a
+/// profile can be saved (and so "installed" status is visible) even though Apply
+/// reports they bind controllers automatically.
 #[tauri::command]
 pub fn controller_targets(app: tauri::AppHandle) -> Vec<ControllerTargetDto> {
-    let targets = [("pcsx2", "PCSX2 (PS2)"), ("duckstation", "DuckStation (PS1)")];
-    targets
+    TARGETS
         .iter()
         .map(|(id, name)| ControllerTargetDto {
             id: id.to_string(),
@@ -109,13 +125,19 @@ pub fn controller_save_profile(
 /// Locate an emulator's runtime exe under the unpacked runtimes root, using the
 /// same platform candidate list the launcher uses.
 fn resolve_exe(app: &tauri::AppHandle, emulator_id: &str) -> Option<PathBuf> {
-    let platform = match serializers::native_format(emulator_id)? {
-        serializers::NativeFormat::Pcsx2 => "ps2",
-        serializers::NativeFormat::DuckStation => "ps1",
-    };
+    let platform = serializers::platform_for(emulator_id)?;
     let candidates = launch::exe_candidates(platform);
     let runtimes_root = launch::emulators_dir(app)?.join("_runtimes");
     launch::find_exe(&runtimes_root, candidates)
+}
+
+/// Append a suffix as an extra extension (`foo.yml` → `foo.yml.bak`), so the
+/// original extension is preserved — unlike `with_extension`, which replaces it.
+fn append_ext(path: &Path, suffix: &str) -> PathBuf {
+    let mut s = path.as_os_str().to_os_string();
+    s.push(".");
+    s.push(suffix);
+    PathBuf::from(s)
 }
 
 /// Resolve the config file path for an installed emulator, enabling portable
@@ -145,6 +167,32 @@ fn config_and_bios(
                 std::fs::write(&marker, b"")?;
             }
             Ok((exe_dir.join("settings.ini"), exe_dir.join("bios")))
+        }
+        serializers::NativeFormat::Dolphin => {
+            // Dolphin portable mode: a `portable.txt` marker; the GameCube pad
+            // config lives under `User/Config/GCPadNew.ini`. No BIOS needed.
+            let marker = exe_dir.join("portable.txt");
+            if !marker.exists() {
+                std::fs::write(&marker, b"")?;
+            }
+            let config = exe_dir.join("User").join("Config").join("GCPadNew.ini");
+            Ok((config, PathBuf::new()))
+        }
+        serializers::NativeFormat::Ryujinx => {
+            // Ryujinx portable mode: a `portable` dir next to the exe holds all
+            // of its data, including `Config.json`. No BIOS placement here.
+            let config = exe_dir.join("portable").join("Config.json");
+            Ok((config, PathBuf::new()))
+        }
+        serializers::NativeFormat::Rpcs3 => {
+            // RPCS3 keeps its input profiles under `config/input_configs/global`;
+            // `Default.yml` is the active pad profile. No BIOS placement here.
+            let config = exe_dir
+                .join("config")
+                .join("input_configs")
+                .join("global")
+                .join("Default.yml");
+            Ok((config, PathBuf::new()))
         }
     }
 }
@@ -201,35 +249,55 @@ pub fn controller_apply(app: tauri::AppHandle, emulator_id: String) -> AppResult
     // serializer fills a complete `[Pad1]`, and the emulator defaults the rest).
     let existing = std::fs::read_to_string(&config_path).unwrap_or_default();
 
-    // Back up a non-empty prior config before overwriting it.
+    // Serialize first: in-place formats (RPCS3 / Ryujinx) return Err when there's
+    // no existing config to remap onto — surface that as a non-applied report
+    // rather than writing a backup or touching disk.
+    let new_text = match serializers::serialize(fmt, &existing, &profile) {
+        Ok(text) => text,
+        Err(reason) => {
+            return Ok(ApplyReport {
+                applied: false,
+                config_path: config_path.to_string_lossy().into_owned(),
+                backup_path: None,
+                bios_messages: vec![],
+                note: Some(reason),
+            });
+        }
+    };
+
+    // Back up a non-empty prior config before overwriting it (append `.bak` so
+    // the original extension — .ini / .yml / .json — is preserved in the name).
     let backup_path = if !existing.trim().is_empty() {
-        let bak = config_path.with_extension("ini.bak");
+        let bak = append_ext(&config_path, "bak");
         std::fs::write(&bak, &existing)?;
         Some(bak.to_string_lossy().into_owned())
     } else {
         None
     };
 
-    let new_text = serializers::serialize(fmt, &existing, &profile);
-
     // Atomic write (temp + rename), mirroring the JSON stores.
     if let Some(dir) = config_path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    let tmp = config_path.with_extension("ini.tmp");
+    let tmp = append_ext(&config_path, "tmp");
     std::fs::write(&tmp, &new_text)?;
     std::fs::rename(&tmp, &config_path)?;
 
     // Best-effort BIOS placement from the staging dir (the emulators data dir).
+    // Only the PlayStation emulators need a BIOS; the others bundle or don't use
+    // one, so `bios_dir` is empty and we skip placement entirely.
     let mut bios_messages = Vec::new();
-    if let Some(staging) = launch::emulators_dir(&app) {
+    let want = match fmt {
+        serializers::NativeFormat::DuckStation => Some("DuckStation"),
+        serializers::NativeFormat::Pcsx2 => Some("PCSX2"),
+        serializers::NativeFormat::Dolphin
+        | serializers::NativeFormat::Rpcs3
+        | serializers::NativeFormat::Ryujinx => None,
+    };
+    if let (Some(want), Some(staging)) = (want, launch::emulators_dir(&app)) {
         let jobs = match fmt {
             serializers::NativeFormat::DuckStation => bios::plan(bios_dir.clone(), PathBuf::new()),
-            serializers::NativeFormat::Pcsx2 => bios::plan(PathBuf::new(), bios_dir.clone()),
-        };
-        let want = match fmt {
-            serializers::NativeFormat::DuckStation => "DuckStation",
-            serializers::NativeFormat::Pcsx2 => "PCSX2",
+            _ => bios::plan(PathBuf::new(), bios_dir.clone()),
         };
         for job in jobs.iter().filter(|j| j.emulator == want) {
             let msg = match bios::place(&staging, job) {

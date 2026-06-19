@@ -115,6 +115,7 @@ pub fn run() {
             social::commands::social_turn_servers,
             download::commands::download_start,
             download::commands::download_install,
+            download::commands::download_verify,
             download::commands::download_pause,
             download::commands::download_resume,
             download::commands::download_cancel,

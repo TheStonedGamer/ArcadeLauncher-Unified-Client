@@ -15,6 +15,8 @@ interface Props {
   /** Live install progress while this game is downloading (absent = not in-flight). */
   progress?: CardProgress;
   onOpen: (game: Game) => void;
+  /** Right-click on the tile (for the per-game context menu). */
+  onContextMenu?: (game: Game, e: React.MouseEvent) => void;
 }
 
 /** Short label for the in-flight phase shown next to the bar. */
@@ -34,7 +36,7 @@ function phaseLabel(p: CardProgress): string {
 }
 
 export const GameCard = forwardRef<HTMLButtonElement, Props>(function GameCard(
-  { game, variantCount = 1, focused = false, progress, onOpen },
+  { game, variantCount = 1, focused = false, progress, onOpen, onContextMenu },
   ref,
 ) {
   const cover = game.coverArtPath ? convertFileSrc(game.coverArtPath) : game.coverArtUrl;
@@ -48,6 +50,7 @@ export const GameCard = forwardRef<HTMLButtonElement, Props>(function GameCard(
       ref={ref}
       className={`game-card${focused ? " game-card--focused" : ""}`}
       onClick={() => onOpen(game)}
+      onContextMenu={onContextMenu ? (e) => onContextMenu(game, e) : undefined}
       title={game.title}
     >
       <div className="game-card__art">

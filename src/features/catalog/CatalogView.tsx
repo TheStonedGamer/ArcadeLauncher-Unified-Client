@@ -13,6 +13,7 @@ import { setFullscreen } from "../gamepad/api";
 import type { NavIntent } from "../gamepad/input";
 import { ControllerHints } from "../gamepad/ControllerHints";
 import { CatalogGrid } from "./components/CatalogGrid";
+import { CardContextMenu, type CardMenuTarget } from "./components/CardContextMenu";
 import { Sidebar } from "./components/Sidebar";
 import { GameDetail } from "./components/GameDetail";
 import { applyQuery, buildSidebar, DEFAULT_QUERY, SORT_LABELS, type Filter, type Query, type SortMode } from "./query";
@@ -20,7 +21,7 @@ import { groupVariants, type VariantGroup } from "./variants";
 import { useCatalogPrefs } from "./useCatalogPrefs";
 import { applyPrefs } from "./prefs";
 import { useSession } from "../session/SessionContext";
-import { installGame } from "../download/api";
+import { installGame, verifyGame } from "../download/api";
 import { useInstallOverlay } from "../download/useInstallOverlay";
 import { effectiveInstallState } from "../download/installState";
 import { syncSaves, type ConflictPolicy, type SyncReport } from "../saves/api";
@@ -45,6 +46,17 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
     async (game: Game) => {
       if (!session) throw new Error("sign in to install");
       await installGame(session.host, session.token, game.id);
+    },
+    [session],
+  );
+
+  // Validate & repair: re-check every manifest file on disk by size + SHA-256
+  // and re-download mismatches (mirrors the native launcher). Same download
+  // progress/status events as a normal install.
+  const startVerify = useCallback(
+    async (game: Game) => {
+      if (!session) throw new Error("sign in to verify");
+      await verifyGame(session.host, session.token, game.id);
     },
     [session],
   );
@@ -122,6 +134,12 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
     void syncFromServer(session.host, session.token);
   }, [session, syncFromServer]);
   const [selected, setSelected] = useState<VariantGroup | null>(null);
+  const [cardMenu, setCardMenu] = useState<CardMenuTarget | null>(null);
+
+  const openCardMenu = useCallback((group: VariantGroup, e: React.MouseEvent) => {
+    e.preventDefault();
+    setCardMenu({ game: group.representative, x: e.clientX, y: e.clientY });
+  }, []);
 
   const sidebar = useMemo(() => buildSidebar(merged), [merged]);
   const groups = useMemo(() => groupVariants(applyQuery(merged, query)), [merged, query]);
@@ -262,9 +280,23 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
             focusIndex={focusIndex}
             onColumns={(c) => (columns.current = c)}
             progress={downloadProgress}
+            onContextMenu={openCardMenu}
           />
         </div>
       </div>
+
+      {cardMenu && (
+        <CardContextMenu
+          target={cardMenu}
+          canInstall={!!session}
+          onLaunch={launch}
+          onInstall={(g) => void startInstall(g)}
+          onVerify={(g) => void startVerify(g)}
+          onToggleFavorite={prefs.toggleFavorite}
+          onToggleHidden={prefs.toggleHidden}
+          onClose={() => setCardMenu(null)}
+        />
+      )}
 
       {selected && (
         <GameDetail

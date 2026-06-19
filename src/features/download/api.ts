@@ -19,6 +19,14 @@ export function installGame(host: string, token: string, gameId: string): Promis
   return call("download_install", { host, token, gameId });
 }
 
+/** Validate & repair an installed game (the card right-click "Verify files"
+ *  action). Re-checks every manifest file already on disk by size + SHA-256 and
+ *  re-downloads only the missing/corrupt ones. Same progress/status events as a
+ *  normal install. Rejects if the manifest fetch fails. */
+export function verifyGame(host: string, token: string, gameId: string): Promise<void> {
+  return call("download_verify", { host, token, gameId });
+}
+
 export function pauseDownload(gameId: string): Promise<void> {
   return call("download_pause", { gameId });
 }

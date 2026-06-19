@@ -38,6 +38,7 @@ pub fn download_start(
         records_path: PathBuf::from(records_path),
         version,
         archive,
+        verify: false,
     });
 }
 
@@ -50,18 +51,19 @@ fn normalize_host(host: &str) -> String {
     s.trim_end_matches('/').to_string()
 }
 
-/// High-level install trigger used by the detail panel: fetch the game's
+/// Shared setup for the high-level install/verify triggers: fetch the game's
 /// manifest from the server (Bearer-authed with the session token), resolve the
 /// per-user install dir + records path, read the bandwidth cap from settings,
-/// and hand the whole thing to the download engine. Progress/status then arrive
-/// as `download://progress` / `download://status` events like any other install.
-#[tauri::command]
-pub async fn download_install(
-    app: tauri::AppHandle,
+/// and build the `InstallContext`. `verify` selects normal-install behavior
+/// (skip existing files on presence) vs. validate-and-repair (re-hash existing
+/// files against the manifest's SHA-256 and re-download mismatches).
+async fn build_install_context(
+    app: &tauri::AppHandle,
     host: String,
     token: String,
     game_id: String,
-) -> AppResult<()> {
+    verify: bool,
+) -> AppResult<InstallContext> {
     let host = normalize_host(&host);
 
     // 1) Fetch + parse the manifest (GET /api/games/:id/manifest, Bearer token).
@@ -101,11 +103,9 @@ pub async fn download_install(
         .map(|cfg| cfg.download_limit_kbps as u64)
         .unwrap_or(0);
 
-    // 4) Hand off to the engine.
     let version = manifest.version.clone();
     let archive = manifest.archive_path();
-    let manager = app.state::<DownloadManager>();
-    manager.start(InstallContext {
+    Ok(InstallContext {
         app: app.clone(),
         game_id,
         install_dir,
@@ -116,7 +116,39 @@ pub async fn download_install(
         records_path,
         version,
         archive,
-    });
+        verify,
+    })
+}
+
+/// High-level install trigger used by the detail panel: resolves everything via
+/// `build_install_context` and hands off to the download engine. Progress/status
+/// then arrive as `download://progress` / `download://status` events like any
+/// other install.
+#[tauri::command]
+pub async fn download_install(
+    app: tauri::AppHandle,
+    host: String,
+    token: String,
+    game_id: String,
+) -> AppResult<()> {
+    let ctx = build_install_context(&app, host, token, game_id, false).await?;
+    app.state::<DownloadManager>().start(ctx);
+    Ok(())
+}
+
+/// Validate & repair an installed game (the card right-click "Verify files"
+/// action), mirroring the native launcher: every manifest file already on disk
+/// is re-checked by size + SHA-256, and only missing/corrupt files are
+/// re-downloaded. Same progress/status events as a normal install.
+#[tauri::command]
+pub async fn download_verify(
+    app: tauri::AppHandle,
+    host: String,
+    token: String,
+    game_id: String,
+) -> AppResult<()> {
+    let ctx = build_install_context(&app, host, token, game_id, true).await?;
+    app.state::<DownloadManager>().start(ctx);
     Ok(())
 }
 

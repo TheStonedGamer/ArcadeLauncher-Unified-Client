@@ -129,7 +129,7 @@ dependencies = [
 
 [[package]]
 name = "arcade_launcher"
-version = "0.9.18"
+version = "0.9.19"
 dependencies = [
  "discord-rich-presence",
  "filetime",

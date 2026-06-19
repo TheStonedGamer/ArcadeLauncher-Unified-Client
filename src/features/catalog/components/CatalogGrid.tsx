@@ -18,6 +18,9 @@ interface Props {
   /** Live install progress keyed by game id; a group shows a bar if any of its
    *  members is in-flight. */
   progress?: Record<string, CardProgress>;
+  /** Right-click on a tile, with the group it represents and the mouse event
+   *  (for positioning the per-game context menu). */
+  onContextMenu?: (group: VariantGroup, e: React.MouseEvent) => void;
 }
 
 /** Progress for a variant group: the first member with an in-flight install. */
@@ -38,7 +41,14 @@ function measureColumns(el: HTMLElement): number {
   return Math.max(1, tracks.length);
 }
 
-export function CatalogGrid({ groups, onOpen, focusIndex = -1, onColumns, progress = {} }: Props) {
+export function CatalogGrid({
+  groups,
+  onOpen,
+  focusIndex = -1,
+  onColumns,
+  progress = {},
+  onContextMenu,
+}: Props) {
   const gridRef = useRef<HTMLDivElement>(null);
   const focusedRef = useRef<HTMLButtonElement>(null);
 
@@ -71,6 +81,7 @@ export function CatalogGrid({ groups, onOpen, focusIndex = -1, onColumns, progre
           variantCount={grp.members.length}
           focused={i === focusIndex}
           onOpen={() => onOpen(grp)}
+          onContextMenu={onContextMenu ? (_g, e) => onContextMenu(grp, e) : undefined}
           progress={groupProgress(grp, progress)}
         />
       ))}
