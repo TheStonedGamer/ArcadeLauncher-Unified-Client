@@ -49,8 +49,8 @@ jobs:
       # version" step runs under `bash`, and on this self-hosted Windows runner
       # `bash` can resolve to System32 WSL bash (no distro) and fail. rustup is
       # already installed on the runner, so select the toolchain via pwsh instead.
-      - name: Ensure Rust stable toolchain (pwsh, no WSL bash)
-        shell: pwsh
+      - name: Ensure Rust stable toolchain (Windows PowerShell, no WSL bash)
+        shell: powershell
         run: |
           rustup default stable
           rustup update stable --no-self-update
@@ -68,9 +68,9 @@ jobs:
       # Build the bootstrap updater and stage it as a Tauri sidecar so the
       # bundler installs updater.exe next to the app. externalBin requires the
       # file to pre-exist with a target-triple suffix.
-      # pwsh (not bash) to avoid the System32 WSL-bash trap on this runner.
+      # Windows PowerShell (not bash) to avoid the System32 WSL-bash trap.
       - name: Build bootstrap updater sidecar
-        shell: pwsh
+        shell: powershell
         run: |
           cargo build --release -p arcade_updater --manifest-path src-tauri/Cargo.toml
           New-Item -ItemType Directory -Force src-tauri/binaries | Out-Null
