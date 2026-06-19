@@ -6,8 +6,9 @@ left* is [`ROADMAP.md`](ROADMAP.md); this file captures *current state*, the
 Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit via
 `npm run memory -- set …`, never by hand).
 
-Last updated: 2026-06-19. **Client v0.9.21 released**; PS2 BIOS now hosted on
-prod and wired end-to-end.
+Last updated: 2026-06-19. **Unifying client + server onto a shared 0.10.0 version
+line** (client was 0.9.21, server 1.2.27) so the `major.minor` client↔server
+lockstep lines up at `0.10`. PS2 BIOS hosted on prod and wired end-to-end.
 
 ---
 
@@ -81,10 +82,11 @@ architect-prompt doc, not source) OUT of commits — `git reset -- "# Arcade…"
 
 ## NEXT STEP
 
-- **OPTIONAL — deploy the new server binary** to CT `10.0.0.210` (rebuild +
-  `systemctl restart arcadelauncher-server`) so the clean "PlayStation 2 BIOS
-  (PCSX2)" label shows. Purely cosmetic; the BIOS works now without it (shows a
-  derived title until the binary updates). Requires explicit per-turn prod auth.
+- ~~OPTIONAL — deploy the new server binary to CT `10.0.0.210`~~ **DONE
+  2026-06-19**: rebuilt server `1.2.27` (commit `3b043f2`) on the CT and swapped
+  the binary; `/api/health` now reports `1.2.27` so the "PlayStation 2 BIOS
+  (PCSX2)" label is live. Pre-deploy backup at
+  `/opt/arcadelauncher-server/arcadelauncher-server.bak.predeploy-1.2.27`.
 - Region swap: to ship PAL instead, overwrite `/srv/arcade-library/emulators/
   ps2-bios.bin` with the PAL dump (same filename) + update `SHA256SUMS`; clients
   re-verify by size and re-pull.
