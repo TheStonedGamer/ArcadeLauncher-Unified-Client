@@ -38,7 +38,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~\AppData\Local\tauri
-          key: tauri-bundler-tools-${{ runner.os }}-v1
+          key: tauri-bundler-tools-${{ runner.os }}-v2
 
       - uses: actions/setup-node@v4
         with:
