@@ -7,10 +7,12 @@ Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit vi
 `npm run memory -- set …`, never by hand).
 
 Last updated: 2026-06-19. Client + server share a `0.10` `major.minor` lockstep
-line. PS2 BIOS hosted on prod and wired end-to-end. **T12a/T12b/T12c features are
-done, committed, and on `main` (CI green); `v0.10.3` is tagged but the Release
-workflow is NOT green yet — blocked on the Windows runner. See "v0.10.3 release —
-BLOCKED" below before doing anything else.**
+line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.3` is RELEASED —
+both client legs green on the Proxmox runners (Windows NSIS+MSI+updater on
+`arcade-win-runner`, Linux .deb/.rpm/AppImage on `pc-wsl-runner`), signed assets
++ `latest.json` published, server release green on `arcade-pve-runner`. The
+Windows-runner blocker is resolved (see "Runner topology FIXED" below). No
+release work pending — next session picks up from ROADMAP Phase T12.**
 
 ---
 
@@ -197,10 +199,11 @@ Windows release jobs only land on the Proxmox VM. Once builds run on the Proxmox
 
 ## NEXT STEP
 
-- **PRIMARY — re-tag `v0.10.3`** to fire the Windows release on the now-pinned
-  Proxmox VM, then confirm BOTH legs green. The runner topology is already fixed
-  (see "Runner topology FIXED" above) — relabel + workflow retarget are done and
-  pushed. Only the re-tag + green-confirm remain.
+- ~~**re-tag `v0.10.3`**~~ **DONE 2026-06-19** — re-tagged onto `fddcbc5`,
+  release.yml ran both legs green on the Proxmox runners; signed installers +
+  `latest.json` published to the v0.10.3 release. The desktop-runner WiX/MSI
+  failure did not recur on the Proxmox VM, confirming it was the label collision.
+- No release work pending. Next: ROADMAP Phase T12 net-new backlog.
 - ~~OPTIONAL — deploy the new server binary to CT `10.0.0.210`~~ **DONE
   2026-06-19**: rebuilt server `1.2.27` (commit `3b043f2`) on the CT and swapped
   the binary; `/api/health` now reports `1.2.27` so the "PlayStation 2 BIOS
