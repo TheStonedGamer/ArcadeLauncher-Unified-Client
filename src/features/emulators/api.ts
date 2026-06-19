@@ -25,6 +25,27 @@ export interface EmulatorProgress {
   error: string | null;
 }
 
+/** Read-only firmware/BIOS deployment status for one console. */
+export interface FirmwareStatus {
+  /** Console label, e.g. "PlayStation 2". */
+  console: string;
+  /** Target emulator, e.g. "PCSX2". */
+  emulator: string;
+  /** The emulator runtime is unpacked locally. */
+  installed: boolean;
+  /** The firmware/BIOS blob is staged in the emulators data dir. */
+  staged: boolean;
+  /** The firmware/BIOS is deployed into the emulator and its config points at it. */
+  deployed: boolean;
+  /** Human-readable one-line summary of the current state. */
+  detail: string;
+}
+
+/** Per-console firmware deployment status (whether the BIOS is actually usable). */
+export async function firmwareStatus(): Promise<FirmwareStatus[]> {
+  return call<FirmwareStatus[]>("firmware_status", {});
+}
+
 export async function listEmulators(host: string, token: string): Promise<EmulatorStatus[]> {
   return call<EmulatorStatus[]>("list_emulators", { host, token });
 }

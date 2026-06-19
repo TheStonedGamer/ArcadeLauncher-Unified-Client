@@ -105,7 +105,17 @@ body {
 .emu-row__dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
 .emu-row__dot--on { background: var(--on); }
 .emu-row__dot--off { background: var(--off); }
+.emu-row__dot--mid { background: var(--accent); }
 .emu-row__name { font-weight: 600; }
+.emu-row__emu { color: var(--muted); font-weight: 400; }
+.emu-row__detail { color: var(--muted); margin-left: 4px; }
+.emu-row__fwbadge {
+  margin-left: auto; flex: 0 0 auto; padding: 2px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; border: 1px solid var(--border);
+}
+.emu-row__fwbadge--on { color: var(--on); border-color: var(--on); }
+.emu-row__fwbadge--mid { color: var(--accent); border-color: var(--accent); }
+.emu-row__fwbadge--off { color: var(--muted); }
 .emu-row__size { color: var(--muted); }
 .emu-row__ready { margin-left: auto; color: var(--on); font-weight: 600; }
 .emu-row__btn {

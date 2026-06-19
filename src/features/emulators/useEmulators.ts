@@ -7,15 +7,19 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
   downloadAllEmulators,
   downloadEmulator,
+  firmwareStatus,
   listEmulators,
   type EmulatorProgress,
   type EmulatorStatus,
+  type FirmwareStatus,
 } from "./api";
 
 const PROGRESS_EVENT = "emulator://progress";
 
 export interface EmulatorsApi {
   emulators: EmulatorStatus[];
+  /** Per-console firmware/BIOS deployment status (read-only). */
+  firmware: FirmwareStatus[];
   loading: boolean;
   error: string | null;
   /** Live progress per emulator id while staging. */
@@ -28,6 +32,7 @@ export interface EmulatorsApi {
 
 export function useEmulators(host: string | null, token: string | null): EmulatorsApi {
   const [emulators, setEmulators] = useState<EmulatorStatus[]>([]);
+  const [firmware, setFirmware] = useState<FirmwareStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<Record<string, EmulatorProgress>>({});
@@ -35,13 +40,21 @@ export function useEmulators(host: string | null, token: string | null): Emulato
 
   const refresh = useCallback(() => {
     reloadRef.current += 1;
+    const seq = reloadRef.current;
+    // Firmware deployment status is purely local — load it regardless of session.
+    firmwareStatus()
+      .then((fw) => {
+        if (seq === reloadRef.current) setFirmware(fw);
+      })
+      .catch(() => {
+        /* no Tauri runtime (e.g. browser preview) — leave empty */
+      });
     if (!host || !token) {
       setEmulators([]);
       return;
     }
     setLoading(true);
     setError(null);
-    const seq = reloadRef.current;
     listEmulators(host, token)
       .then((list) => {
         if (seq === reloadRef.current) setEmulators(list);
@@ -115,5 +128,5 @@ export function useEmulators(host: string | null, token: string | null): Emulato
     });
   }, [host, token, emulators]);
 
-  return { emulators, loading, error, progress, refresh, download, downloadAll };
+  return { emulators, firmware, loading, error, progress, refresh, download, downloadAll };
 }

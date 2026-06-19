@@ -281,9 +281,181 @@ pub fn ensure_all(app: &tauri::AppHandle) -> Vec<String> {
     log
 }
 
+/// Read-only deployment status for one console's firmware/BIOS, surfaced in the
+/// Settings "Firmware & BIOS" section. Unlike `ensure_all`, this writes nothing —
+/// it just reports where each console stands so the UI can show whether the BIOS
+/// is actually usable by the emulator (not merely staged on disk).
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FirmwareStatus {
+    /// Console label, e.g. "PlayStation 2".
+    pub console: String,
+    /// Target emulator, e.g. "PCSX2".
+    pub emulator: String,
+    /// The emulator runtime is unpacked locally.
+    pub installed: bool,
+    /// The firmware/BIOS blob is staged in the emulators data dir.
+    pub staged: bool,
+    /// The firmware/BIOS is deployed into the emulator and its config points at it.
+    pub deployed: bool,
+    /// Human-readable one-line summary of the current state.
+    pub detail: String,
+}
+
+/// Compose a status row, deriving the detail line from the three booleans so the
+/// UI doesn't have to. `staged_blob` names what must be staged (for the message).
+fn firmware_row(
+    console: &str,
+    emulator: &str,
+    installed: bool,
+    staged: bool,
+    deployed: bool,
+    staged_blob: &str,
+) -> FirmwareStatus {
+    let detail = if !installed {
+        format!("{emulator} not installed")
+    } else if deployed {
+        format!("BIOS deployed into {emulator}")
+    } else if staged {
+        format!("BIOS staged — will deploy on next launch")
+    } else {
+        format!("{staged_blob} not staged yet")
+    };
+    FirmwareStatus {
+        console: console.into(),
+        emulator: emulator.into(),
+        installed,
+        staged,
+        deployed,
+        detail,
+    }
+}
+
+/// Report read-only firmware deployment status for every console we manage. Walks
+/// the same runtimes/staging layout as `ensure_all` but performs no writes, so it
+/// is safe to poll from the UI. Consoles with neither a runtime nor a staged blob
+/// are omitted to keep the list relevant.
+pub fn status_all(app: &tauri::AppHandle) -> Vec<FirmwareStatus> {
+    let mut out = Vec::new();
+    let Some(emu_dir) = launch::emulators_dir(app) else {
+        return out;
+    };
+    let runtimes = emu_dir.join("_runtimes");
+
+    // PlayStation — DuckStation.
+    {
+        let exe = launch::find_exe(&runtimes, launch::exe_candidates("ps1"));
+        let staged = emu_dir.join("scph1001.bin").is_file();
+        let deployed = exe
+            .as_ref()
+            .and_then(|e| e.parent())
+            .map(|d| d.join("bios").join("scph1001.bin").is_file())
+            .unwrap_or(false);
+        if exe.is_some() || staged {
+            out.push(firmware_row(
+                "PlayStation",
+                "DuckStation",
+                exe.is_some(),
+                staged,
+                deployed,
+                "scph1001.bin",
+            ));
+        }
+    }
+
+    // PlayStation 2 — PCSX2.
+    {
+        let exe = launch::find_exe(&runtimes, launch::exe_candidates("ps2"));
+        let staged = emu_dir.join("ps2-bios.bin").is_file();
+        let deployed = exe
+            .as_ref()
+            .and_then(|e| e.parent())
+            .map(|d| d.join("bios").join("ps2-bios.bin").is_file())
+            .unwrap_or(false);
+        if exe.is_some() || staged {
+            out.push(firmware_row(
+                "PlayStation 2",
+                "PCSX2",
+                exe.is_some(),
+                staged,
+                deployed,
+                "ps2-bios.bin",
+            ));
+        }
+    }
+
+    // Original Xbox — xemu.
+    {
+        let exe = launch::find_exe(&runtimes, launch::exe_candidates("xbox"));
+        let fw = emu_dir.join("xemu-firmware");
+        let staged = fw.join("mcpx.bin").is_file()
+            && fw.join("bios.bin").is_file()
+            && fw.join("hdd.qcow2").is_file();
+        let deployed = std::env::var("APPDATA")
+            .ok()
+            .map(|a| Path::new(&a).join("xemu").join("xemu").join("xemu.toml").is_file())
+            .unwrap_or(false);
+        if exe.is_some() || staged {
+            out.push(firmware_row(
+                "Original Xbox",
+                "xemu",
+                exe.is_some(),
+                staged,
+                deployed,
+                "Xbox firmware",
+            ));
+        }
+    }
+
+    // PlayStation 3 — RPCS3.
+    {
+        let exe = launch::find_exe(&runtimes, launch::exe_candidates("ps3"));
+        let staged = emu_dir.join("PS3UPDAT.PUP").is_file();
+        let deployed = exe
+            .as_ref()
+            .and_then(|e| e.parent())
+            .map(|d| {
+                d.join("dev_flash")
+                    .join("vsh")
+                    .join("etc")
+                    .join("version.txt")
+                    .is_file()
+            })
+            .unwrap_or(false);
+        if exe.is_some() || staged {
+            out.push(firmware_row(
+                "PlayStation 3",
+                "RPCS3",
+                exe.is_some(),
+                staged,
+                deployed,
+                "PS3UPDAT.PUP",
+            ));
+        }
+    }
+
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn firmware_row_detail_reflects_state() {
+        assert!(firmware_row("PS2", "PCSX2", false, false, false, "ps2-bios.bin")
+            .detail
+            .contains("not installed"));
+        assert!(firmware_row("PS2", "PCSX2", true, false, false, "ps2-bios.bin")
+            .detail
+            .contains("not staged"));
+        assert!(firmware_row("PS2", "PCSX2", true, true, false, "ps2-bios.bin")
+            .detail
+            .contains("will deploy"));
+        assert!(firmware_row("PS2", "PCSX2", true, true, true, "ps2-bios.bin")
+            .detail
+            .contains("deployed"));
+    }
 
     #[test]
     fn toml_set_creates_section_and_key() {

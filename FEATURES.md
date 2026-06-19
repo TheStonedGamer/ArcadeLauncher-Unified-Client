@@ -76,6 +76,12 @@ elevate (Tauri updater).
   **PS2 BIOS auto-deploy into PCSX2** (and the equivalent DuckStation / xemu
   paths), so server-backed console games are runnable without manual BIOS setup.
 - **Runnable diagnostics** surface emulator/firmware status from the client.
+- **Firmware deployment status in Settings** *(new)* — the Settings ▸ Emulators
+  page shows a read-only **per-console** panel (PlayStation / PS2 / Original Xbox /
+  PS3) reporting whether each console's BIOS is merely *staged* on disk or actually
+  **deployed into its emulator** (e.g. PS2 BIOS into PCSX2), so you can confirm a
+  console will boot without launching a game. Backed by a read-only `firmware_status`
+  command that inspects the same paths the on-launch auto-deploy writes.
 
 ## 4. Accounts & cloud saves
 

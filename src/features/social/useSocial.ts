@@ -8,7 +8,7 @@ import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { NullGateway, type Gateway, type GatewayState } from "./gateway";
 import { DemoGateway } from "./demoGateway";
-import { WsGateway } from "./wsGateway";
+import { fetchFriendsDirect, WsGateway } from "./wsGateway";
 import { attachmentLink, uploadAttachment, respondToFriendRequest, type FriendAction } from "./api";
 import { outbound } from "./protocol";
 import {
@@ -245,9 +245,12 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
       if (!host || !token || !userId) return;
       respondToFriendRequest(host, token, userId, action)
         .then(() =>
-          gatewayRef.current
-            ?.fetchFriends()
-            .then((friends) => setSocial((prev) => applyFriendList(prev, friends))),
+          // Refresh the roster so the request row clears. Prefer the live
+          // gateway, but fall back to a direct REST pull when the socket is
+          // momentarily down — otherwise an accepted/declined request lingers.
+          (gatewayRef.current?.fetchFriends() ?? fetchFriendsDirect(host, token)).then((friends) =>
+            setSocial((prev) => applyFriendList(prev, friends)),
+          ),
         )
         .catch((e) => console.error("friend respond failed", e));
     },

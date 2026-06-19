@@ -50,6 +50,14 @@ function toFriend(w: WireFriend): Friend {
   };
 }
 
+/** Fetch the friend roster over REST without a live socket. Used as a fallback
+ *  when an action (e.g. responding to a friend request) succeeds over HTTP but
+ *  the gateway is momentarily disconnected, so the roster still refreshes. */
+export async function fetchFriendsDirect(host: string, token: string): Promise<Friend[]> {
+  const wire = await call<WireFriend[]>("social_fetch_friends", { host, token });
+  return wire.map(toFriend);
+}
+
 export class WsGateway implements Gateway {
   private frameCb: (msg: Inbound) => void = () => {};
   private stateCb: (s: GatewayState) => void = () => {};
@@ -90,11 +98,7 @@ export class WsGateway implements Gateway {
   }
 
   async fetchFriends(): Promise<Friend[]> {
-    const wire = await call<WireFriend[]>("social_fetch_friends", {
-      host: this.host,
-      token: this.token,
-    });
-    return wire.map(toFriend);
+    return fetchFriendsDirect(this.host, this.token);
   }
 
   disconnect(): void {

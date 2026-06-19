@@ -132,6 +132,15 @@ pub async fn list_emulators(
     Ok(out)
 }
 
+/// Read-only firmware/BIOS deployment status per console, for the Settings
+/// "Firmware & BIOS" section. Reports whether each console's BIOS is staged and
+/// actually deployed into its emulator (which `list_emulators`' server-staging
+/// `ready` flag can't tell you). Writes nothing.
+#[tauri::command]
+pub fn firmware_status(app: tauri::AppHandle) -> Vec<crate::emulators::firmware::FirmwareStatus> {
+    crate::emulators::firmware::status_all(&app)
+}
+
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct EmulatorProgress {

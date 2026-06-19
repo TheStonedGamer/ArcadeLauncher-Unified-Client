@@ -6,7 +6,7 @@ import { useSettings } from "./useSettings";
 import { useSession } from "../session/SessionContext";
 import { useEmulators } from "../emulators/useEmulators";
 import { formatBytes } from "../download/selectors";
-import type { EmulatorProgress, EmulatorStatus } from "../emulators/api";
+import type { EmulatorProgress, EmulatorStatus, FirmwareStatus } from "../emulators/api";
 import { useGamepadConnected } from "../gamepad/useGamepadConnected";
 import { clampDeadZone, useControllerConfig } from "../gamepad/ControllerConfigContext";
 import { EmulatorControllerEditor } from "../controller/EmulatorControllerEditor";
@@ -199,10 +199,8 @@ function ControllerSection({
  *  lets the user download the rest. Independent of the General settings draft. */
 function EmulatorsSection() {
   const { session } = useSession();
-  const { emulators, loading, error, progress, refresh, download, downloadAll } = useEmulators(
-    session?.host ?? null,
-    session?.token ?? null,
-  );
+  const { emulators, firmware, loading, error, progress, refresh, download, downloadAll } =
+    useEmulators(session?.host ?? null, session?.token ?? null);
 
   const allReady = emulators.length > 0 && emulators.every((e) => e.ready);
 
@@ -238,6 +236,8 @@ function EmulatorsSection() {
         </>
       )}
 
+      <FirmwareStatusGroup firmware={firmware} />
+
       {session && emulators.length > 0 && (
         <div className="settings__actions">
           <button className="settings__save" onClick={downloadAll} disabled={allReady}>
@@ -248,6 +248,38 @@ function EmulatorsSection() {
           </button>
         </div>
       )}
+    </>
+  );
+}
+
+/** Read-only per-console firmware/BIOS deployment status. Unlike the staging
+ *  list above, this shows whether each console's BIOS is actually deployed into
+ *  its emulator (so e.g. PS2 games will boot in PCSX2), not just downloaded. */
+function FirmwareStatusGroup({ firmware }: { firmware: FirmwareStatus[] }) {
+  if (firmware.length === 0) return null;
+  return (
+    <>
+      <h3 className="emu-group">Firmware deployment</h3>
+      <p className="catalog__status">
+        Whether each console’s BIOS is deployed into its emulator. Deployed firmware is staged into
+        the emulator automatically on launch.
+      </p>
+      <ul className="emu-list">
+        {firmware.map((fw) => {
+          const state = fw.deployed ? "on" : fw.staged ? "mid" : "off";
+          const badge = fw.deployed ? "Deployed ✓" : fw.staged ? "Staged" : "Missing";
+          return (
+            <li className="emu-row" key={`${fw.console}/${fw.emulator}`}>
+              <span className={`emu-row__dot emu-row__dot--${state}`} aria-hidden />
+              <span className="emu-row__name">
+                {fw.console} <span className="emu-row__emu">({fw.emulator})</span>
+              </span>
+              <span className="emu-row__detail">{fw.detail}</span>
+              <span className={`emu-row__fwbadge emu-row__fwbadge--${state}`}>{badge}</span>
+            </li>
+          );
+        })}
+      </ul>
     </>
   );
 }
