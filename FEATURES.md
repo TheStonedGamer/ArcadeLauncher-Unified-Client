@@ -27,6 +27,11 @@ elevate (Tauri updater).
   (`catalog/query.ts`).
 - **Sort modes & user collections**; **favorites** and **hidden** games, stored in
   a separate `catalog_prefs.json` that never rewrites `library.json`.
+- **"Continue Playing" row** *(new)* — a Steam-style horizontal strip of
+  recently-played games atop the grid (shown on All Games with no active search);
+  click a tile to launch directly. Backed by a pure `catalog/stats.ts` core
+  (`recentlyPlayed` / `mostPlayed` / `libraryStats` / `formatDuration` /
+  `formatLastPlayed`) over the playtime + last-played data the launcher tracks.
 - **ROM-variant grouping** with a picker for multi-region/-revision dumps.
 - **Detail panel** with cover/hero art and developer/publisher/franchise metadata;
   **IGDB cover-art fetch** (Twitch OAuth, creds-gated) per game.

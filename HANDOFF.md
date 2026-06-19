@@ -68,6 +68,16 @@ architect-prompt doc, not source) OUT of commits — `git reset -- "# Arcade…"
   response falls back to a direct REST roster fetch (`fetchFriendsDirect`) when the
   gateway socket is momentarily down so accepted/declined rows always clear.
 
+- **v0.10.0** — unified version line: client + server now share `major.minor`
+  (server bot landed exactly on `0.10.0`). **T12j (part 1) — "Continue Playing"
+  row**: commit `25f777e`, a recently-played horizontal strip atop the catalog
+  (All Games, no search) with click-to-launch, backed by a pure
+  `catalog/stats.ts` core (`recentlyPlayed`/`mostPlayed`/`libraryStats`/
+  `formatDuration`/`formatLastPlayed`, 10 KATs) + `ContinuePlayingRow.tsx` +
+  `.continue-*` CSS + `?catalog-demo` preview seed. Pure TS/React/CSS (no Rust);
+  194 tests + build green; CI-only push (no tag/release). ROADMAP T12j marked
+  in-progress (stats dashboard half still open).
+
 ## PS2 BIOS — now hosted on prod (2026-06-19)
 
 - `ps2-bios.bin` = **NTSC-U `scph39001`** (4 MiB, sha256 `f4c948e6…910c9d`) copied
