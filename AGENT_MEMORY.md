@@ -27,7 +27,7 @@ Rust: src-tauri/src/controller/{model,commands,serializers,ini,bios}.rs. Host bu
 _Updated 2026-06-19_
 > On-launch self-heal of server-staged BIOS/firmware into installed emulators.
 
-src-tauri/src/emulators/firmware.rs, ensure_all() spawned on a background thread in lib.rs setup(). Mirrors the C++ AssetEnsure worker. Server hosts: scph1001.bin (PS1 BIOS) -> DuckStation bios/ + settings.ini [BIOS]; xemu-firmware/ (bios.bin/mcpx.bin/hdd.qcow2) -> xemu.toml [sys.files] in place; PS3UPDAT.PUP -> rpcs3 --installfw headless (guarded by dev_flash marker). NO PS2 BIOS is hosted, so PCSX2 is excluded. Firmware staged loose at <app_data>/emulators/ (app id com.thestonedgamer.arcadelauncher).
+src-tauri/src/emulators/firmware.rs, ensure_all() spawned on a background thread in lib.rs setup(). Mirrors the C++ AssetEnsure worker. Deploys: scph1001.bin (PS1 BIOS) -> DuckStation bios/ + settings.ini [BIOS]; ps2-bios.bin -> PCSX2 bios/ + PCSX2.ini [Folders]Bios/[Filenames]BIOS (deploy_pcsx2_bios); xemu-firmware/ (bios.bin/mcpx.bin/hdd.qcow2) -> xemu.toml [sys.files] in place; PS3UPDAT.PUP -> rpcs3 --installfw headless (guarded by dev_flash marker). Firmware staged loose at <app_data>/emulators/ (app id com.thestonedgamer.arcadelauncher). NOTE: PS2 BIOS (ps2-bios.bin) is currently staged LOCALLY ONLY from a self-dumped console BIOS; the server does not host it yet. Provide your own legally-dumped PS2 BIOS — do not redistribute Sony firmware.
 <!-- am:end -->
 
 <!-- am:start id=release-process type=reference -->

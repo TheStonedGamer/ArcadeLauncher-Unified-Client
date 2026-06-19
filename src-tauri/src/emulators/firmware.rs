@@ -150,6 +150,43 @@ fn deploy_duckstation_bios(exe: &Path, staging: &Path) -> String {
     "DuckStation: PS1 BIOS deployed".into()
 }
 
+/// Deploy the PS2 BIOS into PCSX2: copy the staged `ps2-bios.bin` into the
+/// portable `bios/` dir (non-destructive) and point `PCSX2.ini` at it so the
+/// emulator selects it automatically. `exe` is the PCSX2 executable; `staging`
+/// is the emulators data dir. PCSX2 reads any valid dump from its bios dir, so a
+/// plain copy works (the matching `.nvm` is generated next to it on first boot).
+fn deploy_pcsx2_bios(exe: &Path, staging: &Path) -> String {
+    let Some(exe_dir) = exe.parent() else {
+        return "PCSX2: bad exe path".into();
+    };
+    let src = staging.join("ps2-bios.bin");
+    if !src.is_file() {
+        return "PCSX2: ps2-bios.bin not staged".into();
+    }
+    let bios_dir = exe_dir.join("bios");
+    let dest = bios_dir.join("ps2-bios.bin");
+    if !dest.exists() {
+        if let Err(e) = std::fs::create_dir_all(&bios_dir).and_then(|_| std::fs::copy(&src, &dest).map(|_| ())) {
+            return format!("PCSX2: BIOS copy failed: {e}");
+        }
+    }
+
+    // Portable marker so PCSX2 reads its config from `inis/` next to the exe.
+    let marker = exe_dir.join("portable.ini");
+    if !marker.exists() {
+        let _ = std::fs::write(&marker, b"");
+    }
+    // Point the BIOS folder + selected file at the copied dump.
+    let ini_path = exe_dir.join("inis").join("PCSX2.ini");
+    let text = read_or_empty(&ini_path);
+    let mut updated = ini::set_keys(&text, "Folders", &[("Bios".into(), "bios".into())]);
+    updated = ini::set_keys(&updated, "Filenames", &[("BIOS".into(), "ps2-bios.bin".into())]);
+    if let Err(e) = write_atomic(&ini_path, &updated) {
+        return format!("PCSX2: PCSX2.ini write failed: {e}");
+    }
+    "PCSX2: PS2 BIOS deployed".into()
+}
+
 /// Deploy OG Xbox firmware for xemu: write `xemu.toml` so it boots from the
 /// staged firmware blobs in place (no copy — the HDD image is ~1 GB). The config
 /// lives in xemu's roaming dir, matching the native client.
@@ -232,6 +269,9 @@ pub fn ensure_all(app: &tauri::AppHandle) -> Vec<String> {
     if let Some(exe) = launch::find_exe(&runtimes, launch::exe_candidates("ps1")) {
         log.push(deploy_duckstation_bios(&exe, &emu_dir));
     }
+    if let Some(exe) = launch::find_exe(&runtimes, launch::exe_candidates("ps2")) {
+        log.push(deploy_pcsx2_bios(&exe, &emu_dir));
+    }
     if launch::find_exe(&runtimes, launch::exe_candidates("xbox")).is_some() {
         log.push(deploy_xemu_firmware(&emu_dir, std::env::var("APPDATA").ok().as_deref()));
     }
@@ -309,6 +349,38 @@ mod tests {
         assert!(ini.contains("[BIOS]"));
         assert!(ini.contains("SearchDirectory = bios"));
         assert!(ini.contains("PathNTSC-U = scph1001.bin"));
+        std::fs::remove_dir_all(&staging).ok();
+    }
+
+    #[test]
+    fn pcsx2_not_staged_is_reported() {
+        let staging = std::env::temp_dir().join(format!("fw_ps2_{}", std::process::id()));
+        std::fs::create_dir_all(&staging).unwrap();
+        let exe = staging.join("pcsx2-qt.exe");
+        std::fs::write(&exe, b"x").unwrap();
+        let msg = deploy_pcsx2_bios(&exe, &staging);
+        assert!(msg.contains("not staged"), "{msg}");
+        std::fs::remove_dir_all(&staging).ok();
+    }
+
+    #[test]
+    fn pcsx2_copies_bios_and_points_ini() {
+        let staging = std::env::temp_dir().join(format!("fw_ps2b_{}", std::process::id()));
+        let exe_dir = staging.join("rt");
+        std::fs::create_dir_all(&exe_dir).unwrap();
+        std::fs::write(staging.join("ps2-bios.bin"), b"biosdata").unwrap();
+        let exe = exe_dir.join("pcsx2-qt.exe");
+        std::fs::write(&exe, b"x").unwrap();
+
+        let msg = deploy_pcsx2_bios(&exe, &staging);
+        assert!(msg.contains("deployed"), "{msg}");
+        assert!(exe_dir.join("bios").join("ps2-bios.bin").is_file());
+        assert!(exe_dir.join("portable.ini").is_file());
+        let ini = std::fs::read_to_string(exe_dir.join("inis").join("PCSX2.ini")).unwrap();
+        assert!(ini.contains("[Folders]"));
+        assert!(ini.contains("Bios = bios"));
+        assert!(ini.contains("[Filenames]"));
+        assert!(ini.contains("BIOS = ps2-bios.bin"));
         std::fs::remove_dir_all(&staging).ok();
     }
 
