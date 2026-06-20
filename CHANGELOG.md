@@ -13,6 +13,8 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.6] - 2026-06-20
+
 ### Added
 - Groundwork for **save version history**: the launcher can now keep a series of
   restorable snapshots of a game's save folder and automatically prune to the
