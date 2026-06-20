@@ -35,6 +35,31 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
 ];
 
+/** Legacy pre-per-user flag: a single global "onboarding seen" marker. */
+export const LEGACY_ONBOARDING_KEY = "onboarding.done";
+
+/** Per-user "onboarding seen" storage key, so each account sees the tour once. */
+export function onboardingDoneKey(user: string): string {
+  return `onboarding.done:${user}`;
+}
+
+/**
+ * Decide whether the first-run tour is already complete for the signed-in user.
+ * Pure: takes a storage `read`. Not signed in (no user) → treated as complete so
+ * the overlay never shows before login — the tour is gated on a user's first
+ * login, not on app first-run. A legacy global flag from pre-per-user installs
+ * also counts as complete, so existing users aren't re-nagged after upgrading.
+ */
+export function isOnboardingComplete(
+  user: string | null | undefined,
+  read: (key: string) => string | null,
+): boolean {
+  if (!user) return true;
+  if (read(onboardingDoneKey(user)) === "1") return true;
+  if (read(LEGACY_ONBOARDING_KEY) === "1") return true;
+  return false;
+}
+
 /** Clamp a step index into [0, total-1] (0 when empty). */
 export function clampStep(index: number, total: number): number {
   if (total <= 0) return 0;

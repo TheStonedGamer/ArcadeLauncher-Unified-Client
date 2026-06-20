@@ -21,6 +21,10 @@ Added / Changed / Fixed / Removed.
   updater still uses the `.exe`, so auto-updates are unchanged either way.
 
 ### Changed
+- The first-run **welcome tour** now appears on your **first sign-in** instead of
+  the first time the app opens, and is tracked **per account** — so you see it
+  once when you log in, and a second person signing in on the same machine gets
+  their own walkthrough. (If you've already seen it, it stays dismissed.)
 - Internal build infrastructure only: Windows releases are now produced on a
   native Windows build machine. No user-facing change beyond the `.msi` returning.
 

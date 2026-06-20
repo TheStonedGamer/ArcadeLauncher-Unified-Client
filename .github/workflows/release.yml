@@ -119,7 +119,9 @@ jobs:
       # externalBin requires the file to pre-exist with the host target-triple
       # suffix (x86_64-pc-windows-msvc) and the `.exe` extension.
       - name: Build bootstrap updater sidecar
-        shell: pwsh
+        # Windows PowerShell 5.1 (the Win10 runner has no pwsh / PowerShell 7);
+        # this script is 5.1-compatible.
+        shell: powershell
         run: |
           cargo build --release -p arcade_updater --manifest-path src-tauri/Cargo.toml
           New-Item -ItemType Directory -Force -Path src-tauri/binaries | Out-Null
