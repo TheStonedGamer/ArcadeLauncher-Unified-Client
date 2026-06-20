@@ -13,6 +13,8 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.4] - 2026-06-19
+
 ### Added
 - In-client Game Requests board (pure core): browse/upvote/request games, a
   client-side platform filter, platform-scoped search, and community 1–5 star
