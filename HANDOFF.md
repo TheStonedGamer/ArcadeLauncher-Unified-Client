@@ -7,11 +7,19 @@ Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit vi
 `npm run memory -- set …`, never by hand).
 
 Last updated: 2026-06-20. Client + server share a `0.10` `major.minor` lockstep
-line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.7` is RELEASED AND
-DEPLOYED** — the GitHub Release is published (not draft) with all artifacts
-(Windows NSIS + MSI, Linux deb/rpm/AppImage), each `.sig`-signed, plus
-`latest.json`; the updater manifest advertises `0.10.7` with valid signatures, so
-every installed launcher auto-updates to it on next launch. **v0.10.7** fixes a
+line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.8` is RELEASED** —
+the GitHub Release is published (not draft) with all artifacts (Windows NSIS +
+MSI, Linux deb/rpm/AppImage), each `.sig`-signed, plus `latest.json` (advertises
+`0.10.8`), so every installed launcher auto-updates on next launch. **v0.10.8**
+adds **T12f groundwork** (group DMs / channels, CI-only, no UI): room protocol
+frames `room_created`/`room_renamed`/`room_member_added`/`room_member_removed`/
+`room_deleted` + `room_create`/`room_rename`/`room_add_member`/`room_leave`
+builders mirrored in `social::protocol` (Rust, 4 KATs) and
+`features/social/protocol.ts`, plus a pure `features/social/rooms.ts` reducer
+(authoritative upsert-snapshot, member add/remove, self-removal drops the room;
+sort/count/membership selectors; 17 vitest). Message threading + room-list/composer
+UI + gateway wiring deferred (T12f-2: needs live server room frames + a smoke
+test). No server-side deploy was required. **v0.10.7** (prior) fixed a
 bug where the bootstrap updater compared the release against its own
 `CARGO_PKG_VERSION` (the updater's independent 0.9.x version) instead of the
 installed app version, so it reinstalled on every launch; `updater/build.rs` now
@@ -30,10 +38,12 @@ columns (`setting_key`/`setting_value`); search works again. The `v0.10.4` Game
 Requests board remains DEPLOYED on the same CT (systemd `arcadelauncher-requests`,
 User=arcade, `0.0.0.0:8723`) behind nginx `10.0.0.203` at `/requests`.
 
-**Next:** ROADMAP Phase T12 — the remaining items (T12d Join UI, T12e/f/g social,
-T12i auto-sync lifecycle + restore UI) are blocked on interactive computer-use
-smoke tests and a live server invite frame, deferred while the user is away. Land
-pure-core / CI-only increments where possible.
+**Next:** ROADMAP Phase T12 — the remaining items (T12d Join UI, T12e/f/g social
+UI + wiring, T12i auto-sync lifecycle + restore UI) are blocked on interactive
+computer-use smoke tests and live server frames, deferred while the user is away.
+T12d + T12f now both have pure-core protocol + reducer groundwork landed & released
+(CI-only); the UI/wiring halves remain. Land pure-core / CI-only increments where
+possible.
 
 **In progress: T12k (remote streaming).** `T12k-1` landed (CI-only, no UI):
 `src-tauri/src/streaming/host.rs` is the pure host core — `StreamHost`/`HostState`,
