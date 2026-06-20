@@ -13,6 +13,16 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.9] - 2026-06-20
+
+### Added
+- Groundwork for **group voice calls (3+ people)**: the launcher can now model a
+  voice "mesh" where each participant connects directly to every other, tracking
+  who's in the call and each connection's state. Includes the coordination-free
+  rule that decides which side places the call for every pair, so a group call
+  sets itself up without duplicate connections. (Pure, fully unit-tested core; the
+  in-call UI and live audio wiring land in a follow-up.)
+
 ## [0.10.8] - 2026-06-20
 
 ### Added

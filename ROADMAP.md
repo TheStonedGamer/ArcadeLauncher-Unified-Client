@@ -399,8 +399,19 @@ from scratch.
   - [ ] Room list + multi-party composer UI and the gateway send/receive wiring;
     message threading reuses the chat reducer keyed by room. Deferred: needs the
     server room frames live + a computer-use smoke test (user away).
-- [ ] **T12g — Group voice (3+).** Small mesh now (SFU later) on top of the current
+- [~] **T12g — Group voice (3+).** Small mesh now (SFU later) on top of the current
   P2P 1:1 voice.
+  - [x] Pure mesh peer-set core (groundwork): `features/social/voiceMesh.ts` —
+    `MeshState` (selfId + per-peer `{phase,muted}` map + local mute) with a
+    `meshReducer` (authoritative `roster` snapshot that preserves the phase of
+    surviving peers; peerJoin/Leave/peerPhase/peerMuted/toggleMute/reset; unknown
+    peers ignored), the coordination-free `isInitiator` offer-role rule
+    (lower id offers) and selectors (`peersToOffer`/`meshPeers`/`connectedCount`/
+    `participantCount`/`isMeshActive`). 13 vitest KATs. Reuses the existing
+    per-peer `voice_signal` relay addressed to each member.
+  - [ ] `useGroupVoice` engine (one RTCPeerConnection per peer driven by
+    `peersToOffer`) + in-call roster UI + group-call start over a room. Deferred:
+    needs the room/group plumbing (T12f UI) live + a multi-peer smoke test.
 
 **Library & launch quality**
 
