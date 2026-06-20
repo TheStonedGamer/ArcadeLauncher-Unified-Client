@@ -54,6 +54,16 @@ fn set(status: &Arc<Mutex<Status>>, msg: impl Into<String>) {
 /// Drive the whole update sequence. Always returns; the caller launches the app
 /// and exits afterwards. Errors are surfaced into the status, never propagated.
 pub fn run(status: &Arc<Mutex<Status>>) {
+    // If the launcher is already open, never reinstall over a running app — just
+    // surface its window. Spawning the app triggers the launcher's
+    // single-instance guard, which brings the existing window to the front; the
+    // duplicate we spawned then exits on its own.
+    if crate::instance::launcher_is_running() {
+        set(status, "ArcadeLauncher is already running — bringing it to the front…");
+        launch_app();
+        return;
+    }
+
     set(status, "Checking for updates…");
     match check_and_apply(status) {
         Ok(true) => set(status, "Update complete — starting ArcadeLauncher…"),

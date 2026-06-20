@@ -20,6 +20,10 @@ serde_json = "1"
 minisign-verify = "0.2"
 base64 = "0.22"
 zip = { version = "2", default-features = false, features = ["deflate"] }
+# Detect an already-running launcher so re-running the updater surfaces the open
+# window instead of reinstalling over it. Process listing only — pure Rust,
+# identical on Windows + Linux, no system deps.
+sysinfo = { version = "0.32", default-features = false, features = ["system"] }
 
 [build-dependencies]
 # Embeds the launcher icon into updater.exe so the bootstrapper matches the app

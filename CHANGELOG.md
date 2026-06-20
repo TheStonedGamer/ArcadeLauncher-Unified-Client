@@ -31,6 +31,9 @@ Added / Changed / Fixed / Removed.
 - **Only one launcher window opens per computer now.** Launching ArcadeLauncher
   again while it's already running (including from the tray or a second shortcut)
   brings the existing window to the front instead of starting a duplicate copy.
+  This also covers the updater: re-running ArcadeLauncher while it's already open
+  now just surfaces the running window instead of trying to reinstall on top of
+  it.
 
 ## [0.10.5] - 2026-06-19
 

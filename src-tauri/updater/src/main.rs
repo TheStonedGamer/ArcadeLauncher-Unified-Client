@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use eframe::egui;
 
+mod instance;
 mod update;
 
 /// Shared status the worker thread writes and the UI polls each frame.
