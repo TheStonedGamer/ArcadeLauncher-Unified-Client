@@ -7,7 +7,30 @@ Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit vi
 `npm run memory -- set …`, never by hand).
 
 Last updated: 2026-06-20. Client + server share a `0.10` `major.minor` lockstep
-line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.10` is RELEASED** —
+line. PS2 BIOS hosted on prod and wired end-to-end.
+
+**IN FLIGHT (2026-06-20) — read before pushing.** `v0.10.11` (T12d follow-up) is
+committed and PUSHED (`52a6e58`); its CI run was verifying under the OLD staggered
+config and it has NOT been tagged yet. Several infra commits are HELD LOCAL (not
+pushed) at the owner's request ("no more builds right now") pending host-side core
+pinning:
+- `3ef3f9c` (PUSHED) — CI speedups: `paths-ignore **/*.md`, concurrency
+  `cancel-in-progress: true`, `CARGO_PROFILE_DEV_DEBUG=line-tables-only`.
+- `efca5d5` (HELD) — release.yml concurrency guard (`cancel-in-progress: FALSE`,
+  so a re-dispatched tag queues rather than aborting a signing build).
+- `861a964` (HELD) — **parallelize** the Windows+Linux legs in BOTH ci.yml and
+  release.yml (dropped `needs: windows` / `needs: release-windows` + the
+  `!cancelled()` gates; publish-release still waits on both legs). Safe ONLY once
+  the runners are pinned to disjoint host cores.
+- **Owner action pending on PVE host `10.0.0.98`:** set VM 131 (prox-win) and CT
+  130 (prox-pve) to 8 cores each, pinned to non-overlapping host cores — VM
+  `qm set 131 --cores 8 --sockets 1 && qm set 131 --affinity 0-7`; CT
+  `pct set 130 --cores 8` + append `lxc.cgroup2.cpuset.cpus: 8-15` to
+  `/etc/pve/lxc/130.conf` then `pct reboot 130`. Check `lscpu -e` for HT-sibling
+  layout and leave the host some headroom first. After pinning is confirmed: push
+  the held commits, then tag `v0.10.11`.
+
+**`v0.10.10` is RELEASED** —
 the GitHub Release is published (not draft) with all artifacts (Windows NSIS +
 MSI, Linux deb/rpm/AppImage), each `.sig`-signed, plus `latest.json` (advertises
 `0.10.10`, 7 platform targets), so every installed launcher auto-updates on next
@@ -169,7 +192,9 @@ cd src-tauri && cargo check --release --locked   # must be warning-clean
 ```
 
 CI mirror: `.github/workflows/ci.yml` on the self-hosted Proxmox runners
-(`prox-win` + `prox-pve`, Linux staggered after Windows).
+(`prox-win` + `prox-pve`). Legs run in PARALLEL once commit `861a964` is pushed
+AND the runners are pinned to disjoint host cores (VM 0-7 / CT 8-15); until then
+the live workflow still staggers Linux after Windows.
 
 ## Cutting a release (version lives in FOUR places)
 
@@ -326,6 +351,14 @@ Windows release jobs only land on the Proxmox VM. Once builds run on the Proxmox
 
 ## NEXT STEP
 
+- **Resume the v0.10.11 ship (BLOCKED on owner host work).** 1) On PVE
+  `10.0.0.98` pin VM 131 + CT 130 to 8 disjoint cores each (commands in the
+  IN FLIGHT block at the top). 2) Push the held commits `efca5d5` + `861a964`.
+  3) Confirm the now-parallel CI is green on BOTH OSes. 4) Tag `v0.10.11`
+  (`git tag v0.10.11 && git push origin v0.10.11`) to fire the parallel
+  release.yml. 5) Verify the published release + `latest.json` advertises
+  `0.10.11`. Live end-to-end invite pairing still needs the server invite frame +
+  a second peer (prod smoke test).
 - ~~**re-tag `v0.10.3`**~~ **DONE 2026-06-19** — re-tagged onto `fddcbc5`,
   release.yml ran both legs green on the Proxmox runners; signed installers +
   `latest.json` published to the v0.10.3 release. The desktop-runner WiX/MSI
