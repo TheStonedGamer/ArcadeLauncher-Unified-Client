@@ -9,6 +9,41 @@ Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit vi
 Last updated: 2026-06-20. Client + server share a `0.10` `major.minor` lockstep
 line. PS2 BIOS hosted on prod and wired end-to-end.
 
+**BUILD-INFRA (2026-06-20, ROADMAP "BI1") — IMPLEMENTED. Windows is cross-compiled
+on a Linux runner; the prox-win VM is dead.** Windows artifacts now build with
+**`cargo-xwin` + the `x86_64-pc-windows-msvc` target** (MSVC ABI, clang-cl + lld,
+CRT/SDK auto-downloaded — no Windows host). **MSI is DROPPED**; Windows ships the
+**NSIS `.exe`** (+ portable) only (`makensis` runs on Linux). `tauri.conf.json`
+`bundle.targets` no longer lists `msi` and the `windows.wix` block is removed
+(`wix/main.wxs` left on disk — permanent UpgradeCode, do not delete in case MSI
+is ever revived).
+
+**Runner topology (LIVE) — two pinned Linux CTs on PVE host `10.0.0.98`, each on
+its own disjoint 8 host cores so the two legs build in true parallel:**
+- **CT 130 `arcade-gh-runner`** → cpuset **cores 0-7**. Hosts the Server runner
+  (`arcade-pve-runner`) AND a new client runner **`arcade-pve-client-runner`**
+  (label **`prox-pve`**, dir `~/actions-runner-client`) — the Linux client leg.
+- **CT 132 `arcade-xwin-build`** (full clone of 130) → cpuset **cores 8-15**.
+  Runs **`arcade-xwin-runner`** (label **`prox-xwin`**) — the Windows cross leg.
+  PRE-PROVISIONED with: clang/clang-cl, lld/lld-link, llvm-lib + llvm-rc symlinked
+  into `/usr/bin`, nsis, Rust stable + `x86_64-pc-windows-msvc` target, cargo-xwin.
+  The cpusets are raw `lxc.cgroup2.cpuset.cpus` lines in `/etc/pve/lxc/<id>.conf`.
+- The desktop **`pc-wsl-runner` was DEREGISTERED** (it used to serve `prox-pve`);
+  client Linux jobs now land deterministically on CT 130. The old Proxmox Windows
+  **VM 131 / `prox-win` / `arcade-win-runner` are ABANDONED** (offline) — do not
+  resurrect. `pc-win-runner` remains online but has no `prox-*` label so it can't
+  grab CI/release jobs.
+
+Both `ci.yml` and `release.yml` Windows legs now `runs-on: [self-hosted, prox-xwin]`
+(provisioning steps dropped — CT is pre-provisioned). CI's Windows leg is a
+**compile check** (`cargo xwin check`) since cross-built test `.exe`s can't run on
+Linux; the KATs run natively on the `prox-pve` Linux leg. **Verified:** a manual
+`cargo xwin check` of the full app on CT 132 compiles clean (webview2-com/tao/
+single-instance all OK). **Not yet exercised:** the `makensis` NSIS bundling step
+(only runs under `tauri build`) — the first CI/release run validates it.
+**Code-signing the `.exe`** (e.g. `osslsigncode` on Linux) is NOT wired yet — a
+follow-up; only the Tauri updater `.sig` is produced today.
+
 **IN FLIGHT (2026-06-20) — read before pushing.** `v0.10.11` (T12d follow-up) is
 committed and PUSHED (`52a6e58`); its CI run was verifying under the OLD staggered
 config and it has NOT been tagged yet. Several infra commits are HELD LOCAL (not
@@ -20,15 +55,18 @@ pinning:
   so a re-dispatched tag queues rather than aborting a signing build).
 - `861a964` (HELD) — **parallelize** the Windows+Linux legs in BOTH ci.yml and
   release.yml (dropped `needs: windows` / `needs: release-windows` + the
-  `!cancelled()` gates; publish-release still waits on both legs). Safe ONLY once
-  the runners are pinned to disjoint host cores.
-- **Owner action pending on PVE host `10.0.0.98`:** set VM 131 (prox-win) and CT
-  130 (prox-pve) to 8 cores each, pinned to non-overlapping host cores — VM
-  `qm set 131 --cores 8 --sockets 1 && qm set 131 --affinity 0-7`; CT
-  `pct set 130 --cores 8` + append `lxc.cgroup2.cpuset.cpus: 8-15` to
-  `/etc/pve/lxc/130.conf` then `pct reboot 130`. Check `lscpu -e` for HT-sibling
-  layout and leave the host some headroom first. After pinning is confirmed: push
-  the held commits, then tag `v0.10.11`.
+  `!cancelled()` gates; publish-release still waits on both legs). **SUPERSEDED
+  by BI1:** with cross-compile there is no separate self-hosted Windows runner —
+  the Windows leg becomes a `cargo-xwin` cross job that runs on the same
+  `ubuntu-*` runner, so the disjoint-core-pinning premise no longer applies.
+  Re-evaluate this commit against the BI1 workflow before pushing (the leg
+  structure changes); the core-pinning rationale is moot.
+- ~~**Owner action pending on PVE host `10.0.0.98`:** pin VM 131 (prox-win) and
+  CT 130 to disjoint cores so parallel runners don't contend.~~ **DROPPED (BI1).**
+  VM 131 (prox-win) is abandoned — no Windows runner to pin. The CPU-contention
+  problem disappears because Windows now cross-compiles on the Linux runner. Do
+  not perform the `qm set 131 --affinity` / `pct set 130` pinning; tag `v0.10.11`
+  once the held release.yml change is reconciled with the BI1 cross job.
 
 **`v0.10.10` is RELEASED** —
 the GitHub Release is published (not draft) with all artifacts (Windows NSIS +

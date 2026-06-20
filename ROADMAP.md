@@ -27,6 +27,47 @@ This file lives in **this** repo and is distinct from the C++ repo's
 
 ---
 
+## Build & release infrastructure
+
+- [x] **BI1 — Drop the dedicated Windows runner; cross-compile Windows on the
+  Linux runner via `cargo-xwin` (decided 2026-06-20, DONE 2026-06-20).**
+  _Implemented:_ Windows leg now `runs-on: [self-hosted, prox-xwin]` (Proxmox CT
+  132 `arcade-xwin-build`, cores 8-15) cross-compiling MSVC via cargo-xwin → NSIS;
+  Linux leg on CT 130 (cores 0-7); MSI dropped from `tauri.conf.json`. `cargo xwin
+  check` of the full app verified clean. Topology + provisioning in HANDOFF.
+  Open follow-up: Authenticode `.exe` signing (osslsigncode) not yet wired. The Windows side is
+  built on the **same runner as the Linux build** by cross-compiling the
+  **MSVC-ABI** target — **`cargo-xwin` + `x86_64-pc-windows-msvc`**, the modern
+  way to produce MSVC-ABI Windows binaries on Linux. `cargo-xwin`
+  auto-downloads the MSVC CRT/SDK headers and links with **clang-cl + lld**, so
+  no native Windows host and no MSVC install are needed. This **retires the
+  prox-win build-VM effort entirely** — the Proxmox Windows VM (VM 131 on
+  `10.0.0.98`) and its GitHub Actions service runner are abandoned; no native
+  Windows runner is provisioned or maintained.
+  - **MSVC ABI, not GNU.** Use `x86_64-pc-windows-msvc` (via `cargo-xwin`), not
+    `x86_64-pc-windows-gnu` — it matches what Windows users expect and avoids
+    the mingw `windows`-rs / WebView2 link quirks.
+  - **Drop the MSI.** The WiX/MSI installer is dropped from the Windows release
+    artifacts. Windows ships via the existing **NSIS `.exe`** (and the portable
+    binary) only. This lines up perfectly with cross-compiling: **NSIS runs on
+    Linux** (`makensis`), whereas **MSI/WiX would need wine** — so dropping MSI
+    removes the one bundler that can't cross-compile cleanly.
+  - _Rationale:_ a single Linux runner builds **both** OSes, removing the
+    fragile native-Windows-VM provisioning (the source of repeated unattended/
+    virtio install failures) and simplifying CI to one host.
+  - _Caveat:_ **Tauri v2 + xwin works but the bundler glue is finicky — expect
+    some fiddling** wiring `cargo-xwin` into Tauri's build/bundle step and
+    getting `makensis` invoked with the cross-built binary.
+  - _Follow-ups when implemented:_ switch the Windows job in the release
+    workflow to a cross job on `ubuntu-*` (install `cargo-xwin` + the
+    `x86_64-pc-windows-msvc` Rust target + `clang`/`lld` + `nsis`/`makensis`;
+    Tauri bundler set to `nsis` only, MSI removed); re-run a release to confirm
+    the `.exe` + `.sig` + `latest.json` still publish green. Code-signing for
+    the Windows `.exe` happens in/after the cross job (e.g. `osslsigncode` on
+    Linux), not on a Windows host.
+
+---
+
 ## Phase T0–T3 — Foundation (DONE)
 
 - [x] **T0** Scaffold modular Tauri v2 + React + TS; per-user install + updater;

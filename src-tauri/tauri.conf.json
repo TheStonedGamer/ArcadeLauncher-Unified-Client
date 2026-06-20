@@ -25,7 +25,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi", "deb", "rpm", "appimage"],
+    "targets": ["nsis", "deb", "rpm", "appimage"],
     "createUpdaterArtifacts": true,
     "externalBin": ["binaries/updater"],
     "category": "Games",
@@ -44,9 +44,6 @@
       "nsis": {
         "installMode": "currentUser",
         "installerHooks": "nsis/installer-hooks.nsh"
-      },
-      "wix": {
-        "template": "wix/main.wxs"
       }
     },
     "linux": {

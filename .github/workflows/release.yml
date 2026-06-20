@@ -16,17 +16,20 @@ name: Release
 # and published with everything; the loser was stranded as an orphan draft. The
 # single up-front draft removes that race entirely.
 #
-# Both build legs run on SELF-HOSTED runners that live on the same physical
-# Proxmox host (Windows VM 131 = label `prox-win`, Linux CT 130 = label
-# `prox-pve`). These labels are deliberately Proxmox-specific so the owner's
-# desktop PC runners (generic `arcade-win`/`arcade-pve` labels) can never pick up
-# a release job — that label collision was the v0.10.3 release blocker. The two
-# build legs run in PARALLEL: each runner is pinned to its own 8 dedicated,
-# non-overlapping host cores (VM affinity 0-7, CT cpuset 8-15), so they no longer
-# contend for the same physical cores and build concurrently. The trivial
-# create/publish API jobs run on GitHub-hosted `ubuntu-latest` so they never
-# touch the Proxmox host. Safe for a PUBLIC repo: tag-triggered only, and tags
-# can only be pushed by collaborators with write access.
+# BUILD INFRA (BI1): both build legs are now Linux containers on the same Proxmox
+# host, each pinned to its own disjoint set of 8 host cores so they build in true
+# parallel without contending:
+#   * Windows leg  → self-hosted `prox-xwin` (CT 132 `arcade-xwin-build`, cores
+#     8-15). CROSS-COMPILED with `cargo-xwin` targeting `x86_64-pc-windows-msvc`
+#     (MSVC ABI — clang-cl + lld, CRT/SDK auto-downloaded), bundled to an NSIS
+#     `.exe` via `makensis` which runs natively on Linux. MSI/WiX is DROPPED (would
+#     need wine); Windows ships the NSIS installer + portable + updater artifacts.
+#   * Linux leg    → self-hosted `prox-pve` (CT 130 `arcade-gh-runner`, cores 0-7),
+#     building natively. CT 130 also hosts the Server repo's runner.
+# The old Proxmox Windows build VM and its `prox-win` runner are ABANDONED — there
+# is no Windows host anywhere in this pipeline. The trivial create/publish API jobs
+# run on GitHub-hosted `ubuntu-latest`. Safe for a PUBLIC repo: tag-triggered only,
+# and tags can only be pushed by collaborators with write access.
 #
 # Requires two repo secrets before the first real release (the in-app updater
 # signs artifacts with them):
@@ -76,85 +79,59 @@ jobs:
             });
             return data.id;
 
-  # ---- Phase 2a: Windows leg (parallel with Linux) -----------------------
+  # ---- Phase 2a: Windows leg — cross-compiled on Linux (BI1) --------------
+  # Cross-builds the MSVC-ABI Windows binary with cargo-xwin (clang-cl + lld,
+  # CRT/SDK auto-downloaded) and bundles the NSIS installer with makensis. No
+  # Windows host, no MSI/WiX. Runs on the self-hosted `prox-xwin` runner (Proxmox
+  # CT 132 `arcade-xwin-build`, pinned to host cores 8-15), which is PRE-PROVISIONED
+  # with the cross toolchain — clang/clang-cl, lld/lld-link, llvm-lib/llvm-rc,
+  # nsis (makensis), Rust stable + the x86_64-pc-windows-msvc target, and
+  # cargo-xwin. So this job installs nothing beyond npm deps; if the CT is ever
+  # rebuilt, re-provision it (see HANDOFF "BI1 runner topology"). Runs in PARALLEL
+  # with the Linux leg, which is pinned to the disjoint cores 0-7 on CT 130.
   release-windows:
     needs: create-release
-    runs-on: [self-hosted, prox-win]
+    runs-on: [self-hosted, prox-xwin]
     permissions:
       contents: write
+    env:
+      WINDOWS_TARGET: x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v4
-
-      # Tauri downloads the WiX + NSIS toolchains on first bundle and caches them
-      # under %LOCALAPPDATA%\tauri. Persisting that across runs skips the repeated
-      # (~100 MB) download each release build.
-      - name: Cache Tauri bundler tools
-        uses: actions/cache@v4
-        with:
-          path: ~\AppData\Local\tauri
-          key: tauri-bundler-tools-${{ runner.os }}-v2
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      # NB: do NOT use dtolnay/rust-toolchain here. Its internal "parse toolchain
-      # version" step runs under `bash`, and on this self-hosted Windows runner
-      # `bash` can resolve to System32 WSL bash (no distro) and fail. Manage the
-      # toolchain with Windows PowerShell instead: locate (or install) rustup in
-      # %USERPROFILE%\.cargo\bin and export that dir to GITHUB_PATH so the later
-      # tauri-action / cargo steps find cargo + rustc.
-      - name: Ensure Rust stable toolchain (Windows PowerShell, no WSL bash)
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Stop"
-          $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
-          $rustup = Join-Path $cargoBin "rustup.exe"
-          if (-not (Test-Path $rustup)) {
-            Write-Host "rustup not found at $rustup; installing via rustup-init"
-            $init = Join-Path $env:TEMP "rustup-init.exe"
-            Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $init -UseBasicParsing
-            & $init -y --default-toolchain stable --profile minimal
-            if ($LASTEXITCODE -ne 0) { throw "rustup-init failed ($LASTEXITCODE)" }
-          }
-          & $rustup default stable
-          & $rustup update stable --no-self-update
-          # Make cargo/rustc available to every later step in this job.
-          Add-Content -Path $env:GITHUB_PATH -Value $cargoBin
-          & (Join-Path $cargoBin "rustc.exe") -vV
 
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
           cache-on-failure: true
-          shared-key: release-windows
+          shared-key: release-windows-xwin
 
       - name: Install npm deps
         run: npm ci
 
-      # Build the bootstrap updater and stage it as a Tauri sidecar so the
-      # bundler installs updater.exe next to the app. externalBin requires the
-      # file to pre-exist with a target-triple suffix.
-      # Windows PowerShell (not bash) to avoid the System32 WSL-bash trap.
-      - name: Build bootstrap updater sidecar
-        shell: powershell
+      # Cross-build the bootstrap updater for the MSVC target and stage it as the
+      # Tauri sidecar. externalBin requires the file to pre-exist with the
+      # target-triple suffix (note the `.exe` for the Windows target).
+      - name: Build bootstrap updater sidecar (cross)
+        shell: bash
         run: |
-          cargo build --release -p arcade_updater --manifest-path src-tauri/Cargo.toml
-          New-Item -ItemType Directory -Force src-tauri/binaries | Out-Null
-          $triple = ((rustc -vV | Select-String '^host: ').ToString() -replace '^host: ', '').Trim()
-          Copy-Item "src-tauri/target/release/updater.exe" "src-tauri/binaries/updater-$triple.exe"
+          cargo xwin build --release -p arcade_updater \
+            --target "$WINDOWS_TARGET" --manifest-path src-tauri/Cargo.toml
+          mkdir -p src-tauri/binaries
+          cp "src-tauri/target/$WINDOWS_TARGET/release/updater.exe" \
+            "src-tauri/binaries/updater-$WINDOWS_TARGET.exe"
 
-      - name: Build + upload Windows artifacts
+      - name: Build + upload Windows artifacts (cargo-xwin → NSIS)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          # --verbose so the WiX candle/light bundler output (incl. real
-          # light.exe errors) is surfaced in the job log for debugging.
-          args: --verbose
+          # --runner cargo-xwin drives the MSVC cross-build; only the NSIS bundle
+          # is produced on Linux (MSI/WiX dropped — would need wine).
+          # NSIS only; the .sig updater artifacts ride along via
+          # createUpdaterArtifacts in tauri.conf.json.
+          args: --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis --verbose
           # Upload into the pre-created draft; do NOT create or publish a release
           # here (that's what caused the duplicate-draft race).
           releaseId: ${{ needs.create-release.outputs.release_id }}

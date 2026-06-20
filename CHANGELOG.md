@@ -13,6 +13,12 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+### Removed
+- The Windows **`.msi` installer** is no longer published. Windows now ships the
+  **`.exe` (NSIS) installer** and portable build only — both auto-update exactly
+  as before, so there's nothing to do. If you previously installed via the `.msi`,
+  just run the `.exe` installer once to switch over.
+
 ## [0.10.11] - 2026-06-20
 
 ### Added

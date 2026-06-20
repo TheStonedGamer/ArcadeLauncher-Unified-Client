@@ -28,3 +28,6 @@ dist-ssr
 *.key
 *.key.pub
 arcade-updater.key*
+
+# Local secrets — runner VM credentials, never commit
+.secrets/
