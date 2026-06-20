@@ -93,6 +93,27 @@ pub enum Inbound {
         #[serde(default, rename = "userId")]
         user_id: u64,
     },
+    /// A friend invited us to join their game (T12d). `invite_id` identifies the
+    /// invite for accept/decline; `game_id`/`game_title` say what to launch/join.
+    #[serde(rename = "game_invite", rename_all = "camelCase")]
+    GameInvite {
+        #[serde(default)]
+        invite_id: u64,
+        #[serde(default)]
+        from_id: u64,
+        #[serde(default)]
+        game_id: String,
+        #[serde(default)]
+        game_title: String,
+        #[serde(default)]
+        timestamp: i64,
+    },
+    /// A previously-sent game invite was cancelled or expired server-side.
+    #[serde(rename = "game_invite_cancel", rename_all = "camelCase")]
+    GameInviteCancel {
+        #[serde(default)]
+        invite_id: u64,
+    },
     /// Any frame type we don't model yet (e.g. voice_signal — that's T4).
     #[serde(other)]
     Unknown,
@@ -157,6 +178,16 @@ pub mod outbound {
 
     pub fn react(msg_id: u64, emoji: &str, on: bool) -> String {
         json!({ "type": "react", "msgId": msg_id, "emoji": emoji, "on": on }).to_string()
+    }
+
+    /// Invite a friend to join the game we're playing (T12d).
+    pub fn game_invite(to: u64, game_id: &str) -> String {
+        json!({ "type": "game_invite", "to": to, "gameId": game_id }).to_string()
+    }
+
+    /// Accept or decline a received game invite.
+    pub fn game_invite_respond(invite_id: u64, accept: bool) -> String {
+        json!({ "type": "game_invite_respond", "inviteId": invite_id, "accept": accept }).to_string()
     }
 }
 
@@ -241,6 +272,41 @@ mod tests {
         assert_eq!(
             Inbound::parse(r#"{"type":"friend_removed"}"#),
             Some(Inbound::FriendRemoved { user_id: 0 })
+        );
+    }
+
+    #[test]
+    fn parses_game_invite() {
+        let f = r#"{"type":"game_invite","inviteId":7,"fromId":3,"gameId":"g1","gameTitle":"Crystalis","timestamp":1700000000}"#;
+        assert_eq!(
+            Inbound::parse(f),
+            Some(Inbound::GameInvite {
+                invite_id: 7,
+                from_id: 3,
+                game_id: "g1".into(),
+                game_title: "Crystalis".into(),
+                timestamp: 1700000000,
+            })
+        );
+    }
+
+    #[test]
+    fn parses_game_invite_cancel() {
+        assert_eq!(
+            Inbound::parse(r#"{"type":"game_invite_cancel","inviteId":7}"#),
+            Some(Inbound::GameInviteCancel { invite_id: 7 })
+        );
+    }
+
+    #[test]
+    fn game_invite_outbound_shapes() {
+        assert_eq!(
+            outbound::game_invite(42, "g1"),
+            r#"{"gameId":"g1","to":42,"type":"game_invite"}"#
+        );
+        assert_eq!(
+            outbound::game_invite_respond(7, true),
+            r#"{"accept":true,"inviteId":7,"type":"game_invite_respond"}"#
         );
     }
 

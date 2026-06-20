@@ -152,6 +152,12 @@ reconciliation of the friend list and open conversations.
 - **Profiles** — banner, bio, and a level/XP bar.
 - **Privacy** — who-can-friend-me and who-can-DM-me policies plus a persistent
   per-user ignore list.
+- **Game invites** *(new, groundwork)* — the social gateway protocol now carries
+  a friend's "join my game" invite (and its cancellation), and a pure,
+  KAT-tested `invites.ts` reducer tracks the pending invites you've received
+  (deduped per sender+game, auto-expiring stale ones) with a `joinTarget`
+  selector for the launch handoff. The invite toast + one-click **Join** UI is
+  the next increment.
 - **Voice calls** — peer-to-peer **WebRTC** voice (mute, busy auto-decline),
   signaled over the server's `voice_signal` relay. ICE uses public STUN **plus a
   deployed coturn TURN server** for symmetric-NAT / off-LAN traversal, with

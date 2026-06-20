@@ -365,9 +365,19 @@ from scratch.
 
 **Social & multiplayer** (extends the existing WebRTC / gateway stack)
 
-- [ ] **T12d — Game invites + "Joinable" presence / party launch.** Add an invite
+- [~] **T12d — Game invites + "Joinable" presence / party launch.** Add an invite
   frame over the gateway and a "Join" action on top of the in-game presence we
   already broadcast.
+  - [x] Protocol + pure invite-state core (groundwork): `game_invite` /
+    `game_invite_cancel` inbound frames and `game_invite` /
+    `game_invite_respond` outbound builders mirrored in both `social::protocol`
+    (Rust, 3 KATs) and `features/social/protocol.ts`; pure
+    `features/social/invites.ts` reducer (received/remove/clearFrom/prune-TTL,
+    dedup by sender+game, frame→action mapping, sort/count/joinTarget
+    selectors; 15 vitest KATs).
+  - [ ] Toast + Join button UI and the gateway send/receive wiring + launch
+    handoff. Deferred: needs the server invite frame live + a computer-use smoke
+    test (user away).
 - [ ] **T12e — Screen share / video calls.** `useVoice.ts` already owns the full
   WebRTC offer/answer/ICE/TURN flow; adding a video / `getDisplayMedia` track is
   incremental, not a new subsystem.

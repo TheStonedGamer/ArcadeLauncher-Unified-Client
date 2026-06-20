@@ -17,6 +17,9 @@ export type Inbound =
   | { type: "friend_request"; userId: number }
   | { type: "friend_accepted"; userId: number }
   | { type: "friend_removed"; userId: number }
+  // Game invites (T12d): a friend invites us to join their game; cancel retracts.
+  | { type: "game_invite"; inviteId: number; fromId: number; gameId: string; gameTitle: string; timestamp: number }
+  | { type: "game_invite_cancel"; inviteId: number }
   // Voice (ROADMAP T9g): opaque WebRTC signaling relayed between friends. The
   // `payload` is interpreted by voice.ts (parseSignal); we keep it untyped here.
   | { type: "voice_signal"; fromId: number; payload: unknown }
@@ -86,6 +89,17 @@ export function parseInbound(utf8: string): Inbound | null {
       return { type: "friend_accepted", userId: num(v.userId) };
     case "friend_removed":
       return { type: "friend_removed", userId: num(v.userId) };
+    case "game_invite":
+      return {
+        type: "game_invite",
+        inviteId: num(v.inviteId),
+        fromId: num(v.fromId),
+        gameId: str(v.gameId),
+        gameTitle: str(v.gameTitle),
+        timestamp: num(v.timestamp),
+      };
+    case "game_invite_cancel":
+      return { type: "game_invite_cancel", inviteId: num(v.inviteId) };
     case "voice_signal":
       return { type: "voice_signal", fromId: num(v.fromId), payload: v.payload };
     default:
@@ -116,6 +130,10 @@ export const outbound = {
   delete: (msgId: number): string => JSON.stringify({ type: "delete", msgId }),
   react: (msgId: number, emoji: string, on: boolean): string =>
     JSON.stringify({ type: "react", msgId, emoji, on }),
+  // Game invites (T12d): invite a friend to join our game; accept/decline a received one.
+  gameInvite: (to: number, gameId: string): string => JSON.stringify({ type: "game_invite", to, gameId }),
+  gameInviteRespond: (inviteId: number, accept: boolean): string =>
+    JSON.stringify({ type: "game_invite_respond", inviteId, accept }),
   // Voice (ROADMAP T9g): relay an opaque WebRTC signaling payload to a friend.
   // The server's voice_signal handler also gates the (caller,peer) pair on
   // invite/accept/end, so `payload.kind` must carry those alongside offer/answer/

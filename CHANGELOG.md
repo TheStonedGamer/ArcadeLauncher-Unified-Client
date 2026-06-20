@@ -20,6 +20,10 @@ Added / Changed / Fixed / Removed.
   restore is itself undoable — the current save is snapshotted before it's
   replaced. No visible UI yet; the restore picker and automatic snapshot on
   game exit land next.
+- Groundwork for **game invites**: the client can now understand a friend's
+  "join my game" invite (and its cancellation) over the social gateway and track
+  the pending invites you've received, expiring stale ones automatically. No
+  visible UI yet — the invite toast and one-click **Join** land next.
 
 ## [0.10.5] - 2026-06-19
 

@@ -279,6 +279,8 @@ export function applyInbound(state: SocialState, msg: Inbound, now: number): Soc
     case "friend_accepted":
     case "friend_removed":
     case "voice_signal": // handled by useVoice, not chat state
+    case "game_invite": // handled by the invites reducer, not chat state
+    case "game_invite_cancel":
     case "pong":
     case "unknown":
       return state;
