@@ -172,10 +172,13 @@ reconciliation of the friend list and open conversations.
 
 ## 6.1 Remote game streaming *(in progress)*
 
-- **Sunshine/Moonlight streaming groundwork** — the client models a streaming
-  host (address, pairing state, reachability), reads a Sunshine host's app list,
-  and decides whether a given game is streamable from it. The host-control
-  transport, Moonlight launch, and "▶ Stream from host" UI build on top.
+- **Sunshine host control** — the client pairs with a Sunshine host (4-digit
+  PIN), lists the games it offers, and adds a launcher game to it, over an HTTPS
+  connection that **pins the host's self-signed certificate** on first pairing
+  (trust-on-first-use) and refuses to connect if the cert later changes. Host +
+  pin are saved per-user (`streaming_hosts.json`); Sunshine credentials are used
+  per-request and never written to disk. The Moonlight launch and "▶ Stream from
+  host" UI build on top.
 
 ## 7. Platform & packaging
 

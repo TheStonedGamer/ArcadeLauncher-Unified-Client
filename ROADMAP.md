@@ -432,19 +432,27 @@ from scratch.
     tolerant, drops blank-named apps) into `SunshineApp`; and decides
     `is_streamable(host, apps, game)` (ready host + case/space-insensitive app
     match). No IO. 12 Rust KATs. Shipped CI-only (no UI yet).
-  - [~] **T12k-2** Sunshine host control (Rust seam): talk to Sunshine's HTTPS
+  - [x] **T12k-2** Sunshine host control (Rust seam): talk to Sunshine's HTTPS
     config API (default `:47990`) to **pair** (PIN flow), list/add a launcher game
     as a Sunshine "app" (so launching it on the host runs our game), and read
     pairing state. Creds/host stored client-local (never in `library.json`).
     Self-signed cert handling via TOFU fingerprint pin (pinned, not disabled).
-    - **Pure core done** (`streaming::control`, 9 KATs): `ControlEndpoint`
-      (normalises any host to `https://<addr>:47990`; `apps_url`/`pin_url`),
+    - **Pure core** (`streaming::control`, 10 KATs): `ControlEndpoint`
+      (`normalize_address` → `https://<addr>:47990`; `apps_url`/`pin_url`),
       `is_valid_pin` (4 digits), `pin_body`/`new_app_body` (`image-path` rename),
       `parse_pin_result` (bool-or-string `status`), dependency-free RFC-4648
       `b64encode`/`basic_auth_value` for Sunshine's Basic auth, and the cert-pin
-      decision (`cert_fingerprint_hex` SHA-256 + `fingerprint_matches`,
-      separator/case-insensitive). _Remaining: thin reqwest seam + commands
-      (TOFU-pinned client, pair/list/add) — next._
+      decision (`cert_fingerprint_hex` SHA-256 + `fingerprint_matches`).
+    - **Registry** (`streaming::store`, 4 KATs): `StreamHosts` get/upsert/remove/
+      `pinned_fingerprint` + atomic load/save to per-user `streaming_hosts.json`
+      (host + pin only — **no creds on disk**).
+    - **Live seam** (`streaming::commands`): a `tls_info` reqwest client that
+      captures the host's self-signed leaf cert and enforces the SHA-256 pin
+      (TOFU on first pair, reject-on-change after — no custom rustls verifier, no
+      new dep). Commands `sunshine_pair`/`sunshine_apps`/`sunshine_add_app`/
+      `streaming_hosts`/`streaming_forget_host`; Basic-auth creds passed per-call,
+      never persisted. Shipped in v0.10.x (CI-only; live-host verification rides
+      on the T12k-4 streaming UI that drives these).
   - [ ] **T12k-3** Moonlight client launch: detect/bundle the Moonlight client and
     hand it a host+app to start a stream (URI/CLI invocation), or — stretch —
     embed the stream. Decision point captured here: **shell out to `moonlight-qt`**

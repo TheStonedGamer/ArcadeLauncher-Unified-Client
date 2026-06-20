@@ -22,15 +22,19 @@ or T12k Sunshine/Moonlight streaming).**
 `src-tauri/src/streaming/host.rs` is the pure host core — `StreamHost`/`HostState`,
 `config_base_url` (`https://<addr>:47990`), `is_ready`, Sunshine `apps.json`
 parsing (`parse_apps`/`SunshineApp`), and `is_streamable(host, apps, game)`. 12
-Rust KATs. `T12k-2` **pure core landed** (CI-only): `src-tauri/src/streaming/control.rs`
-— `ControlEndpoint` (→ `https://<addr>:47990`, `apps_url`/`pin_url`), `is_valid_pin`,
-`pin_body`/`new_app_body`, `parse_pin_result`, dependency-free `b64encode`/
-`basic_auth_value` (Sunshine Basic auth), and the TOFU cert-pin decision
-(`cert_fingerprint_hex`/`fingerprint_matches`). 9 KATs. **Next: the thin reqwest
-seam + commands for T12k-2** — a TOFU-fingerprint-pinned reqwest client (record the
-self-signed cert's SHA-256 on first pair, require a match thereafter; no
-`danger_accept_invalid_certs` in steady state) plus `sunshine_pair`/`_apps`/
-`_add_app` commands, creds+pin stored client-local. Then T12k-3 (Moonlight launch).
+Rust KATs. **`T12k-2` DONE** (CI-only): `streaming::control` (pure shaping +
+cert-pin decision, 10 KATs), `streaming::store` (`StreamHosts` registry +
+atomic `streaming_hosts.json`, 4 KATs), and `streaming::commands` (live seam):
+a `reqwest` client built with `tls_info(true)` + `danger_accept_invalid_certs/
+hostnames` that captures the host's self-signed leaf cert and enforces a SHA-256
+**pin** (TOFU on first pair via `fingerprint_matches`, reject-on-change after) —
+so no custom rustls verifier and **no new dep**. Commands `sunshine_pair`,
+`sunshine_apps`, `sunshine_add_app`, `streaming_hosts`, `streaming_forget_host`;
+Basic-auth creds passed per-call, never persisted. **Live-host verification is
+deferred to T12k-4** (no Sunshine host available to drive these headless; the UI
+will exercise them). **Next: T12k-3** (Moonlight client launch — detect/shell out
+to `moonlight-qt` with host+app; pure URI/CLI builder first) then **T12k-4**
+(streaming UI — smoke-testable, will validate the T12k-2 seam end-to-end).
 
 ---
 

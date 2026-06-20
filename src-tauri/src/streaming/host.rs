@@ -57,6 +57,12 @@ pub struct StreamHost {
     pub paired: bool,
     /// Last-probed reachability.
     pub state: HostState,
+    /// Pinned SHA-256 fingerprint (lowercase hex) of the host's self-signed
+    /// config-API certificate, recorded on first pair (TOFU). Empty until then;
+    /// the transport requires a presented cert to match this before trusting a
+    /// connection. Client-local only.
+    #[serde(default)]
+    pub fingerprint: String,
 }
 
 impl StreamHost {
@@ -70,6 +76,7 @@ impl StreamHost {
             address,
             paired: false,
             state: HostState::Unknown,
+            fingerprint: String::new(),
         }
     }
 
@@ -148,6 +155,7 @@ mod tests {
             address: "10.0.0.5".into(),
             paired: true,
             state: HostState::Online,
+            fingerprint: "aa".into(),
         }
     }
 

@@ -22,22 +22,27 @@ pub struct ControlEndpoint {
     base: String,
 }
 
+/// Reduce any user-typed host (with stray scheme, port, slashes, whitespace) to
+/// the bare host (IP or DNS name). The single canonical form both the endpoint
+/// URL builder and the client-local host registry key on, so they never
+/// disagree about what "the same host" is.
+pub fn normalize_address(address: &str) -> String {
+    let a = address.trim();
+    let a = a
+        .strip_prefix("https://")
+        .or_else(|| a.strip_prefix("http://"))
+        .unwrap_or(a);
+    let a = a.trim_end_matches('/');
+    a.split(':').next().unwrap_or(a).to_string()
+}
+
 impl ControlEndpoint {
     /// Build from a bare host address (IP or DNS name, no scheme/port). Any
     /// stray scheme/port/whitespace the caller passes is normalised away so the
     /// joined URLs are always `https://<addr>:47990/...`.
     pub fn new(address: &str) -> Self {
-        let a = address.trim();
-        let a = a
-            .strip_prefix("https://")
-            .or_else(|| a.strip_prefix("http://"))
-            .unwrap_or(a);
-        // Drop any caller-supplied port and trailing slashes — we always use the
-        // Sunshine config port.
-        let a = a.trim_end_matches('/');
-        let host = a.split(':').next().unwrap_or(a);
         ControlEndpoint {
-            base: format!("https://{host}:{SUNSHINE_CONFIG_PORT}"),
+            base: format!("https://{}:{SUNSHINE_CONFIG_PORT}", normalize_address(address)),
         }
     }
 
@@ -181,6 +186,14 @@ mod tests {
         let e = ControlEndpoint::new("  host.local  ");
         assert_eq!(e.apps_url(), "https://host.local:47990/api/apps");
         assert_eq!(e.pin_url(), "https://host.local:47990/api/pin");
+    }
+
+    #[test]
+    fn normalize_address_strips_scheme_port_slash() {
+        assert_eq!(normalize_address(" https://10.0.0.5:47990/ "), "10.0.0.5");
+        assert_eq!(normalize_address("http://host.local"), "host.local");
+        assert_eq!(normalize_address("box:1234"), "box");
+        assert_eq!(normalize_address("plain"), "plain");
     }
 
     #[test]

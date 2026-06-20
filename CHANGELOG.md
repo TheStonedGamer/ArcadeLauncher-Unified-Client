@@ -22,6 +22,11 @@ Added / Changed / Fixed / Removed.
   pair with a Sunshine host (PIN), add a game to it, and pin the host's
   certificate so the connection stays secure. Still no visible UI — wiring
   continues.
+- The client can now actually talk to a Sunshine streaming host: pair with a PIN,
+  list the games it offers, and add a game to it — over a secure connection that
+  pins the host's certificate on first pairing and refuses to connect if it ever
+  changes. Your Sunshine username/password are used only for the request and are
+  never saved to disk. The "Stream from host" UI that drives this is next.
 
 ## [0.10.4] - 2026-06-19
 
