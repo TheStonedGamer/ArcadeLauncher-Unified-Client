@@ -16,20 +16,22 @@ name: Release
 # and published with everything; the loser was stranded as an orphan draft. The
 # single up-front draft removes that race entirely.
 #
-# BUILD INFRA (BI1): both build legs are now Linux containers on the same Proxmox
-# host, each pinned to its own disjoint set of 8 host cores so they build in true
-# parallel without contending:
-#   * Windows leg  → self-hosted `prox-xwin` (CT 132 `arcade-xwin-build`, cores
-#     8-15). CROSS-COMPILED with `cargo-xwin` targeting `x86_64-pc-windows-msvc`
-#     (MSVC ABI — clang-cl + lld, CRT/SDK auto-downloaded), bundled to an NSIS
-#     `.exe` via `makensis` which runs natively on Linux. MSI/WiX is DROPPED (would
-#     need wine); Windows ships the NSIS installer + portable + updater artifacts.
-#   * Linux leg    → self-hosted `prox-pve` (CT 130 `arcade-gh-runner`, cores 0-7),
-#     building natively. CT 130 also hosts the Server repo's runner.
-# The old Proxmox Windows build VM and its `prox-win` runner are ABANDONED — there
-# is no Windows host anywhere in this pipeline. The trivial create/publish API jobs
-# run on GitHub-hosted `ubuntu-latest`. Safe for a PUBLIC repo: tag-triggered only,
-# and tags can only be pushed by collaborators with write access.
+# BUILD INFRA: the Windows leg builds NATIVELY on a self-hosted Windows host; the
+# Linux leg builds natively in a Proxmox container.
+#   * Windows leg  → self-hosted Windows runner (labels `self-hosted, Windows,
+#     X64` → `pc-win-runner`). Native MSVC build with the host's Rust toolchain +
+#     Visual Studio Build Tools, bundled to an NSIS `.exe` (tauri fetches makensis
+#     itself on Windows). MSI/WiX stays DROPPED — the in-app updater consumes the
+#     NSIS setup.exe. The runner must have Rust (rustup), Node, and the MSVC build
+#     tools (link.exe + Windows SDK) installed.
+#   * Linux leg    → self-hosted `prox-pve` (CT 130 `arcade-gh-runner`), building
+#     natively. CT 130 also hosts the Server repo's runner.
+# The earlier BI1 cargo-xwin cross-compile on Linux (`prox-xwin`, CT 132) was
+# ABANDONED: $GITHUB_PATH never propagated cargo onto that runner's step PATH and
+# even an explicit PATH export failed to resolve cargo, so we reverted to a real
+# Windows host. The trivial create/publish API jobs run on GitHub-hosted
+# `ubuntu-latest`. Safe for a PUBLIC repo: tag-triggered only, and tags can only be
+# pushed by collaborators with write access.
 #
 # Requires two repo secrets before the first real release (the in-app updater
 # signs artifacts with them):
@@ -79,67 +81,63 @@ jobs:
             });
             return data.id;
 
-  # ---- Phase 2a: Windows leg — cross-compiled on Linux (BI1) --------------
-  # Cross-builds the MSVC-ABI Windows binary with cargo-xwin (clang-cl + lld,
-  # CRT/SDK auto-downloaded) and bundles the NSIS installer with makensis. No
-  # Windows host, no MSI/WiX. Runs on the self-hosted `prox-xwin` runner (Proxmox
-  # CT 132 `arcade-xwin-build`, pinned to host cores 8-15), which is PRE-PROVISIONED
-  # with the cross toolchain — clang/clang-cl, lld/lld-link, llvm-lib/llvm-rc,
-  # nsis (makensis), Rust stable + the x86_64-pc-windows-msvc target, and
-  # cargo-xwin. So this job installs nothing beyond npm deps; if the CT is ever
-  # rebuilt, re-provision it (see HANDOFF "BI1 runner topology"). Runs in PARALLEL
-  # with the Linux leg, which is pinned to the disjoint cores 0-7 on CT 130.
+  # ---- Phase 2a: Windows leg — native MSVC build on a Windows host --------
+  # Builds the MSVC-ABI binary natively with the host's Rust toolchain + VS Build
+  # Tools and bundles BOTH the NSIS installer and the MSI/WiX installer (tauri
+  # fetches makensis + the WiX toolset itself on Windows — native build, no wine).
+  # The in-app updater still consumes the NSIS setup.exe (its platform_keys prefer
+  # the `-nsis` key); the MSI ships for users/admins who want it. Runs on the
+  # self-hosted Windows runner pinned to the `arcade-win10` label → VM 111
+  # (`arcade-win10-runner`); the bare self-hosted/Windows/X64 set also matches other
+  # Windows runners, so the unique label keeps this leg deterministic. Runs in
+  # PARALLEL with the Linux leg.
   release-windows:
     needs: create-release
-    runs-on: [self-hosted, prox-xwin]
+    runs-on: [self-hosted, Windows, X64, arcade-win10]
     permissions:
       contents: write
-    # Pin PATH at the JOB level so EVERY step (including tauri-action, which spawns
-    # `cargo xwin` from node) finds cargo. Two earlier attempts via $GITHUB_PATH
-    # silently did nothing on this runner — the runner isn't propagating the
-    # add-path file into step shells — so we set PATH directly instead. The base is
-    # the runner service's own PATH (verified on the box: node/npm/makensis live in
-    # /usr/bin) with rustup's /home/runner/.cargo/bin prepended.
-    env:
-      WINDOWS_TARGET: x86_64-pc-windows-msvc
-      PATH: "/home/runner/.cargo/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
 
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
           cache-on-failure: true
-          shared-key: release-windows-xwin
+          shared-key: release-windows
 
       - name: Install npm deps
         run: npm ci
 
-      # Cross-build the bootstrap updater for the MSVC target and stage it as the
-      # Tauri sidecar. externalBin requires the file to pre-exist with the
-      # target-triple suffix (note the `.exe` for the Windows target).
-      - name: Build bootstrap updater sidecar (cross)
-        shell: bash
+      # Build the bootstrap updater natively and stage it as the Tauri sidecar.
+      # externalBin requires the file to pre-exist with the host target-triple
+      # suffix (x86_64-pc-windows-msvc) and the `.exe` extension.
+      - name: Build bootstrap updater sidecar
+        shell: pwsh
         run: |
-          export PATH="/home/runner/.cargo/bin:$PATH"
-          cargo xwin build --release -p arcade_updater \
-            --target "$WINDOWS_TARGET" --manifest-path src-tauri/Cargo.toml
-          mkdir -p src-tauri/binaries
-          cp "src-tauri/target/$WINDOWS_TARGET/release/updater.exe" \
-            "src-tauri/binaries/updater-$WINDOWS_TARGET.exe"
+          cargo build --release -p arcade_updater --manifest-path src-tauri/Cargo.toml
+          New-Item -ItemType Directory -Force -Path src-tauri/binaries | Out-Null
+          Copy-Item src-tauri/target/release/updater.exe `
+            src-tauri/binaries/updater-x86_64-pc-windows-msvc.exe
 
-      - name: Build + upload Windows artifacts (cargo-xwin → NSIS)
+      - name: Build + upload Windows artifacts (native → NSIS + MSI)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          # --runner cargo-xwin drives the MSVC cross-build; only the NSIS bundle
-          # is produced on Linux (MSI/WiX dropped — would need wine).
-          # NSIS only; the .sig updater artifacts ride along via
-          # createUpdaterArtifacts in tauri.conf.json.
-          args: --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis --verbose
+          # Both installers; the .sig updater artifacts ride along via
+          # createUpdaterArtifacts in tauri.conf.json. The updater prefers the
+          # NSIS setup.exe (the `-nsis` platform key) — the MSI is just an extra
+          # download for users who want it.
+          args: --bundles nsis,msi --verbose
           # Upload into the pre-created draft; do NOT create or publish a release
           # here (that's what caused the duplicate-draft race).
           releaseId: ${{ needs.create-release.outputs.release_id }}

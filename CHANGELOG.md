@@ -13,11 +13,16 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
-### Removed
-- The Windows **`.msi` installer** is no longer published. Windows now ships the
-  **`.exe` (NSIS) installer** and portable build only — both auto-update exactly
-  as before, so there's nothing to do. If you previously installed via the `.msi`,
-  just run the `.exe` installer once to switch over.
+## [0.10.12] - 2026-06-20
+
+### Added
+- The Windows **`.msi` installer** is published again, alongside the `.exe` (NSIS)
+  installer and portable build, for anyone who prefers MSI deployment. The in-app
+  updater still uses the `.exe`, so auto-updates are unchanged either way.
+
+### Changed
+- Internal build infrastructure only: Windows releases are now produced on a
+  native Windows build machine. No user-facing change beyond the `.msi` returning.
 
 ## [0.10.11] - 2026-06-20
 

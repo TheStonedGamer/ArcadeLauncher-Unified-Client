@@ -4,17 +4,15 @@ name: CI
 # before anything can ship. Frontend typecheck/build + Rust compile + unit tests
 # run on both OSes.
 #
-# BUILD INFRA (BI1): both legs are Linux containers on the same Proxmox host,
-# pinned to disjoint 8-core sets so they build in true parallel:
-#   * Windows leg → self-hosted `prox-xwin` (CT 132, cores 8-15). CROSS-COMPILED
-#     with `cargo-xwin` targeting `x86_64-pc-windows-msvc` (MSVC ABI). Because the
-#     cross-built test binaries are Windows `.exe`s that can't execute on Linux
-#     (they'd need wine), this leg is a COMPILE CHECK only — it proves the code
-#     builds for the MSVC target.
-#   * Linux leg   → self-hosted `prox-pve` (CT 130, cores 0-7), building natively
-#     and running the actual unit tests (OS-agnostic pure logic).
-# Both runner CTs are PRE-PROVISIONED with their toolchains; the Proxmox Windows
-# build VM (`prox-win`) is ABANDONED — there is no Windows host in this pipeline.
+# BUILD INFRA:
+#   * Windows leg → self-hosted Windows runner (labels `self-hosted, Windows, X64`).
+#     Native MSVC build + the actual unit tests run here.
+#   * Linux leg   → self-hosted `prox-pve` (CT 130), building natively and running
+#     the unit tests (OS-agnostic pure logic).
+# The earlier BI1 cargo-xwin cross-compile on Linux (`prox-xwin`, CT 132) was
+# ABANDONED — cargo never resolved on that runner's step PATH — so the Windows leg
+# is a real Windows host again. The runner needs Rust (rustup), Node, and the MSVC
+# build tools (link.exe + Windows SDK).
 
 on:
   push:
@@ -46,28 +44,28 @@ env:
   CARGO_PROFILE_DEV_DEBUG: line-tables-only
 
 jobs:
-  # ---- Windows leg — cross-compile check on Linux (BI1) -------------------
-  # Proves the code compiles for x86_64-pc-windows-msvc via cargo-xwin. Tests run
-  # on the Linux leg (cross-built Windows test exes can't run here without wine).
+  # ---- Windows leg — native MSVC build on a Windows host ------------------
+  # Compiles for x86_64-pc-windows-msvc natively with the host's Rust toolchain +
+  # VS Build Tools. Pinned to the `arcade-win10` label → VM 111 (Proxmox CT/VM
+  # `arcade-win10-runner`); the bare self-hosted/Windows/X64 set also matches other
+  # Windows runners, so the unique label keeps this leg deterministic.
   windows:
-    runs-on: [self-hosted, prox-xwin]
-    # Pin PATH at the JOB level so every step (including tauri's cargo-xwin shellout)
-    # finds cargo. $GITHUB_PATH does NOT propagate into step shells on this runner,
-    # so we set PATH directly — base is the runner's own service PATH (node/npm/
-    # makensis in /usr/bin) with rustup's /home/runner/.cargo/bin prepended.
-    env:
-      WINDOWS_TARGET: x86_64-pc-windows-msvc
-      PATH: "/home/runner/.cargo/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"
+    runs-on: [self-hosted, Windows, X64, arcade-win10]
     steps:
       - uses: actions/checkout@v4
 
-      # The prox-xwin CT (132) is pre-provisioned with clang-cl/lld-link/llvm-lib/
-      # nsis + the msvc Rust target + cargo-xwin, so nothing to install here.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
           cache-on-failure: true
-          shared-key: ci-windows-xwin
+          shared-key: ci-windows
 
       - name: Install npm deps
         run: npm ci
@@ -76,23 +74,23 @@ jobs:
         run: npm run build
 
       # tauri.conf.json declares the bootstrap updater as an externalBin sidecar
-      # (binaries/updater-<triple>.exe), and tauri-build's custom build command
-      # fails if that file is absent — so cross-build it before the app check.
-      - name: Build bootstrap updater sidecar (cross)
-        shell: bash
+      # (binaries/updater-<triple>.exe); build it before the app check so the
+      # custom tauri build command finds it.
+      - name: Build bootstrap updater sidecar
+        shell: pwsh
         run: |
-          export PATH="/home/runner/.cargo/bin:$PATH"
-          cargo xwin build --release -p arcade_updater \
-            --target "$WINDOWS_TARGET" --manifest-path src-tauri/Cargo.toml
-          mkdir -p src-tauri/binaries
-          cp "src-tauri/target/$WINDOWS_TARGET/release/updater.exe" \
-            "src-tauri/binaries/updater-$WINDOWS_TARGET.exe"
+          cargo build --release -p arcade_updater --manifest-path src-tauri/Cargo.toml
+          New-Item -ItemType Directory -Force -Path src-tauri/binaries | Out-Null
+          Copy-Item src-tauri/target/release/updater.exe `
+            src-tauri/binaries/updater-x86_64-pc-windows-msvc.exe
 
-      - name: Rust compile check (release, MSVC cross-target)
+      - name: Rust unit tests
         working-directory: src-tauri
-        run: |
-          export PATH="/home/runner/.cargo/bin:$PATH"
-          cargo xwin check --release --locked --target "$WINDOWS_TARGET"
+        run: cargo test --locked
+
+      - name: Rust compile check (release)
+        working-directory: src-tauri
+        run: cargo check --release --locked
 
   # ---- Linux leg (runs in parallel with Windows) --------------------------
   # No `needs: windows`: the Windows leg now runs on a separate GitHub-hosted

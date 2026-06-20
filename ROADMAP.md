@@ -29,13 +29,21 @@ This file lives in **this** repo and is distinct from the C++ repo's
 
 ## Build & release infrastructure
 
-- [x] **BI1 — Drop the dedicated Windows runner; cross-compile Windows on the
-  Linux runner via `cargo-xwin` (decided 2026-06-20, DONE 2026-06-20).**
-  _Implemented:_ Windows leg now `runs-on: [self-hosted, prox-xwin]` (Proxmox CT
-  132 `arcade-xwin-build`, cores 8-15) cross-compiling MSVC via cargo-xwin → NSIS;
-  Linux leg on CT 130 (cores 0-7); MSI dropped from `tauri.conf.json`. `cargo xwin
-  check` of the full app verified clean. Topology + provisioning in HANDOFF.
-  Open follow-up: Authenticode `.exe` signing (osslsigncode) not yet wired. The Windows side is
+- [x] **BI1 — Windows build infra (SUPERSEDED → native Windows runner, 2026-06-20).**
+  _Final state:_ the cargo-xwin cross-compile was **abandoned** — `$GITHUB_PATH`
+  never propagated `cargo` onto the `prox-xwin` runner's step PATH and even an
+  explicit PATH export failed to resolve it. The Windows leg now builds **natively**
+  on **VM 111 `arcade-win10-runner`** (Windows 10, Proxmox host `10.0.0.98`), pinned
+  via the unique **`arcade-win10`** runner label (the bare `self-hosted/Windows/X64`
+  set also matches other Windows runners). Provisioned 2026-06-20: Rust stable MSVC
+  (rustup machine-wide under `C:\rust`, `CARGO_HOME`/`RUSTUP_HOME` machine env), Node
+  20 LTS, Git, and pre-existing VS Build Tools 2022 (VC.Tools 14.44 `link.exe`/
+  `cl.exe` + Windows SDK 10.0.22621/26100). Runner installed as a service (NETWORK
+  SERVICE). **MSI is back** (native Windows builds WiX fine): `tauri.conf.json`
+  targets `nsis,msi`; the updater still prefers the NSIS `setup.exe` via its
+  `-nsis` platform key. Linux leg unchanged (CT 130 `arcade-pve-client-runner`).
+  Open follow-up: Authenticode `.exe` signing not yet wired.
+  _Historical (cargo-xwin attempt, abandoned):_ The Windows side was to be
   built on the **same runner as the Linux build** by cross-compiling the
   **MSVC-ABI** target — **`cargo-xwin` + `x86_64-pc-windows-msvc`**, the modern
   way to produce MSVC-ABI Windows binaries on Linux. `cargo-xwin`
