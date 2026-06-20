@@ -7,11 +7,24 @@ Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit vi
 `npm run memory -- set …`, never by hand).
 
 Last updated: 2026-06-20. Client + server share a `0.10` `major.minor` lockstep
-line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.8` is RELEASED** —
+line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.9` is RELEASED** —
 the GitHub Release is published (not draft) with all artifacts (Windows NSIS +
 MSI, Linux deb/rpm/AppImage), each `.sig`-signed, plus `latest.json` (advertises
-`0.10.8`), so every installed launcher auto-updates on next launch. **v0.10.8**
-adds **T12f groundwork** (group DMs / channels, CI-only, no UI): room protocol
+`0.10.9`, 7 platform targets), so every installed launcher auto-updates on next
+launch. **v0.10.9** adds **T12g groundwork** (group voice 3+, CI-only, no UI):
+pure `features/social/voiceMesh.ts` — `MeshState` (selfId + per-peer
+`{phase,muted}` map + local mute) with a `meshReducer` (authoritative `roster`
+snapshot that preserves surviving peers' phase; peerJoin/Leave/peerPhase/
+peerMuted/toggleMute/reset; unknown peers ignored), the coordination-free
+`isInitiator` offer-role rule (lower id offers), and selectors
+(`peersToOffer`/`meshPeers`/`connectedCount`/`participantCount`/`isMeshActive`);
+13 vitest KATs (316 vitest + 261 cargo green). Reuses the existing per-peer
+`voice_signal` relay. The `useGroupVoice` RTCPeerConnection-per-peer engine +
+in-call roster UI + group-call start over a room are deferred (need T12f room UI
+live + a multi-peer smoke test). No server-side deploy was required. There is no
+new user-observable surface in v0.10.9 (pure groundwork), so no computer-use
+smoke test applies. **v0.10.8** (prior) added **T12f groundwork** (group DMs /
+channels, CI-only, no UI): room protocol
 frames `room_created`/`room_renamed`/`room_member_added`/`room_member_removed`/
 `room_deleted` + `room_create`/`room_rename`/`room_add_member`/`room_leave`
 builders mirrored in `social::protocol` (Rust, 4 KATs) and
