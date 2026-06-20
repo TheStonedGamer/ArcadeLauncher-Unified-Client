@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+### Added
+- Groundwork for **save version history**: the launcher can now keep a series of
+  restorable snapshots of a game's save folder and automatically prune to the
+  newest N, so last-write-wins can no longer quietly destroy an old save. A
+  restore is itself undoable — the current save is snapshotted before it's
+  replaced. No visible UI yet; the restore picker and automatic snapshot on
+  game exit land next.
+
 ## [0.10.5] - 2026-06-19
 
 ### Added

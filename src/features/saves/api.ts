@@ -43,3 +43,28 @@ export function syncSaves(
 ): Promise<SyncReport> {
   return call("saves_sync", { host, token, gameId, policy, savePath: savePath || null });
 }
+
+/** One restorable snapshot of a game's save folder (version history, T12i). */
+export interface SaveVersion {
+  id: string;
+  createdAt: number;
+  fileCount: number;
+  totalBytes: number;
+}
+
+/** List a game's restorable save snapshots, newest first. */
+export function listSaveVersions(gameId: string): Promise<SaveVersion[]> {
+  return call("saves_versions", { gameId });
+}
+
+/** Snapshot the current save folder into a new restorable version, pruning to
+ *  the newest `keep` (default server-side). Returns the kept versions. */
+export function snapshotSaves(gameId: string, savePath = "", keep?: number): Promise<SaveVersion[]> {
+  return call("saves_snapshot", { gameId, keep: keep ?? null, savePath: savePath || null });
+}
+
+/** Restore a stored snapshot back into the live save folder (the current state
+ *  is snapshotted first, so a restore is itself undoable). */
+export function restoreSaveVersion(gameId: string, versionId: string, savePath = ""): Promise<boolean> {
+  return call("saves_restore_version", { gameId, versionId, savePath: savePath || null });
+}

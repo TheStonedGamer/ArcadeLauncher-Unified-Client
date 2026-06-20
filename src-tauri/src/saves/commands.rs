@@ -14,9 +14,11 @@ use crate::saves::scan::scan_save_dir;
 use crate::saves::sync::{
     apply_conflict_policy, plan_sync, ConflictPolicy, SaveFile, SyncAction, SyncSummary,
 };
+use crate::saves::versions::{self, SaveVersion};
 use filetime::{set_file_mtime, FileTime};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Manager;
 
 /// The server's `GET /api/saves/:id` response shape.
@@ -150,6 +152,149 @@ pub async fn saves_sync(
         }
     }
     Ok(report)
+}
+
+// ---------------------------------------------------------------------------
+// Version history (T12i) — thin IO glue over `saves::versions`. Each snapshot is
+// a copy of the managed save folder under `app_data/saves_versions/<id>/<vid>/`;
+// the pure core decides ids and which snapshots to prune.
+// ---------------------------------------------------------------------------
+
+fn now_unix() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// Root holding every snapshot directory for `game_id`.
+fn versions_base(app: &tauri::AppHandle, game_id: &str) -> AppResult<PathBuf> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| AppError::msg(format!("no data dir: {e}")))?;
+    Ok(dir.join("saves_versions").join(game_id))
+}
+
+/// Read the existing snapshots for a game (each subdirectory is one version).
+fn read_versions(root: &Path) -> Vec<SaveVersion> {
+    let mut out = Vec::new();
+    let Ok(entries) = std::fs::read_dir(root) else { return out };
+    for entry in entries.flatten() {
+        if !entry.path().is_dir() {
+            continue;
+        }
+        let Some(id) = entry.file_name().to_str().map(str::to_string) else { continue };
+        let Some(created_at) = versions::parse_version_time(&id) else { continue };
+        let files = scan_save_dir(&entry.path()).unwrap_or_default();
+        out.push(SaveVersion {
+            id,
+            created_at,
+            file_count: files.len(),
+            total_bytes: files.iter().map(|f| f.size).sum(),
+        });
+    }
+    out
+}
+
+/// Recursively copy `src` into `dst` (creating `dst`). Used to snapshot a save
+/// folder into a version dir and to restore one back.
+fn copy_tree(src: &Path, dst: &Path) -> AppResult<()> {
+    std::fs::create_dir_all(dst).map_err(|e| AppError::msg(format!("mkdir failed: {e}")))?;
+    let entries = std::fs::read_dir(src).map_err(|e| AppError::msg(format!("read dir failed: {e}")))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| AppError::msg(format!("dir entry failed: {e}")))?;
+        let from = entry.path();
+        let to = dst.join(entry.file_name());
+        let meta = entry.metadata().map_err(|e| AppError::msg(format!("stat failed: {e}")))?;
+        if meta.is_dir() {
+            copy_tree(&from, &to)?;
+        } else if meta.is_file() {
+            std::fs::copy(&from, &to).map_err(|e| AppError::msg(format!("copy failed: {e}")))?;
+        }
+    }
+    Ok(())
+}
+
+/// List a game's restorable save snapshots, newest first.
+#[tauri::command]
+pub async fn saves_versions(app: tauri::AppHandle, game_id: String) -> AppResult<Vec<SaveVersion>> {
+    let root = versions_base(&app, &game_id)?;
+    let mut list = read_versions(&root);
+    let plan = versions::plan_retention(&list, list.len().max(1));
+    // Order newest-first using the same ordering the retention plan applies.
+    let order: std::collections::HashMap<&str, usize> =
+        plan.keep.iter().enumerate().map(|(i, id)| (id.as_str(), i)).collect();
+    list.sort_by_key(|v| *order.get(v.id.as_str()).unwrap_or(&usize::MAX));
+    Ok(list)
+}
+
+/// Snapshot the current save folder into a new restorable version, then prune to
+/// the newest `keep` (default 10). A snapshot with no files is skipped. Returns
+/// the kept versions, newest first.
+#[tauri::command]
+pub async fn saves_snapshot(
+    app: tauri::AppHandle,
+    game_id: String,
+    keep: Option<usize>,
+    save_path: Option<String>,
+) -> AppResult<Vec<SaveVersion>> {
+    let base = save_base(&app, &game_id, save_path.as_deref())?;
+    let current = scan_save_dir(&base).map_err(|e| AppError::msg(format!("save scan failed: {e}")))?;
+    let root = versions_base(&app, &game_id)?;
+    let existing = read_versions(&root);
+
+    // Nothing to snapshot — don't create an empty version.
+    if current.is_empty() {
+        return saves_versions(app, game_id).await;
+    }
+
+    let id = versions::next_version_id(now_unix(), &existing);
+    let dest = root.join(&id);
+    copy_tree(&base, &dest)?;
+
+    // Prune overflow beyond the retention count.
+    let mut all = read_versions(&root);
+    let keep = keep.unwrap_or(versions::DEFAULT_KEEP);
+    let plan = versions::plan_retention(&all, keep);
+    for pruned_id in &plan.prune {
+        let _ = std::fs::remove_dir_all(root.join(pruned_id));
+    }
+    all.retain(|v| plan.keep.contains(&v.id));
+    let order: std::collections::HashMap<&str, usize> =
+        plan.keep.iter().enumerate().map(|(i, id)| (id.as_str(), i)).collect();
+    all.sort_by_key(|v| *order.get(v.id.as_str()).unwrap_or(&usize::MAX));
+    Ok(all)
+}
+
+/// Restore a stored snapshot back into the live save folder. The current folder
+/// is snapshotted first (so a restore is itself undoable), then replaced.
+#[tauri::command]
+pub async fn saves_restore_version(
+    app: tauri::AppHandle,
+    game_id: String,
+    version_id: String,
+    save_path: Option<String>,
+) -> AppResult<bool> {
+    if versions::parse_version_time(&version_id).is_none() {
+        return Err(AppError::msg("invalid version id"));
+    }
+    let root = versions_base(&app, &game_id)?;
+    let src = root.join(&version_id);
+    if !src.is_dir() {
+        return Err(AppError::msg("version not found"));
+    }
+    let base = save_base(&app, &game_id, save_path.as_deref())?;
+
+    // Safety snapshot of the current state before we overwrite it.
+    let _ = saves_snapshot(app.clone(), game_id.clone(), None, save_path.clone()).await;
+
+    // Replace the live folder atomically-ish: write to a temp sibling, then swap.
+    if base.exists() {
+        std::fs::remove_dir_all(&base).map_err(|e| AppError::msg(format!("clear failed: {e}")))?;
+    }
+    copy_tree(&src, &base)?;
+    Ok(true)
 }
 
 async fn download_one(

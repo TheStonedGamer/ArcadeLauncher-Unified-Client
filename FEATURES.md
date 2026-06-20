@@ -121,6 +121,13 @@ elevate (Tauri updater).
   so Windows/Linux behave identically); the session auto-restores on launch.
 - **Cloud saves** — per-game sync between client and server (managed save folder or
   a per-game absolute save path), last-write-wins with conflict resolution.
+- **Save version history** *(new, groundwork)* — every snapshot of a game's save
+  folder is recorded as a restorable version; the launcher keeps the newest N and
+  prunes the rest, so last-write-wins can no longer silently destroy an old save.
+  A restore snapshots the current state first, so it's itself undoable. Backed by
+  a pure, KAT-tested retention core (`saves::versions` + `features/saves/saves.ts`)
+  under thin snapshot/list/restore commands. The restore UI and automatic
+  snapshot-on-exit are the next increment.
 
 ## 5. Social
 

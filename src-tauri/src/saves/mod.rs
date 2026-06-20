@@ -13,3 +13,4 @@ pub mod commands;
 pub mod paths;
 pub mod scan;
 pub mod sync;
+pub mod versions;

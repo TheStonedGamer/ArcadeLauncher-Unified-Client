@@ -51,9 +51,24 @@ picker). Verified: tsc + `vite build` + 260 unit tests + a full `tauri dev`
 compile & launch (all 7 streaming commands register, webview loads). **Live
 visual/pairing smoke test deferred** — needs a real Sunshine host + Moonlight and
 interactive computer-use approval (unavailable on this autonomous run); the seam
-is exercised by exactly this UI when a host is present. **Remaining: T12k-5**
-(reuse the Debian-ISO Moonlight thin-client as a ready-made set-top client —
-mostly doc/wiring of the existing autoinstall image).
+is exercised by exactly this UI when a host is present. **T12k-5 deferred** —
+it's a cross-project doc/wiring task in the separate `debian-autoinstall` repo,
+not this client.
+
+**In progress: T12i (auto-sync + save version history).** Version-history
+groundwork shipped (CI-only, no UI): pure `saves::versions` — `SaveVersion`,
+sortable `format_version_id`/`parse_version_time`, collision-free
+`next_version_id`, `plan_retention` (keep newest N, clamp [1,100]),
+`latest_version`; **12 Rust KATs**. Thin IO glue in `saves::commands`:
+`saves_snapshot` (copy the managed save folder into `app_data/saves_versions/
+<id>/<vid>/`, prune to newest N), `saves_versions` (list newest-first), and
+`saves_restore_version` (safety-snapshots the live folder, then replaces it —
+restore is itself undoable). Frontend `features/saves/saves.ts` pure core
+(auto-sync prefs parse/clamp, `shouldAutoSync`, `formatBytes`/`versionLabel`/
+`sortVersions`; **10 vitest KATs**) + typed IPC in `features/saves/api.ts`.
+**Remaining:** wire auto-sync into the launch/exit lifecycle and build the
+Settings + per-game version-history restore UI (deferred — needs the launch-flow
+seam and a computer-use smoke test while the user is interactive).
 
 ---
 

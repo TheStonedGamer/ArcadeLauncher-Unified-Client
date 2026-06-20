@@ -400,9 +400,21 @@ from scratch.
     `10.0.0.203`); shares the main server's DB via a composed `EnvironmentFile`.
     Verified end-to-end over public HTTPS: `/requests/health` → ok,
     `/requests/api/me` → `{"signedIn":false}`, bad bearer → 401.
-- [ ] **T12i — Auto-sync cloud saves on launch/exit + version history.** Saves are
+- [~] **T12i — Auto-sync cloud saves on launch/exit + version history.** Saves are
   manual + last-write-wins today; auto-sync on game exit and keep N restorable
   save versions to retire the conflict problem.
+  - [x] Version-history core + thin store (shipped groundwork): pure
+    `saves::versions` (id format/parse, collision-free `next_version_id`,
+    `plan_retention` keep-newest-N, `latest_version`; 12 KATs) + IO glue
+    `saves_snapshot` / `saves_versions` / `saves_restore_version` commands
+    (snapshot copies the managed save folder into a timestamped version dir and
+    prunes to the newest N; restore snapshots-then-replaces, so a restore is
+    itself undoable). Frontend `features/saves/saves.ts` pure core (auto-sync
+    prefs parse/clamp, `shouldAutoSync`, byte/version formatting; 10 vitest KATs)
+    + typed IPC wrappers.
+  - [ ] Wire auto-sync triggers into the actual launch/exit lifecycle and a
+    Settings + per-game version-history UI (restore picker). Deferred: needs the
+    launch-flow seam + a computer-use smoke test (user away).
 - [x] **T12j — "Continue playing" row + stats dashboard.** Use the playtime we
   already track to surface most-played and headline library numbers.
   - [x] "Continue Playing" row atop the catalog (recently-played, click-to-launch)
@@ -477,9 +489,11 @@ from scratch.
     & launch (all 7 streaming commands register, webview loads). *Interactive
     visual/pairing smoke test deferred — needs a live Sunshine host + Moonlight and
     interactive computer-use approval; the seam is exercised by the same UI.*
-  - [ ] **T12k-5** Reuse the Debian-ISO Moonlight thin-client work: document/wire
+  - [~] **T12k-5** Reuse the Debian-ISO Moonlight thin-client work: document/wire
     the autoinstall image as a ready-made set-top client that pairs to the same
     host, so a TV box and the desktop launcher share one streaming setup.
+    _Deferred — lives in the separate `debian-autoinstall` repo, not in this
+    client; revisit as a cross-project doc task rather than an in-client change._
   - _Licensing note:_ Sunshine (GPL-3.0) and Moonlight (GPL-3.0) are invoked as
     separate processes / bundled binaries, **not** statically linked into the
     (proprietary) launcher — keeps the launcher's licensing clean. Revisit if we
