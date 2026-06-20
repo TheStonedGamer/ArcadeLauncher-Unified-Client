@@ -94,22 +94,17 @@ jobs:
     runs-on: [self-hosted, prox-xwin]
     permissions:
       contents: write
+    # Pin PATH at the JOB level so EVERY step (including tauri-action, which spawns
+    # `cargo xwin` from node) finds cargo. Two earlier attempts via $GITHUB_PATH
+    # silently did nothing on this runner — the runner isn't propagating the
+    # add-path file into step shells — so we set PATH directly instead. The base is
+    # the runner service's own PATH (verified on the box: node/npm/makensis live in
+    # /usr/bin) with rustup's /home/runner/.cargo/bin prepended.
     env:
       WINDOWS_TARGET: x86_64-pc-windows-msvc
+      PATH: "/home/runner/.cargo/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"
     steps:
       - uses: actions/checkout@v4
-
-      # The self-hosted runner runs `run:` steps in a non-login shell
-      # (bash --noprofile --norc), which does NOT source ~/.cargo/env, so rustup's
-      # ~/.cargo/bin is off PATH and `cargo` isn't found. Put it on $GITHUB_PATH up
-      # front so EVERY later step inherits it — including tauri-action, which shells
-      # out to `cargo xwin` itself. Use the ABSOLUTE path, not $HOME: the runner
-      # service's environment has no HOME set, and actions/checkout temporarily
-      # overrides HOME, so "${HOME}/.cargo/bin" expanded to "/.cargo/bin" and the
-      # earlier $HOME-based fix silently did nothing. The runner user is `runner`
-      # (home /home/runner), where rustup installs cargo.
-      - name: Put cargo on PATH (self-hosted, non-login shell)
-        run: echo "/home/runner/.cargo/bin" >> "$GITHUB_PATH"
 
       - uses: swatinem/rust-cache@v2
         with:
@@ -126,6 +121,7 @@ jobs:
       - name: Build bootstrap updater sidecar (cross)
         shell: bash
         run: |
+          export PATH="/home/runner/.cargo/bin:$PATH"
           cargo xwin build --release -p arcade_updater \
             --target "$WINDOWS_TARGET" --manifest-path src-tauri/Cargo.toml
           mkdir -p src-tauri/binaries

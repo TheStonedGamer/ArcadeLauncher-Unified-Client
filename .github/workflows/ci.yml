@@ -51,20 +51,15 @@ jobs:
   # on the Linux leg (cross-built Windows test exes can't run here without wine).
   windows:
     runs-on: [self-hosted, prox-xwin]
+    # Pin PATH at the JOB level so every step (including tauri's cargo-xwin shellout)
+    # finds cargo. $GITHUB_PATH does NOT propagate into step shells on this runner,
+    # so we set PATH directly — base is the runner's own service PATH (node/npm/
+    # makensis in /usr/bin) with rustup's /home/runner/.cargo/bin prepended.
     env:
       WINDOWS_TARGET: x86_64-pc-windows-msvc
+      PATH: "/home/runner/.cargo/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"
     steps:
       - uses: actions/checkout@v4
-
-      # The self-hosted runner runs `run:` steps in a non-login shell
-      # (bash --noprofile --norc), which does NOT source ~/.cargo/env, so rustup's
-      # ~/.cargo/bin is off PATH and `cargo` isn't found. Put it on $GITHUB_PATH up
-      # front so every later step inherits it. Use the ABSOLUTE path, not $HOME:
-      # the runner service has no HOME set (and actions/checkout overrides it), so
-      # "${HOME}/.cargo/bin" expanded to "/.cargo/bin" and did nothing. Runner user
-      # is `runner` (home /home/runner), where rustup installs cargo.
-      - name: Put cargo on PATH (self-hosted, non-login shell)
-        run: echo "/home/runner/.cargo/bin" >> "$GITHUB_PATH"
 
       # The prox-xwin CT (132) is pre-provisioned with clang-cl/lld-link/llvm-lib/
       # nsis + the msvc Rust target + cargo-xwin, so nothing to install here.
@@ -86,6 +81,7 @@ jobs:
       - name: Build bootstrap updater sidecar (cross)
         shell: bash
         run: |
+          export PATH="/home/runner/.cargo/bin:$PATH"
           cargo xwin build --release -p arcade_updater \
             --target "$WINDOWS_TARGET" --manifest-path src-tauri/Cargo.toml
           mkdir -p src-tauri/binaries
@@ -94,7 +90,9 @@ jobs:
 
       - name: Rust compile check (release, MSVC cross-target)
         working-directory: src-tauri
-        run: cargo xwin check --release --locked --target "$WINDOWS_TARGET"
+        run: |
+          export PATH="/home/runner/.cargo/bin:$PATH"
+          cargo xwin check --release --locked --target "$WINDOWS_TARGET"
 
   # ---- Linux leg (runs in parallel with Windows) --------------------------
   # No `needs: windows`: the Windows leg now runs on a separate GitHub-hosted
