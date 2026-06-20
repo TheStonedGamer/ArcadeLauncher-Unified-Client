@@ -512,9 +512,11 @@ from scratch.
     stored-settings parse — 11 vitest KATs), typed IPC `api.ts`, `useStreaming`
     hook, `StreamingSection` + `StreamFromHost` components. Shipped in v0.10.5.
     Verified by tsc + production build + 260 unit tests + a full Tauri dev compile
-    & launch (all 7 streaming commands register, webview loads). *Interactive
-    visual/pairing smoke test deferred — needs a live Sunshine host + Moonlight and
-    interactive computer-use approval; the seam is exercised by the same UI.*
+    & launch (all 7 streaming commands register, webview loads). **Interactive
+    smoke test PASSED (2026-06-20, computer-use):** the Settings → Streaming section
+    renders with the pair-a-host form (address/user/pass/PIN) and correctly detects
+    "Moonlight client: not found on PATH". *Live pairing not tested — needs a real
+    Sunshine host PIN + Moonlight installed.*
   - [~] **T12k-5** Reuse the Debian-ISO Moonlight thin-client work: document/wire
     the autoinstall image as a ready-made set-top client that pairs to the same
     host, so a TV box and the desktop launcher share one streaming setup.

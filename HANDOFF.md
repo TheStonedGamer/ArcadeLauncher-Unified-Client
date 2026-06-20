@@ -38,6 +38,19 @@ columns (`setting_key`/`setting_value`); search works again. The `v0.10.4` Game
 Requests board remains DEPLOYED on the same CT (systemd `arcadelauncher-requests`,
 User=arcade, `0.0.0.0:8723`) behind nginx `10.0.0.203` at `/requests`.
 
+**Interactive smoke test (2026-06-20, computer-use):** the installed launcher was
+driven end-to-end and PASSED — boots straight to the library (2049 games synced,
+signed in; confirms the v0.10.7 updater no longer reinstalls on launch);
+**single-instance guard** holds (2nd launch spawns no duplicate process) and
+**brings the existing window to front** (minimized window restored + focused on
+relaunch); **Requests search works live** ("zelda" returns results — the 503 fix is
+good in prod); Settings renders fully (themes/accents, controller map, global
+hotkey, SteamGridDB key, RetroAchievements, all emulators + BIOS "Ready"/
+"Deployed", **Streaming** UI with correct "Moonlight not on PATH" detection); and
+the **social gateway shows "Connected"** (live WS, presence Online). Not tested
+(need a second peer / live host PIN): real Sunshine pairing, voice calls, and the
+not-yet-built T12d/T12f group UIs.
+
 **Next:** ROADMAP Phase T12 — the remaining items (T12d Join UI, T12e/f/g social
 UI + wiring, T12i auto-sync lifecycle + restore UI) are blocked on interactive
 computer-use smoke tests and live server frames, deferred while the user is away.
