@@ -106,6 +106,14 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      # See ci.yml: on this self-hosted Windows host rustup is already on PATH, so
+      # dtolnay skips adding CARGO_HOME\bin to $GITHUB_PATH, leaving `cargo`
+      # unresolved in the `shell: powershell` sidecar step. Ask rustup (resolves
+      # in bash) where cargo is and put its dir on PATH for all later steps.
+      - name: Put cargo on PATH (self-hosted)
+        shell: bash
+        run: dirname "$(rustup which cargo)" >> "$GITHUB_PATH"
+
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
