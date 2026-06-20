@@ -6,17 +6,23 @@ left* is [`ROADMAP.md`](ROADMAP.md); this file captures *current state*, the
 Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit via
 `npm run memory -- set …`, never by hand).
 
-Last updated: 2026-06-19. Client + server share a `0.10` `major.minor` lockstep
-line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.4` is RELEASED —
-ships the in-client Game Requests board end-to-end: pure core (`requests/api.rs`),
-seven bearer-authed Rust commands (`requests/commands.rs`), and the React Requests
-tab + `useRequests` hook. The `ArcadeLauncher-Requests` service is now DEPLOYED on
-prod CT `10.0.0.210` (systemd unit `arcadelauncher-requests`, User=arcade,
-`0.0.0.0:8723`), behind nginx `10.0.0.203` at `/requests` (prefix-strip proxy),
-sharing the main server DB via a composed `EnvironmentFile`. Verified end-to-end
-over public HTTPS (`/requests/health` ok, `/requests/api/me` → signedIn:false, bad
-bearer → 401). Next session picks up from ROADMAP Phase T12 (T12i auto-sync saves,
-or T12k Sunshine/Moonlight streaming).**
+Last updated: 2026-06-20. Client + server share a `0.10` `major.minor` lockstep
+line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.5` is RELEASED AND
+DEPLOYED** — the GitHub Release is published (not draft) with all artifacts
+(Windows NSIS + MSI, Linux deb/rpm/AppImage), each `.sig`-signed, plus
+`latest.json`; the updater manifest advertises `0.10.5` with valid signatures, so
+every installed launcher auto-updates to it on next launch. v0.10.5 ships remote
+game streaming end-to-end (Sunshine pairing + Moonlight launch UI, T12k-1..4).
+No server-side deploy was required for it. The earlier `v0.10.4` Game Requests
+board remains DEPLOYED on prod CT `10.0.0.210` (systemd `arcadelauncher-requests`,
+User=arcade, `0.0.0.0:8723`) behind nginx `10.0.0.203` at `/requests`.
+
+**Committed but not yet released:** T12i save-version-history groundwork
+(commit `1d941a7`, in CHANGELOG `[Unreleased]`) — pure `saves::versions` +
+snapshot/list/restore commands + `features/saves/saves.ts`. Backend-only, no
+new server endpoints, so nothing to deploy server-side; it ships in the next
+client release once the auto-sync lifecycle wiring + restore UI land. Next
+session picks up from ROADMAP Phase T12 (finish T12i, or T12e/T12f/T12g social).
 
 **In progress: T12k (remote streaming).** `T12k-1` landed (CI-only, no UI):
 `src-tauri/src/streaming/host.rs` is the pure host core — `StreamHost`/`HostState`,
