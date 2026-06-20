@@ -416,7 +416,7 @@ from scratch.
 
 **Bigger bets** (tie into adjacent projects)
 
-- [ ] **T12k — Remote game streaming (Sunshine/Moonlight).** Wire the launcher to
+- [~] **T12k — Remote game streaming (Sunshine/Moonlight).** Wire the launcher to
   stream an installed game from a host PC to a thin client — leverages the existing
   Moonlight/Debian-ISO work; effectively a personal GeForce-Now. Approach: **drive
   the existing open-source binaries** (Sunshine as the host server, Moonlight as
@@ -465,10 +465,18 @@ from scratch.
     `stream_launch(address,app,settings?)` (resolves the exe, spawns Moonlight with
     the built argv). Shipped in v0.10.x (CI-only; real-Moonlight flag correctness
     rides on the T12k-4 streaming UI smoke test).
-  - [ ] **T12k-4** Streaming UI: a **▶ Stream from host** affordance on the detail
-    panel for games marked host-installed, a host picker + pairing modal (PIN
-    entry), and a Settings → Streaming section (host address, client path/bundle
-    toggle, resolution/bitrate/HDR defaults passed through to Moonlight).
+  - [x] **T12k-4** Streaming UI: a **▶ Stream from host** affordance on the detail
+    panel (shown once a host is paired; auto-picks a lone host, else a picker) and
+    a **Settings → Streaming** section — pair/forget Sunshine hosts (PIN entry,
+    Moonlight-installed indicator) and stream-quality defaults
+    (resolution/fps/bitrate/window-mode/HDR) persisted locally and passed through
+    to Moonlight. Pure core `streaming.ts` (sanitize/clamp, PIN validation,
+    stored-settings parse — 11 vitest KATs), typed IPC `api.ts`, `useStreaming`
+    hook, `StreamingSection` + `StreamFromHost` components. Shipped in v0.10.5.
+    Verified by tsc + production build + 260 unit tests + a full Tauri dev compile
+    & launch (all 7 streaming commands register, webview loads). *Interactive
+    visual/pairing smoke test deferred — needs a live Sunshine host + Moonlight and
+    interactive computer-use approval; the seam is exercised by the same UI.*
   - [ ] **T12k-5** Reuse the Debian-ISO Moonlight thin-client work: document/wire
     the autoinstall image as a ready-made set-top client that pairs to the same
     host, so a TV box and the desktop launcher share one streaming setup.

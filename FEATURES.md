@@ -170,7 +170,7 @@ reconciliation of the friend list and open conversations.
 - **Keyboard-shortcut help** — press **`?`** (or the header **?** button) for a
   cheat-sheet of keyboard and controller shortcuts.
 
-## 6.1 Remote game streaming *(in progress)*
+## 6.1 Remote game streaming *(new)*
 
 - **Sunshine host control** — the client pairs with a Sunshine host (4-digit
   PIN), lists the games it offers, and adds a launcher game to it, over an HTTPS
@@ -182,8 +182,15 @@ reconciliation of the friend list and open conversations.
   (`moonlight_available`) and launches a stream of a chosen game from a paired
   host (`stream_launch`) at your configured resolution, frame rate, bitrate, HDR,
   and window mode. Moonlight (GPL) is invoked as a separate process, never linked;
-  a pure, KAT-tested core shapes the command line. The "▶ Stream from host" UI
-  builds on top.
+  a pure, KAT-tested core shapes the command line.
+- **Streaming UI** — a **Settings → Streaming** section pairs with / forgets
+  Sunshine hosts (PIN entry, with a live "Moonlight installed" indicator) and
+  holds your stream-quality defaults (resolution / frame rate / bitrate / window
+  mode / HDR), persisted locally and passed through to every stream. Once a host
+  is paired, a **▶ Stream from host** button on a game's detail panel launches it
+  over Moonlight (auto-picking a lone host, or offering a picker). Pure
+  `streaming.ts` core (clamp/sanitize, PIN validation, stored-settings parse) is
+  vitest-KAT'd.
 
 ## 7. Platform & packaging
 

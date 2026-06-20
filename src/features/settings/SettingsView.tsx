@@ -11,6 +11,7 @@ import { useGamepadConnected } from "../gamepad/useGamepadConnected";
 import { clampDeadZone, useControllerConfig } from "../gamepad/ControllerConfigContext";
 import { EmulatorControllerEditor } from "../controller/EmulatorControllerEditor";
 import { ThemeSettings } from "../theme/ThemeSettings";
+import { StreamingSection } from "../streaming/StreamingSection";
 import { useState } from "react";
 import { fetchRaSummary, type RaSummary } from "../retroachievements/api";
 import { pointsToLevel, summaryHeadline, topUnlocks, unlockLabel } from "../retroachievements/ra";
@@ -141,6 +142,8 @@ export function SettingsView() {
       />
 
       <EmulatorsSection />
+
+      <StreamingSection />
 
       <EmulatorControllerEditor />
     </section>

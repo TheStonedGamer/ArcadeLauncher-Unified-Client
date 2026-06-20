@@ -9,6 +9,7 @@ import type { Game } from "../types";
 import type { ConflictPolicy, SyncReport } from "../../saves/api";
 import { yearOf, collectionsOf } from "../query";
 import { variantLabel, type VariantGroup } from "../variants";
+import { StreamFromHost } from "../../streaming/StreamFromHost";
 
 interface Props {
   group: VariantGroup;
@@ -437,6 +438,7 @@ export function GameDetail({
               {runStatus && !runStatus.runnable && (
                 <span className="detail__fetchmsg detail__launch-reason">{runStatus.message}</span>
               )}
+              <StreamFromHost title={game.title} />
             </div>
           )}
         </div>

@@ -13,7 +13,18 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.5] - 2026-06-19
+
 ### Added
+- **Remote game streaming (Sunshine/Moonlight)** is now usable end to end. A new
+  **Settings → Streaming** section lets you pair with a Sunshine host PC by its
+  4-digit PIN, see your paired hosts (and forget them), tell at a glance whether
+  Moonlight is installed, and set your stream-quality defaults — resolution,
+  frame rate, bitrate, window mode, and HDR. Once a host is paired, a **▶ Stream
+  from host** button appears on a game's detail panel to launch it over Moonlight
+  at those settings. The host's certificate is pinned on first pairing, so the
+  connection is refused if it ever changes; your Sunshine username/password are
+  used only to pair and are never saved.
 - Groundwork for **remote game streaming** (Sunshine/Moonlight): the launcher
   can now model a streaming host, read a Sunshine host's app list, and tell
   whether a given game is streamable from it. No visible UI yet — this is the

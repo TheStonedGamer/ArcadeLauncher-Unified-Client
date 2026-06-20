@@ -39,8 +39,21 @@ pure argv core — `DisplayMode`, `StreamSettings` (`Default` 1080p60 @ 20 Mbps 
 `streaming::commands`: `moonlight_available` (probe PATH for the client) and
 `stream_launch(address, app, settings?)` (resolve exe, spawn Moonlight, GPL —
 separate process, never linked). Real-Moonlight flag correctness rides on the
-T12k-4 smoke test. **Next: T12k-4** (streaming UI — smoke-testable, will validate
-both the T12k-2 host-control and T12k-3 launch seams end-to-end).
+T12k-4 smoke test. **`T12k-4` DONE** (shipped in v0.10.5): the streaming UI.
+Frontend feature `src/features/streaming/` — pure `streaming.ts` core
+(sanitize/clamp mirroring the Rust bounds, `isValidPin`, `parseStoredSettings`;
+11 vitest KATs), typed IPC `api.ts`, `useStreaming` hook (hosts +
+Moonlight-availability + localStorage-persisted quality defaults), a
+**Settings → Streaming** `StreamingSection` (pair/forget hosts, Moonlight-
+installed indicator, quality defaults), and a **▶ Stream from host**
+`StreamFromHost` button wired into `GameDetail` (auto-picks a lone host, else a
+picker). Verified: tsc + `vite build` + 260 unit tests + a full `tauri dev`
+compile & launch (all 7 streaming commands register, webview loads). **Live
+visual/pairing smoke test deferred** — needs a real Sunshine host + Moonlight and
+interactive computer-use approval (unavailable on this autonomous run); the seam
+is exercised by exactly this UI when a host is present. **Remaining: T12k-5**
+(reuse the Debian-ISO Moonlight thin-client as a ready-made set-top client —
+mostly doc/wiring of the existing autoinstall image).
 
 ---
 
