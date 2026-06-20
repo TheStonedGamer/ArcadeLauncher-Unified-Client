@@ -25,6 +25,11 @@ Added / Changed / Fixed / Removed.
   the pending invites you've received, expiring stale ones automatically. No
   visible UI yet — the invite toast and one-click **Join** land next.
 
+### Fixed
+- **Only one launcher window opens per computer now.** Launching ArcadeLauncher
+  again while it's already running (including from the tray or a second shortcut)
+  brings the existing window to the front instead of starting a duplicate copy.
+
 ## [0.10.5] - 2026-06-19
 
 ### Added

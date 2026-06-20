@@ -313,6 +313,12 @@ work on top of parity. Each item still ships green on both OSes.
   catalog, so a fresh install simply shows no games until the catalog syncs.
   The `libraryPath` field stays in the settings model for back-compat but is
   hidden. Targeted for **v0.9.3**.
+- [x] **T11b** Single-instance guard. The launcher auto-updates and lives in the
+  tray, so a second launch (extra shortcut, tray re-open) must surface the
+  running window, not spawn a duplicate. Wired the official, pure-Rust
+  `tauri-plugin-single-instance` (no system deps, identical Win/Linux) as the
+  first-registered plugin; its callback calls `tray::setup::show_main`
+  (show + unminimize + focus). Desktop-only.
 
 ---
 

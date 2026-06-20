@@ -23,7 +23,18 @@ mod window;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // Single-instance guard MUST be the FIRST plugin registered (Tauri
+    // requirement). Only one launcher may run per machine: a second launch
+    // hands its argv/cwd to the already-running instance (which surfaces its
+    // window) and then exits, instead of spawning a duplicate. Desktop-only.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        tray::setup::show_main(app);
+    }));
+
+    let builder = builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init());
 

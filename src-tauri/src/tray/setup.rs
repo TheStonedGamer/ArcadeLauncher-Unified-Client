@@ -23,8 +23,9 @@ fn close_to_tray(app: &AppHandle) -> bool {
         .unwrap_or_else(|| crate::settings::model::General::default().close_to_tray)
 }
 
-/// Bring the main window to the foreground.
-fn show_main(app: &AppHandle) {
+/// Bring the main window to the foreground. Also used by the single-instance
+/// guard so a second launch surfaces the already-running window.
+pub(crate) fn show_main(app: &AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.show();
         let _ = win.unminimize();

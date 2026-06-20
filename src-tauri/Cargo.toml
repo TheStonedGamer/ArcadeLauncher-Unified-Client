@@ -61,3 +61,8 @@ tauri-plugin-dialog = "2"
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 # Global hotkey to summon/hide the launcher (T7b). Desktop-only.
 tauri-plugin-global-shortcut = "2"
+# Single-instance guard: only one launcher window per machine. The launcher
+# auto-updates + lives in the tray, so a second launch must surface the running
+# window, not spawn a duplicate. Official pure-Rust Tauri plugin (no system
+# deps; identical on Windows + Linux). Desktop-only.
+tauri-plugin-single-instance = "2"
