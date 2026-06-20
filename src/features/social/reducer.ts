@@ -281,6 +281,11 @@ export function applyInbound(state: SocialState, msg: Inbound, now: number): Soc
     case "voice_signal": // handled by useVoice, not chat state
     case "game_invite": // handled by the invites reducer, not chat state
     case "game_invite_cancel":
+    case "room_created": // handled by the rooms reducer, not chat state
+    case "room_renamed":
+    case "room_member_added":
+    case "room_member_removed":
+    case "room_deleted":
     case "pong":
     case "unknown":
       return state;

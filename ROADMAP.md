@@ -387,8 +387,18 @@ from scratch.
 - [ ] **T12e — Screen share / video calls.** `useVoice.ts` already owns the full
   WebRTC offer/answer/ICE/TURN flow; adding a video / `getDisplayMedia` track is
   incremental, not a new subsystem.
-- [ ] **T12f — Group DMs / channels.** Multi-party rooms over the same gateway +
+- [~] **T12f — Group DMs / channels.** Multi-party rooms over the same gateway +
   reducer (DMs are strictly 1:1 today).
+  - [x] Protocol + pure room-state core (groundwork): `room_created` /
+    `room_renamed` / `room_member_added` / `room_member_removed` / `room_deleted`
+    inbound frames and `room_create` / `room_rename` / `room_add_member` /
+    `room_leave` outbound builders mirrored in both `social::protocol` (Rust,
+    4 KATs) and `features/social/protocol.ts`; pure `features/social/rooms.ts`
+    reducer (upsert-snapshot/rename/member add+remove/remove-room, self-removal →
+    drop room, frame→action mapping, sort/count/membership selectors; 17 vitest).
+  - [ ] Room list + multi-party composer UI and the gateway send/receive wiring;
+    message threading reuses the chat reducer keyed by room. Deferred: needs the
+    server room frames live + a computer-use smoke test (user away).
 - [ ] **T12g — Group voice (3+).** Small mesh now (SFU later) on top of the current
   P2P 1:1 voice.
 

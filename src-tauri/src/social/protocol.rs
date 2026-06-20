@@ -114,6 +114,49 @@ pub enum Inbound {
         #[serde(default)]
         invite_id: u64,
     },
+    /// A group room/channel we belong to now exists or its full roster was
+    /// (re)sent (T12f). `members` is the complete membership snapshot.
+    #[serde(rename = "room_created", rename_all = "camelCase")]
+    RoomCreated {
+        #[serde(default)]
+        room_id: u64,
+        #[serde(default)]
+        name: String,
+        #[serde(default)]
+        owner_id: u64,
+        #[serde(default)]
+        members: Vec<u64>,
+    },
+    /// A room was renamed.
+    #[serde(rename = "room_renamed", rename_all = "camelCase")]
+    RoomRenamed {
+        #[serde(default)]
+        room_id: u64,
+        #[serde(default)]
+        name: String,
+    },
+    /// Someone joined a room we're in (or we were added to it).
+    #[serde(rename = "room_member_added", rename_all = "camelCase")]
+    RoomMemberAdded {
+        #[serde(default)]
+        room_id: u64,
+        #[serde(default)]
+        user_id: u64,
+    },
+    /// Someone left/was removed from a room (if `user_id` is us, we left it).
+    #[serde(rename = "room_member_removed", rename_all = "camelCase")]
+    RoomMemberRemoved {
+        #[serde(default)]
+        room_id: u64,
+        #[serde(default)]
+        user_id: u64,
+    },
+    /// A room was deleted server-side.
+    #[serde(rename = "room_deleted", rename_all = "camelCase")]
+    RoomDeleted {
+        #[serde(default)]
+        room_id: u64,
+    },
     /// Any frame type we don't model yet (e.g. voice_signal — that's T4).
     #[serde(other)]
     Unknown,
@@ -188,6 +231,26 @@ pub mod outbound {
     /// Accept or decline a received game invite.
     pub fn game_invite_respond(invite_id: u64, accept: bool) -> String {
         json!({ "type": "game_invite_respond", "inviteId": invite_id, "accept": accept }).to_string()
+    }
+
+    /// Create a group room/channel with an initial member set (T12f).
+    pub fn room_create(name: &str, members: &[u64]) -> String {
+        json!({ "type": "room_create", "name": name, "members": members }).to_string()
+    }
+
+    /// Rename a room we own.
+    pub fn room_rename(room_id: u64, name: &str) -> String {
+        json!({ "type": "room_rename", "roomId": room_id, "name": name }).to_string()
+    }
+
+    /// Add a friend to a room.
+    pub fn room_add_member(room_id: u64, user_id: u64) -> String {
+        json!({ "type": "room_add_member", "roomId": room_id, "userId": user_id }).to_string()
+    }
+
+    /// Leave a room we're in.
+    pub fn room_leave(room_id: u64) -> String {
+        json!({ "type": "room_leave", "roomId": room_id }).to_string()
     }
 }
 
@@ -308,6 +371,58 @@ mod tests {
             outbound::game_invite_respond(7, true),
             r#"{"accept":true,"inviteId":7,"type":"game_invite_respond"}"#
         );
+    }
+
+    #[test]
+    fn parses_room_created_with_roster() {
+        let f = r#"{"type":"room_created","roomId":5,"name":"Squad","ownerId":2,"members":[2,3,7]}"#;
+        assert_eq!(
+            Inbound::parse(f),
+            Some(Inbound::RoomCreated {
+                room_id: 5,
+                name: "Squad".into(),
+                owner_id: 2,
+                members: vec![2, 3, 7],
+            })
+        );
+    }
+
+    #[test]
+    fn parses_room_membership_events() {
+        assert_eq!(
+            Inbound::parse(r#"{"type":"room_member_added","roomId":5,"userId":9}"#),
+            Some(Inbound::RoomMemberAdded { room_id: 5, user_id: 9 })
+        );
+        assert_eq!(
+            Inbound::parse(r#"{"type":"room_member_removed","roomId":5,"userId":9}"#),
+            Some(Inbound::RoomMemberRemoved { room_id: 5, user_id: 9 })
+        );
+        // Missing members default to empty rather than failing the parse.
+        assert_eq!(
+            Inbound::parse(r#"{"type":"room_renamed","roomId":5,"name":"Crew"}"#),
+            Some(Inbound::RoomRenamed { room_id: 5, name: "Crew".into() })
+        );
+        assert_eq!(
+            Inbound::parse(r#"{"type":"room_deleted","roomId":5}"#),
+            Some(Inbound::RoomDeleted { room_id: 5 })
+        );
+    }
+
+    #[test]
+    fn room_outbound_shapes() {
+        assert_eq!(
+            outbound::room_create("Squad", &[2, 3]),
+            r#"{"members":[2,3],"name":"Squad","type":"room_create"}"#
+        );
+        assert_eq!(
+            outbound::room_rename(5, "Crew"),
+            r#"{"name":"Crew","roomId":5,"type":"room_rename"}"#
+        );
+        assert_eq!(
+            outbound::room_add_member(5, 9),
+            r#"{"roomId":5,"type":"room_add_member","userId":9}"#
+        );
+        assert_eq!(outbound::room_leave(5), r#"{"roomId":5,"type":"room_leave"}"#);
     }
 
     #[test]

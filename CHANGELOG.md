@@ -13,6 +13,15 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.8] - 2026-06-20
+
+### Added
+- Groundwork for **group chats / channels**: the launcher can now understand
+  multi-party rooms over the social gateway — being added to a room, members
+  joining or leaving, renames, and a room being deleted — and keeps its room list
+  in sync (if you're removed, the room disappears for you). No visible UI yet; the
+  room list and group composer land next.
+
 ## [0.10.7] - 2026-06-20
 
 ### Fixed

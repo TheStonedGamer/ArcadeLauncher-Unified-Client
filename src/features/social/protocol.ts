@@ -20,6 +20,12 @@ export type Inbound =
   // Game invites (T12d): a friend invites us to join their game; cancel retracts.
   | { type: "game_invite"; inviteId: number; fromId: number; gameId: string; gameTitle: string; timestamp: number }
   | { type: "game_invite_cancel"; inviteId: number }
+  // Group rooms / channels (T12f): multi-party rooms over the same gateway.
+  | { type: "room_created"; roomId: number; name: string; ownerId: number; members: number[] }
+  | { type: "room_renamed"; roomId: number; name: string }
+  | { type: "room_member_added"; roomId: number; userId: number }
+  | { type: "room_member_removed"; roomId: number; userId: number }
+  | { type: "room_deleted"; roomId: number }
   // Voice (ROADMAP T9g): opaque WebRTC signaling relayed between friends. The
   // `payload` is interpreted by voice.ts (parseSignal); we keep it untyped here.
   | { type: "voice_signal"; fromId: number; payload: unknown }
@@ -30,6 +36,9 @@ function num(v: unknown): number {
 }
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
+}
+function numArr(v: unknown): number[] {
+  return Array.isArray(v) ? v.filter((x): x is number => typeof x === "number") : [];
 }
 
 /** Parse one UTF-8 text frame. Returns null for malformed JSON. */
@@ -100,6 +109,22 @@ export function parseInbound(utf8: string): Inbound | null {
       };
     case "game_invite_cancel":
       return { type: "game_invite_cancel", inviteId: num(v.inviteId) };
+    case "room_created":
+      return {
+        type: "room_created",
+        roomId: num(v.roomId),
+        name: str(v.name),
+        ownerId: num(v.ownerId),
+        members: numArr(v.members),
+      };
+    case "room_renamed":
+      return { type: "room_renamed", roomId: num(v.roomId), name: str(v.name) };
+    case "room_member_added":
+      return { type: "room_member_added", roomId: num(v.roomId), userId: num(v.userId) };
+    case "room_member_removed":
+      return { type: "room_member_removed", roomId: num(v.roomId), userId: num(v.userId) };
+    case "room_deleted":
+      return { type: "room_deleted", roomId: num(v.roomId) };
     case "voice_signal":
       return { type: "voice_signal", fromId: num(v.fromId), payload: v.payload };
     default:
@@ -134,6 +159,14 @@ export const outbound = {
   gameInvite: (to: number, gameId: string): string => JSON.stringify({ type: "game_invite", to, gameId }),
   gameInviteRespond: (inviteId: number, accept: boolean): string =>
     JSON.stringify({ type: "game_invite_respond", inviteId, accept }),
+  // Group rooms / channels (T12f): create, rename, add a member, or leave.
+  roomCreate: (name: string, members: number[]): string =>
+    JSON.stringify({ type: "room_create", name, members }),
+  roomRename: (roomId: number, name: string): string =>
+    JSON.stringify({ type: "room_rename", roomId, name }),
+  roomAddMember: (roomId: number, userId: number): string =>
+    JSON.stringify({ type: "room_add_member", roomId, userId }),
+  roomLeave: (roomId: number): string => JSON.stringify({ type: "room_leave", roomId }),
   // Voice (ROADMAP T9g): relay an opaque WebRTC signaling payload to a friend.
   // The server's voice_signal handler also gates the (caller,peer) pair on
   // invite/accept/end, so `payload.kind` must carry those alongside offer/answer/

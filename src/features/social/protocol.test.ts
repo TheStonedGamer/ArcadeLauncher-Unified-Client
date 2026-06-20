@@ -64,6 +64,31 @@ describe("parseInbound", () => {
     });
   });
 
+  it("parses room frames (T12f)", () => {
+    expect(
+      parseInbound('{"type":"room_created","roomId":5,"name":"Squad","ownerId":2,"members":[2,3,7]}'),
+    ).toEqual({ type: "room_created", roomId: 5, name: "Squad", ownerId: 2, members: [2, 3, 7] });
+    // Non-number members are dropped rather than poisoning the roster.
+    expect(parseInbound('{"type":"room_created","roomId":5,"members":[2,"x",3]}')).toEqual({
+      type: "room_created",
+      roomId: 5,
+      name: "",
+      ownerId: 0,
+      members: [2, 3],
+    });
+    expect(parseInbound('{"type":"room_renamed","roomId":5,"name":"Crew"}')).toEqual({
+      type: "room_renamed",
+      roomId: 5,
+      name: "Crew",
+    });
+    expect(parseInbound('{"type":"room_member_removed","roomId":5,"userId":9}')).toEqual({
+      type: "room_member_removed",
+      roomId: 5,
+      userId: 9,
+    });
+    expect(parseInbound('{"type":"room_deleted","roomId":5}')).toEqual({ type: "room_deleted", roomId: 5 });
+  });
+
   it("returns null for malformed json", () => {
     expect(parseInbound("{not json")).toBeNull();
   });
@@ -86,5 +111,11 @@ describe("outbound", () => {
     expect(outbound.voiceSignal(8, { kind: "accept" })).toBe(
       '{"type":"voice_signal","to":8,"payload":{"kind":"accept"}}',
     );
+    expect(outbound.roomCreate("Squad", [2, 3])).toBe(
+      '{"type":"room_create","name":"Squad","members":[2,3]}',
+    );
+    expect(outbound.roomRename(5, "Crew")).toBe('{"type":"room_rename","roomId":5,"name":"Crew"}');
+    expect(outbound.roomAddMember(5, 9)).toBe('{"type":"room_add_member","roomId":5,"userId":9}');
+    expect(outbound.roomLeave(5)).toBe('{"type":"room_leave","roomId":5}');
   });
 });
