@@ -59,9 +59,12 @@ jobs:
       # The self-hosted runner runs `run:` steps in a non-login shell
       # (bash --noprofile --norc), which does NOT source ~/.cargo/env, so rustup's
       # ~/.cargo/bin is off PATH and `cargo` isn't found. Put it on $GITHUB_PATH up
-      # front so every later step inherits it.
+      # front so every later step inherits it. Use the ABSOLUTE path, not $HOME:
+      # the runner service has no HOME set (and actions/checkout overrides it), so
+      # "${HOME}/.cargo/bin" expanded to "/.cargo/bin" and did nothing. Runner user
+      # is `runner` (home /home/runner), where rustup installs cargo.
       - name: Put cargo on PATH (self-hosted, non-login shell)
-        run: echo "${HOME}/.cargo/bin" >> "$GITHUB_PATH"
+        run: echo "/home/runner/.cargo/bin" >> "$GITHUB_PATH"
 
       # The prox-xwin CT (132) is pre-provisioned with clang-cl/lld-link/llvm-lib/
       # nsis + the msvc Rust target + cargo-xwin, so nothing to install here.
