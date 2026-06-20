@@ -7,18 +7,23 @@ Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit vi
 `npm run memory -- set …`, never by hand).
 
 Last updated: 2026-06-20. Client + server share a `0.10` `major.minor` lockstep
-line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.6` is RELEASED AND
+line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.7` is RELEASED AND
 DEPLOYED** — the GitHub Release is published (not draft) with all artifacts
 (Windows NSIS + MSI, Linux deb/rpm/AppImage), each `.sig`-signed, plus
-`latest.json`; the updater manifest advertises `0.10.6` with valid signatures, so
-every installed launcher auto-updates to it on next launch. v0.10.6 ships the
+`latest.json`; the updater manifest advertises `0.10.7` with valid signatures, so
+every installed launcher auto-updates to it on next launch. **v0.10.7** fixes a
+bug where the bootstrap updater compared the release against its own
+`CARGO_PKG_VERSION` (the updater's independent 0.9.x version) instead of the
+installed app version, so it reinstalled on every launch; `updater/build.rs` now
+embeds the app version from `tauri.conf.json` as `APP_VERSION` and the check
+compares against that (guard test added). **v0.10.6** (prior release) shipped the
 **single-instance guard** (`tauri-plugin-single-instance`: a second launch brings
 the existing window to the front instead of opening a duplicate) plus the
 **updater bring-to-front** behaviour (re-running the bootstrap updater while the
 launcher is already running surfaces the live window instead of reinstalling over
-it — process detection in `src-tauri/updater/src/instance.rs`, pure + unit-tested).
-It also carries the T12i save-history + T12d game-invite groundwork that was in
-`[Unreleased]`. No server-side deploy was required for it. Separately, the
+it — process detection in `src-tauri/updater/src/instance.rs`, pure + unit-tested),
+and carried the T12i save-history + T12d game-invite groundwork. No server-side
+deploy was required for either. Separately, the
 **Requests 503 fix** is DEPLOYED on prod CT `10.0.0.210` — the
 `arcadelauncher-requests` binary now reads the catalog DB's real `server_settings`
 columns (`setting_key`/`setting_value`); search works again. The `v0.10.4` Game
