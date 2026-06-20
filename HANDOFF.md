@@ -18,6 +18,13 @@ over public HTTPS (`/requests/health` ok, `/requests/api/me` → signedIn:false,
 bearer → 401). Next session picks up from ROADMAP Phase T12 (T12i auto-sync saves,
 or T12k Sunshine/Moonlight streaming).**
 
+**In progress: T12k (remote streaming).** `T12k-1` landed (CI-only, no UI):
+`src-tauri/src/streaming/host.rs` is the pure host core — `StreamHost`/`HostState`,
+`config_base_url` (`https://<addr>:47990`), `is_ready`, Sunshine `apps.json`
+parsing (`parse_apps`/`SunshineApp`), and `is_streamable(host, apps, game)`. 12
+Rust KATs. Next: **T12k-2** (Rust seam to Sunshine's HTTPS config API on :47990 —
+pair via PIN, list/add apps, pairing state; rustls pinned self-signed verifier).
+
 ---
 
 ## Non-negotiable rules (read first)

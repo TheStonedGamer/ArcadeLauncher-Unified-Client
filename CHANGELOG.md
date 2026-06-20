@@ -13,6 +13,12 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+### Added
+- Groundwork for **remote game streaming** (Sunshine/Moonlight): the launcher
+  can now model a streaming host, read a Sunshine host's app list, and tell
+  whether a given game is streamable from it. No visible UI yet — this is the
+  foundation for the upcoming "Stream from host" feature.
+
 ## [0.10.4] - 2026-06-19
 
 ### Added

@@ -170,6 +170,13 @@ reconciliation of the friend list and open conversations.
 - **Keyboard-shortcut help** — press **`?`** (or the header **?** button) for a
   cheat-sheet of keyboard and controller shortcuts.
 
+## 6.1 Remote game streaming *(in progress)*
+
+- **Sunshine/Moonlight streaming groundwork** — the client models a streaming
+  host (address, pairing state, reachability), reads a Sunshine host's app list,
+  and decides whether a given game is streamable from it. The host-control
+  transport, Moonlight launch, and "▶ Stream from host" UI build on top.
+
 ## 7. Platform & packaging
 
 - **One codebase, both OSes** — Windows and Linux (deb / rpm / AppImage + Arch

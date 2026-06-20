@@ -425,10 +425,13 @@ from scratch.
   ENet/RTSP transport, input) stays in the upstream projects. Pure-core-first as
   always: protocol/URL/parse logic is IO-free and KAT-tested; process + network
   glue is the thin seam.
-  - [ ] **T12k-1** Host detection + presence (pure core): model a `StreamHost`
-    `{name, address, paired, state}`; detect a local Sunshine install/service and
-    parse its `apps.json` app list; surface host availability. No IO in the core —
-    just the config/JSON shapes + a "is this game streamable from host X" decision.
+  - [x] **T12k-1** Host detection + presence (pure core): `streaming::host`
+    models `StreamHost {name, address, paired, state}` + `HostState`
+    (unknown/offline/online), `config_base_url` (`https://<addr>:47990`),
+    `is_ready` (paired+online); parses Sunshine `apps.json` (`parse_apps`,
+    tolerant, drops blank-named apps) into `SunshineApp`; and decides
+    `is_streamable(host, apps, game)` (ready host + case/space-insensitive app
+    match). No IO. 12 Rust KATs. Shipped CI-only (no UI yet).
   - [ ] **T12k-2** Sunshine host control (Rust seam): talk to Sunshine's HTTPS
     config API (default `:47990`) to **pair** (PIN flow), list/add a launcher game
     as a Sunshine "app" (so launching it on the host runs our game), and read

@@ -17,6 +17,7 @@ mod session;
 mod settings;
 mod social;
 mod stores;
+mod streaming;
 mod tray;
 mod window;
 
