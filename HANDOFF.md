@@ -32,9 +32,15 @@ so no custom rustls verifier and **no new dep**. Commands `sunshine_pair`,
 `sunshine_apps`, `sunshine_add_app`, `streaming_hosts`, `streaming_forget_host`;
 Basic-auth creds passed per-call, never persisted. **Live-host verification is
 deferred to T12k-4** (no Sunshine host available to drive these headless; the UI
-will exercise them). **Next: T12k-3** (Moonlight client launch — detect/shell out
-to `moonlight-qt` with host+app; pure URI/CLI builder first) then **T12k-4**
-(streaming UI — smoke-testable, will validate the T12k-2 seam end-to-end).
+will exercise them). **`T12k-3` DONE** (CI-only): `streaming::moonlight` is the
+pure argv core — `DisplayMode`, `StreamSettings` (`Default` 1080p60 @ 20 Mbps +
+`sanitized()` clamps), `executable_candidates()` (per-OS), `stream_args` /
+`pair_args` — 7 Rust KATs (33 streaming KATs total). Thin seam in
+`streaming::commands`: `moonlight_available` (probe PATH for the client) and
+`stream_launch(address, app, settings?)` (resolve exe, spawn Moonlight, GPL —
+separate process, never linked). Real-Moonlight flag correctness rides on the
+T12k-4 smoke test. **Next: T12k-4** (streaming UI — smoke-testable, will validate
+both the T12k-2 host-control and T12k-3 launch seams end-to-end).
 
 ---
 

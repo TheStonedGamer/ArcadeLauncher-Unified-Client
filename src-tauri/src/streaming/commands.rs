@@ -17,6 +17,7 @@
 use crate::error::{AppError, AppResult};
 use crate::streaming::control::{self, ControlEndpoint};
 use crate::streaming::host::{HostState, StreamHost, SunshineApp};
+use crate::streaming::moonlight::{self, StreamSettings};
 use crate::streaming::store;
 use std::path::PathBuf;
 use tauri::Manager;
@@ -221,6 +222,58 @@ pub async fn sunshine_add_app(
 #[tauri::command]
 pub async fn streaming_hosts(app: tauri::AppHandle) -> AppResult<Vec<StreamHost>> {
     Ok(store::load(&hosts_path(&app)?)?.hosts)
+}
+
+/// Resolve the Moonlight client executable by probing the platform's candidate
+/// names across `PATH`. Returns the first match, or `None` if none is installed.
+fn resolve_moonlight() -> Option<PathBuf> {
+    let path_var = std::env::var_os("PATH")?;
+    for dir in std::env::split_paths(&path_var) {
+        for cand in moonlight::executable_candidates() {
+            let full = dir.join(cand);
+            if full.is_file() {
+                return Some(full);
+            }
+        }
+    }
+    None
+}
+
+/// Whether a Moonlight client is installed and launchable on this machine.
+#[tauri::command]
+pub async fn moonlight_available() -> AppResult<bool> {
+    Ok(resolve_moonlight().is_some())
+}
+
+/// Launch the Moonlight client to stream `app` from `host` with `settings`.
+/// We shell out to the upstream Moonlight binary (GPL, separate process — never
+/// linked); the pure `moonlight` core shapes the argv. Returns once the child is
+/// spawned (Moonlight owns its own window thereafter).
+#[tauri::command]
+pub async fn stream_launch(
+    address: String,
+    app: String,
+    settings: Option<StreamSettings>,
+) -> AppResult<bool> {
+    let exe = resolve_moonlight().ok_or_else(|| {
+        AppError::msg(
+            "Moonlight is not installed (or not on PATH). Install the Moonlight client to stream.",
+        )
+    })?;
+    let host = control::normalize_address(&address);
+    if host.is_empty() {
+        return Err(AppError::msg("No streaming host address."));
+    }
+    if app.trim().is_empty() {
+        return Err(AppError::msg("No app to stream."));
+    }
+    let settings = settings.unwrap_or_default();
+    let args = moonlight::stream_args(&host, &app, &settings);
+    std::process::Command::new(&exe)
+        .args(&args)
+        .spawn()
+        .map_err(|e| AppError::msg(format!("Failed to launch Moonlight: {e}")))?;
+    Ok(true)
 }
 
 /// Forget a host (drops its record + pin). Returns whether one was removed.

@@ -177,8 +177,13 @@ reconciliation of the friend list and open conversations.
   connection that **pins the host's self-signed certificate** on first pairing
   (trust-on-first-use) and refuses to connect if the cert later changes. Host +
   pin are saved per-user (`streaming_hosts.json`); Sunshine credentials are used
-  per-request and never written to disk. The Moonlight launch and "▶ Stream from
-  host" UI build on top.
+  per-request and never written to disk.
+- **Moonlight launch** — the client detects an installed Moonlight client
+  (`moonlight_available`) and launches a stream of a chosen game from a paired
+  host (`stream_launch`) at your configured resolution, frame rate, bitrate, HDR,
+  and window mode. Moonlight (GPL) is invoked as a separate process, never linked;
+  a pure, KAT-tested core shapes the command line. The "▶ Stream from host" UI
+  builds on top.
 
 ## 7. Platform & packaging
 

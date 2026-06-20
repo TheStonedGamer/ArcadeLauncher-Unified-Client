@@ -453,11 +453,18 @@ from scratch.
       `streaming_hosts`/`streaming_forget_host`; Basic-auth creds passed per-call,
       never persisted. Shipped in v0.10.x (CI-only; live-host verification rides
       on the T12k-4 streaming UI that drives these).
-  - [ ] **T12k-3** Moonlight client launch: detect/bundle the Moonlight client and
-    hand it a host+app to start a stream (URI/CLI invocation), or — stretch —
-    embed the stream. Decision point captured here: **shell out to `moonlight-qt`**
-    (fast, robust, cross-platform, GPL — keep it a separate process we invoke, not
-    linked) vs. a native embedded view (large, later). Default to shelling out.
+  - [x] **T12k-3** Moonlight client launch: **shell out to the Moonlight client**
+    (GPL — separate process we invoke, never linked), as decided. Pure core
+    `streaming::moonlight` shapes the argv IO-free: `DisplayMode`
+    (fullscreen/borderless/windowed → CLI flag), `StreamSettings`
+    {width,height,fps,bitrate_kbps,display_mode,hdr} with `Default` (1080p60 @
+    20 Mbps) + `sanitized()` clamps, `executable_candidates()` (per-OS exe names),
+    `stream_args(host,app,settings)` (`stream <host> <app> --resolution WxH --fps
+    --bitrate <mode> --hdr|--no-hdr`), `pair_args(host)`. 7 Rust KATs. Thin seam in
+    `commands.rs`: `moonlight_available` (probes PATH for the client) and
+    `stream_launch(address,app,settings?)` (resolves the exe, spawns Moonlight with
+    the built argv). Shipped in v0.10.x (CI-only; real-Moonlight flag correctness
+    rides on the T12k-4 streaming UI smoke test).
   - [ ] **T12k-4** Streaming UI: a **▶ Stream from host** affordance on the detail
     panel for games marked host-installed, a host picker + pairing modal (PIN
     entry), and a Settings → Streaming section (host address, client path/bundle

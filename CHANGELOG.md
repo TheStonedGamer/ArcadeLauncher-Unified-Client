@@ -27,6 +27,10 @@ Added / Changed / Fixed / Removed.
   pins the host's certificate on first pairing and refuses to connect if it ever
   changes. Your Sunshine username/password are used only for the request and are
   never saved to disk. The "Stream from host" UI that drives this is next.
+- Streaming can now launch the **Moonlight** client: the launcher detects whether
+  Moonlight is installed and can start a stream of a chosen game from a paired
+  host at your configured resolution / frame rate / bitrate / HDR. Still wired up
+  behind the scenes — the "Stream from host" button arrives next.
 
 ## [0.10.4] - 2026-06-19
 

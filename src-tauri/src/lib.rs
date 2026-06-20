@@ -103,6 +103,8 @@ pub fn run() {
             streaming::commands::sunshine_add_app,
             streaming::commands::streaming_hosts,
             streaming::commands::streaming_forget_host,
+            streaming::commands::moonlight_available,
+            streaming::commands::stream_launch,
             requests::commands::requests_board,
             requests::commands::requests_me,
             requests::commands::requests_search,
