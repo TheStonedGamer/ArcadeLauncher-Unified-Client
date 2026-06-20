@@ -381,9 +381,18 @@ from scratch.
     `features/social/invites.ts` reducer (received/remove/clearFrom/prune-TTL,
     dedup by sender+game, frame→action mapping, sort/count/joinTarget
     selectors; 15 vitest KATs).
-  - [ ] Toast + Join button UI and the gateway send/receive wiring + launch
-    handoff. Deferred: needs the server invite frame live + a computer-use smoke
-    test (user away).
+  - [~] Toast + Join button UI and the gateway send/receive wiring. **Shipped in
+    v0.10.10:** `useSocial` now drives the invite reducer from the live
+    `game_invite`/`game_invite_cancel`/`friend_removed` frames (with a 30s TTL
+    prune), exposes `gameInvites`/`sendGameInvite`/`acceptGameInvite`/
+    `declineGameInvite` (accept/decline send `game_invite_respond`), and a
+    `GameInviteToasts` stack on the Friends screen offers Join/Dismiss
+    (`?invites-demo` seeds it). Verified in the browser preview (toasts render,
+    Dismiss removes). _Remaining (follow-up):_ surface the toast from **any** tab
+    (lift `useSocial` to an app-shell SocialContext) and the **launch handoff** on
+    Join (resolve gameId → catalog `Game` → `launch_game`); both need catalog
+    access at the invite mount point. Live end-to-end pairing also still needs the
+    server invite frame + a second peer.
 - [ ] **T12e — Screen share / video calls.** `useVoice.ts` already owns the full
   WebRTC offer/answer/ICE/TURN flow; adding a video / `getDisplayMedia` track is
   incremental, not a new subsystem.

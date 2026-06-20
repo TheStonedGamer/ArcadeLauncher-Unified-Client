@@ -13,6 +13,15 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.10] - 2026-06-20
+
+### Added
+- **Game invites** (T12d): when a friend invites you to join the game they're
+  playing, a toast now pops up on the Friends screen with **Join** and **Dismiss**.
+  Invites refresh rather than stack if re-sent, clear when the friend is removed,
+  and expire automatically after 5 minutes. (Auto-launching the game on Join and
+  showing the toast from any tab land in a follow-up.)
+
 ## [0.10.9] - 2026-06-20
 
 ### Added

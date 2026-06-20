@@ -17,6 +17,7 @@ import { ChatPane } from "./components/ChatPane";
 import { ProfilePanel } from "./components/ProfilePanel";
 import { PrivacyPanel } from "./components/PrivacyPanel";
 import { CallBar } from "./components/CallBar";
+import { GameInviteToasts } from "./components/GameInviteToasts";
 import type { GatewayState } from "./gateway";
 import { useSession } from "../session/SessionContext";
 
@@ -137,6 +138,19 @@ export function SocialView() {
       <ProfilePanel panel={profile} />
       <PrivacyPanel privacy={privacy} />
       <CallBar voice={voice} peerName={callPeerName} />
+      <GameInviteToasts
+        invites={social.gameInvites}
+        nameOf={(fromId) =>
+          social.friends.find((f) => f.accountId === fromId)?.username ?? `User ${fromId}`
+        }
+        onJoin={(inviteId) => {
+          // Send the accept + drop the toast. The launch handoff (resolve gameId
+          // → catalog Game → launch_game) lands when invites move to the app
+          // shell with catalog access; for now accepting signals the host.
+          social.acceptGameInvite(inviteId);
+        }}
+        onDismiss={social.declineGameInvite}
+      />
     </div>
   );
 }

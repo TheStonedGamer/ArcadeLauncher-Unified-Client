@@ -627,6 +627,28 @@ body {
 .callbar__mute { background: var(--panel-2); color: var(--text); }
 .callbar__hangup { background: var(--error); border-color: var(--error); color: #fff; }
 
+/* Game-invite toasts (T12d) */
+.invites {
+  position: fixed; top: 64px; right: 18px; z-index: 65;
+  display: flex; flex-direction: column; gap: 10px; max-width: 320px;
+}
+.invites__toast {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+}
+.invites__icon { font-size: 20px; }
+.invites__body { flex: 1; min-width: 0; }
+.invites__who { font-weight: 700; font-size: 13px; }
+.invites__what { font-size: 12px; color: var(--muted); }
+.invites__what strong { color: var(--text); }
+.invites__actions { display: flex; flex-direction: column; gap: 6px; }
+.invites__join, .invites__dismiss {
+  border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px; cursor: pointer; font-size: 12px; font-weight: 600;
+}
+.invites__join { background: var(--on); border-color: var(--on); color: #06210f; }
+.invites__dismiss { background: var(--panel-2); color: var(--text); }
+
 /* Self status picker (T9f) */
 .statuspick { position: relative; margin-left: auto; }
 .statuspick__btn {

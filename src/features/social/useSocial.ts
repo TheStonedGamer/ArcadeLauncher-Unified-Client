@@ -24,6 +24,12 @@ import {
 } from "./reducer";
 import { incomingRequests, outgoingRequests, sortedFriends, totalUnread } from "./selectors";
 import { presenceFrameInput, type SelfStatus } from "./statusMenu";
+import {
+  invitesReducer,
+  inviteActionFromFrame,
+  sortedInvites,
+  type GameInvite,
+} from "./invites";
 import type { Conversation, Friend } from "./types";
 
 export interface SocialApi {
@@ -72,6 +78,16 @@ export interface SocialApi {
   voiceSend: (to: number, payload: unknown) => void;
   /** Register the handler for inbound voice_signal frames (useVoice owns it). */
   setVoiceHandler: (cb: (fromId: number, payload: unknown) => void) => void;
+  /** Pending "join my game" invites I've received, newest-first (ROADMAP T12d). */
+  gameInvites: GameInvite[];
+  /** Invite a friend to join the game I'm playing. */
+  sendGameInvite: (to: number, gameId: string) => void;
+  /** Accept an invite: tell the server, then drop it locally. Returns the gameId
+   *  to launch (or null if the invite is no longer pending) so the caller can do
+   *  the launch handoff. */
+  acceptGameInvite: (inviteId: number) => string | null;
+  /** Decline/dismiss an invite: tell the server and drop it locally. */
+  declineGameInvite: (inviteId: number) => void;
 }
 
 const EMPTY_CONV: Conversation = {
@@ -114,6 +130,11 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
   const [replyTo, setReplyTo] = useState(0);
   const [myStatus, setMyStatus] = useState<SelfStatus>("online");
   const [myStatusText, setMyStatusText] = useState("");
+  // Pending game invites (T12d). Driven by the gateway frames below; the pure
+  // reducer + frame mapper are unit-tested in invites.test.ts.
+  const [invites, setInvites] = useState<GameInvite[]>([]);
+  const invitesRef = useRef(invites);
+  invitesRef.current = invites;
   const gatewayRef = useRef<Gateway | null>(null);
   // Latest chosen status, read on (re)connect to re-assert presence without
   // re-subscribing the connect effect to status changes.
@@ -135,6 +156,10 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     gatewayRef.current = gw;
     gw.onFrame((msg) => {
       if (msg.type === "voice_signal") voiceHandlerRef.current(msg.fromId, msg.payload);
+      // Game invites (T12d): a game_invite / cancel / friend_removed frame maps to
+      // an invite action; everything else is ignored by the mapper.
+      const ia = inviteActionFromFrame(msg, Date.now());
+      if (ia) setInvites((prev) => invitesReducer(prev, ia));
       // A friend_* frame means the relationship graph changed (new request,
       // accept, or removal). The reducer can't synthesize the row, so re-pull the
       // authoritative roster — this is what keeps the Requests tab live.
@@ -164,9 +189,31 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     return () => {
       gw.disconnect();
       gatewayRef.current = null;
+      setInvites([]); // invites are per-session; drop them on sign-out/reconnect-rebuild.
     };
     // Rebuild the gateway when the session host/token changes (sign in/out).
   }, [host, token]);
+
+  // Demo seed: `?invites-demo` drops a couple of pending invites so the toast
+  // stack can be exercised without a live gateway (mirrors `?downloads-demo`).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!new URLSearchParams(window.location.search).has("invites-demo")) return;
+    const now = Date.now();
+    setInvites([
+      { inviteId: 9001, fromId: 1, gameId: "celeste", gameTitle: "Celeste", receivedAt: now },
+      { inviteId: 9002, fromId: 2, gameId: "hades", gameTitle: "Hades", receivedAt: now - 1000 },
+    ]);
+  }, []);
+
+  // Prune stale invites (no response within INVITE_TTL_MS) on a slow timer.
+  useEffect(() => {
+    const id = setInterval(
+      () => setInvites((prev) => invitesReducer(prev, { type: "prune", now: Date.now() })),
+      30_000,
+    );
+    return () => clearInterval(id);
+  }, []);
 
   const select = useCallback((peerId: number | null) => {
     setSelectedPeer(peerId);
@@ -265,6 +312,24 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     voiceHandlerRef.current = cb;
   }, []);
 
+  const sendGameInvite = useCallback((to: number, gameId: string) => {
+    if (to && gameId) gatewayRef.current?.send(outbound.gameInvite(to, gameId));
+  }, []);
+
+  const acceptGameInvite = useCallback((inviteId: number): string | null => {
+    if (!inviteId) return null;
+    const target = invitesRef.current.find((i) => i.inviteId === inviteId)?.gameId ?? null;
+    gatewayRef.current?.send(outbound.gameInviteRespond(inviteId, true));
+    setInvites((prev) => invitesReducer(prev, { type: "remove", inviteId }));
+    return target;
+  }, []);
+
+  const declineGameInvite = useCallback((inviteId: number) => {
+    if (!inviteId) return;
+    gatewayRef.current?.send(outbound.gameInviteRespond(inviteId, false));
+    setInvites((prev) => invitesReducer(prev, { type: "remove", inviteId }));
+  }, []);
+
   const editMessage = useCallback((msgId: number, text: string) => {
     const trimmed = text.trim();
     if (!msgId || trimmed === "") return;
@@ -297,6 +362,7 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
   }, []);
 
   const friends = useMemo(() => sortedFriends(social), [social]);
+  const gameInvites = useMemo(() => sortedInvites(invites), [invites]);
   const incoming = useMemo(() => incomingRequests(social), [social]);
   const outgoing = useMemo(() => outgoingRequests(social), [social]);
   const unreadTotal = useMemo(() => totalUnread(social), [social]);
@@ -330,5 +396,9 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     setStatus,
     voiceSend,
     setVoiceHandler,
+    gameInvites,
+    sendGameInvite,
+    acceptGameInvite,
+    declineGameInvite,
   };
 }
