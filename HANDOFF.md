@@ -7,11 +7,21 @@ Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit vi
 `npm run memory -- set …`, never by hand).
 
 Last updated: 2026-06-20. Client + server share a `0.10` `major.minor` lockstep
-line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.9` is RELEASED** —
+line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.10` is RELEASED** —
 the GitHub Release is published (not draft) with all artifacts (Windows NSIS +
 MSI, Linux deb/rpm/AppImage), each `.sig`-signed, plus `latest.json` (advertises
-`0.10.9`, 7 platform targets), so every installed launcher auto-updates on next
-launch. **v0.10.9** adds **T12g groundwork** (group voice 3+, CI-only, no UI):
+`0.10.10`, 7 platform targets), so every installed launcher auto-updates on next
+launch. **v0.10.10** adds the **T12d game-invite UI** (first half): `useSocial`
+drives the pure invite reducer from live `game_invite`/`game_invite_cancel`/
+`friend_removed` frames (30s TTL prune) and exposes `gameInvites` +
+`sendGameInvite`/`acceptGameInvite`/`declineGameInvite` (accept/decline send
+`game_invite_respond`); a new `GameInviteToasts` stack on the Friends screen
+offers Join/Dismiss (`?invites-demo` seeds it). **Verified in the browser preview**
+(toasts render, Dismiss removes, no console errors). _Deferred follow-up:_
+cross-tab toast placement (lift `useSocial` to an app-shell SocialContext) and the
+launch-on-Join handoff (resolve gameId → catalog `Game` → `launch_game`); live
+end-to-end still needs the server invite frame + a second peer. No server-side
+deploy required. **v0.10.9** (prior) added **T12g groundwork** (group voice 3+, CI-only, no UI):
 pure `features/social/voiceMesh.ts` — `MeshState` (selfId + per-peer
 `{phase,muted}` map + local mute) with a `meshReducer` (authoritative `roster`
 snapshot that preserves surviving peers' phase; peerJoin/Leave/peerPhase/
