@@ -9,6 +9,24 @@ fn main() {
     println!("cargo:rerun-if-changed=updater.manifest");
     println!("cargo:rerun-if-changed=../icons/icon.ico");
 
+    // Embed the *app* version (from ../tauri.conf.json) as APP_VERSION. The
+    // updater ships in lockstep with the app it bundles, so this is the version
+    // currently installed. The update check compares the release manifest against
+    // this — NOT against the updater's own CARGO_PKG_VERSION, which tracks the
+    // bootstrapper independently and would otherwise make every launch reinstall.
+    println!("cargo:rerun-if-changed=../tauri.conf.json");
+    let conf = std::fs::read_to_string("../tauri.conf.json")
+        .expect("read ../tauri.conf.json for APP_VERSION");
+    let app_version = conf
+        .lines()
+        .find_map(|l| {
+            let l = l.trim();
+            l.strip_prefix("\"version\"")
+                .map(|rest| rest.trim_start_matches([':', ' ']).trim_matches(['"', ',', ' ']))
+        })
+        .expect("find top-level \"version\" in tauri.conf.json");
+    println!("cargo:rustc-env=APP_VERSION={app_version}");
+
     if std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc") {
         // Same icon the launcher ships (src-tauri/icons/icon.ico). Compiled into a
         // .res and linked into updater.exe. We leave the manifest unset here so the

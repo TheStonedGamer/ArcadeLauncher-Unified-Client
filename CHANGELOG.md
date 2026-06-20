@@ -13,6 +13,15 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.7] - 2026-06-20
+
+### Fixed
+- **The updater no longer reinstalls the launcher on every start.** It was
+  comparing the available release against its own internal version instead of the
+  installed app's version, so it treated every launch as out of date and silently
+  re-ran the installer each time. It now checks the version you actually have and
+  only updates when there's genuinely a newer release.
+
 ## [0.10.6] - 2026-06-20
 
 ### Added

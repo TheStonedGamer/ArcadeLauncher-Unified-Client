@@ -77,7 +77,10 @@ pub fn run(status: &Arc<Mutex<Status>>) {
 /// already current, Err on any recoverable problem (offline, bad manifest, …).
 fn check_and_apply(status: &Arc<Mutex<Status>>) -> Result<bool, String> {
     let manifest = fetch_manifest()?;
-    if !is_newer(&manifest.version, env!("CARGO_PKG_VERSION")) {
+    // Compare against the installed *app* version (embedded by build.rs from
+    // tauri.conf.json), not the updater's own CARGO_PKG_VERSION — the latter
+    // tracks the bootstrapper separately and would make every launch reinstall.
+    if !is_newer(&manifest.version, env!("APP_VERSION")) {
         return Ok(false);
     }
     // Prefer the platform's preferred installer variant, falling back to the
@@ -304,6 +307,14 @@ mod tests {
         assert!(!is_newer("0.9.2", "0.9.2"));
         assert!(!is_newer("0.9.1", "0.9.2"));
         assert!(is_newer("v0.10.0", "0.9.9"));
+    }
+
+    #[test]
+    fn app_version_is_embedded_and_sane() {
+        // build.rs must embed a real dotted app version from tauri.conf.json; a
+        // (0,0,0) parse means the embed broke and every release would be seen as
+        // "newer", reinstalling on every launch.
+        assert_ne!(parse(env!("APP_VERSION")), (0, 0, 0), "APP_VERSION not embedded");
     }
 
     #[test]

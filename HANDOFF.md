@@ -7,22 +7,28 @@ Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit vi
 `npm run memory -- set …`, never by hand).
 
 Last updated: 2026-06-20. Client + server share a `0.10` `major.minor` lockstep
-line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.5` is RELEASED AND
+line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.6` is RELEASED AND
 DEPLOYED** — the GitHub Release is published (not draft) with all artifacts
 (Windows NSIS + MSI, Linux deb/rpm/AppImage), each `.sig`-signed, plus
-`latest.json`; the updater manifest advertises `0.10.5` with valid signatures, so
-every installed launcher auto-updates to it on next launch. v0.10.5 ships remote
-game streaming end-to-end (Sunshine pairing + Moonlight launch UI, T12k-1..4).
-No server-side deploy was required for it. The earlier `v0.10.4` Game Requests
-board remains DEPLOYED on prod CT `10.0.0.210` (systemd `arcadelauncher-requests`,
+`latest.json`; the updater manifest advertises `0.10.6` with valid signatures, so
+every installed launcher auto-updates to it on next launch. v0.10.6 ships the
+**single-instance guard** (`tauri-plugin-single-instance`: a second launch brings
+the existing window to the front instead of opening a duplicate) plus the
+**updater bring-to-front** behaviour (re-running the bootstrap updater while the
+launcher is already running surfaces the live window instead of reinstalling over
+it — process detection in `src-tauri/updater/src/instance.rs`, pure + unit-tested).
+It also carries the T12i save-history + T12d game-invite groundwork that was in
+`[Unreleased]`. No server-side deploy was required for it. Separately, the
+**Requests 503 fix** is DEPLOYED on prod CT `10.0.0.210` — the
+`arcadelauncher-requests` binary now reads the catalog DB's real `server_settings`
+columns (`setting_key`/`setting_value`); search works again. The `v0.10.4` Game
+Requests board remains DEPLOYED on the same CT (systemd `arcadelauncher-requests`,
 User=arcade, `0.0.0.0:8723`) behind nginx `10.0.0.203` at `/requests`.
 
-**Committed but not yet released:** T12i save-version-history groundwork
-(commit `1d941a7`, in CHANGELOG `[Unreleased]`) — pure `saves::versions` +
-snapshot/list/restore commands + `features/saves/saves.ts`. Backend-only, no
-new server endpoints, so nothing to deploy server-side; it ships in the next
-client release once the auto-sync lifecycle wiring + restore UI land. Next
-session picks up from ROADMAP Phase T12 (finish T12i, or T12e/T12f/T12g social).
+**Next:** ROADMAP Phase T12 — the remaining items (T12d Join UI, T12e/f/g social,
+T12i auto-sync lifecycle + restore UI) are blocked on interactive computer-use
+smoke tests and a live server invite frame, deferred while the user is away. Land
+pure-core / CI-only increments where possible.
 
 **In progress: T12k (remote streaming).** `T12k-1` landed (CI-only, no UI):
 `src-tauri/src/streaming/host.rs` is the pure host core — `StreamHost`/`HostState`,
