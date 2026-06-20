@@ -6,8 +6,10 @@ name: CI
 #
 # Runs on the SELF-HOSTED Proxmox runners (Windows VM 131 = label `prox-win`,
 # Linux CT 130 = label `prox-pve`) — the same hosts the Release workflow uses, so
-# CI and release build in identical environments. The two legs are STAGGERED
-# (Linux `needs` Windows) so they don't peg the shared physical host at once.
+# CI and release build in identical environments. The two legs run in PARALLEL:
+# on the Proxmox host the Windows VM and Linux CT are each pinned to 8 dedicated,
+# NON-overlapping host cores (VM affinity 0-7, CT cpuset 8-15), so they no longer
+# contend for the same physical cores and can build at the same time.
 #
 # Self-hosted Windows note: do NOT use dtolnay/rust-toolchain or `shell: bash` on
 # `prox-win`. Their internal bash can resolve to System32 WSL bash (no distro)
@@ -24,10 +26,8 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Supersede an in-flight run when a newer commit lands on the same ref. On the
-# self-hosted single-host runners this is the biggest lever for "faster local
-# runs": it stops the staggered Windows→Linux legs of a stale commit from
-# hogging the box while a newer commit waits behind them.
+# Supersede an in-flight run when a newer commit lands on the same ref, so a
+# stale commit's build stops hogging the runners while a newer commit waits.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -40,14 +40,13 @@ concurrency:
 #   * CARGO_INCREMENTAL=1 — fights swatinem/rust-cache (incremental artifacts are
 #     huge, churn every commit, and blow up cache save/restore time).
 #   * -j / RAYON / test-threads counts — cargo, libtest, and vitest already fan
-#     out to the host core count; pinning a number risks oversubscribing the
-#     shared physical host (the Windows VM and Linux CT share cores).
-# The real remaining lever is host-side vCPUs (see pct commands in the handoff).
+#     out to the core count visible to each guest, which is now its pinned set of
+#     8 dedicated cores; a hand-pinned number would just risk oversubscription.
 env:
   CARGO_PROFILE_DEV_DEBUG: line-tables-only
 
 jobs:
-  # ---- Windows leg (runs first) -------------------------------------------
+  # ---- Windows leg (runs in parallel with Linux) --------------------------
   windows:
     runs-on: [self-hosted, prox-win]
     steps:
@@ -113,13 +112,10 @@ jobs:
         working-directory: src-tauri
         run: cargo check --release --locked
 
-  # ---- Linux leg (runs after Windows, on the same physical host) ----------
+  # ---- Linux leg (runs in parallel with Windows) --------------------------
+  # No `needs: windows`: the two runners are pinned to disjoint host core sets
+  # (see header), so they build concurrently instead of staggered.
   linux:
-    needs: windows
-    # Run after Windows even if it failed (still serialized via needs) so a
-    # Windows hiccup doesn't hide a Linux break; only skip if the run was
-    # cancelled.
-    if: ${{ !cancelled() }}
     runs-on: [self-hosted, prox-pve]
     # Use lld for the link step — much faster than the default bfd.
     env:
