@@ -37,8 +37,11 @@ struct PlatformEntry {
 
 /// The Tauri platform keys for the host we're running on, in preference order.
 /// Windows: the NSIS `setup.exe` (`-nsis`) is the per-user, admin-free installer
-/// we drive; the bare key resolves to the `.msi`, which we don't. Linux: the
-/// AppImage variant is what we replace in place.
+/// we drive. Since BI1 dropped the MSI, the bare `windows-x86_64` key now also
+/// resolves to the NSIS `setup.exe` (it's the only Windows bundle), so the
+/// fallback is safe too — but we still try the explicit `-nsis` key first so the
+/// intent is unambiguous if an MSI ever returns. Linux: the AppImage variant is
+/// what we replace in place.
 fn platform_keys() -> &'static [&'static str] {
     if cfg!(target_os = "windows") {
         &["windows-x86_64-nsis", "windows-x86_64"]
@@ -83,10 +86,10 @@ fn check_and_apply(status: &Arc<Mutex<Status>>) -> Result<bool, String> {
     if !is_newer(&manifest.version, env!("APP_VERSION")) {
         return Ok(false);
     }
-    // Prefer the platform's preferred installer variant, falling back to the
-    // bare key. On Windows the NSIS `setup.exe` is the per-user, admin-free
-    // installer we want — the bare `windows-x86_64` key resolves to the `.msi`,
-    // which we don't drive.
+    // Prefer the platform's explicit installer variant, falling back to the bare
+    // key. On Windows that's the NSIS `setup.exe` (`windows-x86_64-nsis`) — the
+    // per-user, admin-free installer we drive. Post-BI1 there is no `.msi`, so the
+    // bare `windows-x86_64` key resolves to the same NSIS `setup.exe`.
     let entry = platform_keys()
         .iter()
         .find_map(|k| manifest.platforms.get(*k))

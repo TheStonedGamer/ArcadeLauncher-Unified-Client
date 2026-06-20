@@ -99,6 +99,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The self-hosted runner runs `run:` steps in a non-login shell
+      # (bash --noprofile --norc), which does NOT source ~/.cargo/env, so rustup's
+      # ~/.cargo/bin is off PATH and `cargo` isn't found. Put it on $GITHUB_PATH up
+      # front so EVERY later step inherits it — including tauri-action, which shells
+      # out to `cargo xwin` itself.
+      - name: Put cargo on PATH (self-hosted, non-login shell)
+        run: echo "${HOME}/.cargo/bin" >> "$GITHUB_PATH"
+
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri

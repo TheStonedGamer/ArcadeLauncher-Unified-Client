@@ -209,6 +209,19 @@ the social/download features. Mirrors the server's `auth.rs`.
   login, clears on sign-out; token never touches localStorage.
 - [ ] **TSc** Wire the session host+token into the social live connection
   (unblocks social-live) and the download install trigger (unblocks T4d-3).
+- [ ] **TSd** Account creation / self-registration with admin email approval.
+  A new-user signup flow (client `RegisterPanel` → server `POST /api/auth/register`)
+  that creates the account in a **pending** state and sends the admin
+  (`orlandb204567@outlook.com`) an email with **Approve / Deny** links (signed,
+  single-use tokens) so I can confirm or reject each new account before it can
+  sign in. Pending accounts can't authenticate until approved; denied accounts are
+  purged. Pure-core-first as always: registration validation (username/email/
+  password rules, normalization), the approval-token mint/verify, and the email
+  body/subject builders are IO-free + KAT-tested; SMTP send + DB writes are the
+  thin server seam. Server owns the mail transport (env-configured SMTP) and the
+  `pending`/`approved`/`denied` account-state column; client just shows "request
+  submitted — awaiting approval" and surfaces the eventual approve/deny outcome at
+  next sign-in. _Server-repo work, mirrored by a client registration UI._
 
 ## Phase T8 — Cloud saves
 
