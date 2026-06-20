@@ -7,12 +7,16 @@ Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit vi
 `npm run memory -- set …`, never by hand).
 
 Last updated: 2026-06-19. Client + server share a `0.10` `major.minor` lockstep
-line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.3` is RELEASED —
-both client legs green on the Proxmox runners (Windows NSIS+MSI+updater on
-`arcade-win-runner`, Linux .deb/.rpm/AppImage on `pc-wsl-runner`), signed assets
-+ `latest.json` published, server release green on `arcade-pve-runner`. The
-Windows-runner blocker is resolved (see "Runner topology FIXED" below). No
-release work pending — next session picks up from ROADMAP Phase T12.**
+line. PS2 BIOS hosted on prod and wired end-to-end. **`v0.10.4` is RELEASED —
+ships the in-client Game Requests board end-to-end: pure core (`requests/api.rs`),
+seven bearer-authed Rust commands (`requests/commands.rs`), and the React Requests
+tab + `useRequests` hook. The `ArcadeLauncher-Requests` service is now DEPLOYED on
+prod CT `10.0.0.210` (systemd unit `arcadelauncher-requests`, User=arcade,
+`0.0.0.0:8723`), behind nginx `10.0.0.203` at `/requests` (prefix-strip proxy),
+sharing the main server DB via a composed `EnvironmentFile`. Verified end-to-end
+over public HTTPS (`/requests/health` ok, `/requests/api/me` → signedIn:false, bad
+bearer → 401). Next session picks up from ROADMAP Phase T12 (T12i auto-sync saves,
+or T12k Sunshine/Moonlight streaming).**
 
 ---
 

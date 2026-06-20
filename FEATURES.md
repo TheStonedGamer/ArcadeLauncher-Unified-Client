@@ -149,6 +149,14 @@ reconciliation of the friend list and open conversations.
   signaled over the server's `voice_signal` relay. ICE uses public STUN **plus a
   deployed coturn TURN server** for symmetric-NAT / off-LAN traversal, with
   short-lived TURN credentials minted on demand from `GET /api/social/turn`.
+- **Game Requests board** *(new)* — a dedicated **Requests** tab to browse and
+  vote on games the community wants added. Search a game and request it (a
+  duplicate folds into an upvote), rate games **1–5 stars** (averaged), upvote
+  entries, and filter the board by **status** or **platform**; admins set each
+  request's status inline. Talks to the `ArcadeLauncher-Requests` service using
+  your existing launcher sign-in (bearer token — no separate board login),
+  reachable at `arcade.orlandoaio.net/requests`. Backed by a pure, unit-tested
+  core (`requests/api.rs` + `features/requests`) under thin Rust commands.
 
 ## 6. Personalization & onboarding *(new)*
 

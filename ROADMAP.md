@@ -378,9 +378,9 @@ from scratch.
 
 **Library & launch quality**
 
-- [~] **T12h — In-client Game Requests board.** Surface the existing
+- [x] **T12h — In-client Game Requests board.** Surface the existing
   `ArcadeLauncher-Requests` companion service inside the client (browse / upvote /
-  request) instead of a separate web app.
+  request) instead of a separate web app. Shipped in **v0.10.4**.
   - [x] **T12h-1** Pure core (`requests/api.rs`): Endpoint URL builders
     (login/logout/me/search+platform/requests/vote/rating/status), `GameRequest`/
     `Board`/`SearchHit`/`Me`/`CreateBody`/`RateResult` models + `parse_*`,
@@ -391,11 +391,15 @@ from scratch.
     reusing the launcher's per-user token (validated against the shared
     `launcher_tokens` table — the Requests service grew `Authorization: Bearer`
     support). `parse_create`/`parse_vote` (+ KATs); CI green both OSes (6d947c0).
-  - [ ] **T12h-3** React UI: Requests tab + `useRequests` hook (board with star
+  - [x] **T12h-3** React UI: Requests tab + `useRequests` hook (board with star
     ratings, platform/status filter chips, upvote, rate, search-and-request
-    composer, admin triage).
-  - [ ] **T12h-4** Deploy the bearer-aware `ArcadeLauncher-Requests` binary to
-    CT `10.0.0.210` (requires explicit authorization).
+    composer, admin triage). Shipped in v0.10.4.
+  - [x] **T12h-4** Deployed the bearer-aware `ArcadeLauncher-Requests` binary to
+    CT `10.0.0.210` as systemd unit `arcadelauncher-requests` (User=arcade,
+    binds `0.0.0.0:8723`), behind nginx at `/requests` (prefix-strip proxy on
+    `10.0.0.203`); shares the main server's DB via a composed `EnvironmentFile`.
+    Verified end-to-end over public HTTPS: `/requests/health` → ok,
+    `/requests/api/me` → `{"signedIn":false}`, bad bearer → 401.
 - [ ] **T12i — Auto-sync cloud saves on launch/exit + version history.** Saves are
   manual + last-write-wins today; auto-sync on game exit and keep N restorable
   save versions to retire the conflict problem.
