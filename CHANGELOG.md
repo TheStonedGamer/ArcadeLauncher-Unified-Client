@@ -18,6 +18,10 @@ Added / Changed / Fixed / Removed.
   can now model a streaming host, read a Sunshine host's app list, and tell
   whether a given game is streamable from it. No visible UI yet — this is the
   foundation for the upcoming "Stream from host" feature.
+- More streaming groundwork: the client can now construct the requests needed to
+  pair with a Sunshine host (PIN), add a game to it, and pin the host's
+  certificate so the connection stays secure. Still no visible UI — wiring
+  continues.
 
 ## [0.10.4] - 2026-06-19
 

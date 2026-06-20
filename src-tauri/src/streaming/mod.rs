@@ -10,4 +10,5 @@
 //! (`download`, `saves`, `requests`, `social`) do.
 #![allow(dead_code)]
 
+pub mod control;
 pub mod host;

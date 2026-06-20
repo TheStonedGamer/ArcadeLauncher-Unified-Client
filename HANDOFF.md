@@ -22,8 +22,15 @@ or T12k Sunshine/Moonlight streaming).**
 `src-tauri/src/streaming/host.rs` is the pure host core — `StreamHost`/`HostState`,
 `config_base_url` (`https://<addr>:47990`), `is_ready`, Sunshine `apps.json`
 parsing (`parse_apps`/`SunshineApp`), and `is_streamable(host, apps, game)`. 12
-Rust KATs. Next: **T12k-2** (Rust seam to Sunshine's HTTPS config API on :47990 —
-pair via PIN, list/add apps, pairing state; rustls pinned self-signed verifier).
+Rust KATs. `T12k-2` **pure core landed** (CI-only): `src-tauri/src/streaming/control.rs`
+— `ControlEndpoint` (→ `https://<addr>:47990`, `apps_url`/`pin_url`), `is_valid_pin`,
+`pin_body`/`new_app_body`, `parse_pin_result`, dependency-free `b64encode`/
+`basic_auth_value` (Sunshine Basic auth), and the TOFU cert-pin decision
+(`cert_fingerprint_hex`/`fingerprint_matches`). 9 KATs. **Next: the thin reqwest
+seam + commands for T12k-2** — a TOFU-fingerprint-pinned reqwest client (record the
+self-signed cert's SHA-256 on first pair, require a match thereafter; no
+`danger_accept_invalid_certs` in steady state) plus `sunshine_pair`/`_apps`/
+`_add_app` commands, creds+pin stored client-local. Then T12k-3 (Moonlight launch).
 
 ---
 
