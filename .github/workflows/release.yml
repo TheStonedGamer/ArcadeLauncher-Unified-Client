@@ -37,6 +37,14 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+# Serialize runs for the same tag so a manual re-dispatch can't race a still-
+# running build. cancel-in-progress is deliberately FALSE here (unlike CI): a
+# release build signs and uploads artifacts into a draft, and aborting it
+# mid-flight could strand a half-uploaded release. Queue instead of cancel.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   # ---- Phase 1: create the single draft release --------------------------
   create-release:
