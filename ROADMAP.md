@@ -381,18 +381,20 @@ from scratch.
     `features/social/invites.ts` reducer (received/remove/clearFrom/prune-TTL,
     dedup by sender+game, frame→action mapping, sort/count/joinTarget
     selectors; 15 vitest KATs).
-  - [~] Toast + Join button UI and the gateway send/receive wiring. **Shipped in
+  - [x] Toast + Join button UI and the gateway send/receive wiring. **Shipped in
     v0.10.10:** `useSocial` now drives the invite reducer from the live
     `game_invite`/`game_invite_cancel`/`friend_removed` frames (with a 30s TTL
     prune), exposes `gameInvites`/`sendGameInvite`/`acceptGameInvite`/
     `declineGameInvite` (accept/decline send `game_invite_respond`), and a
-    `GameInviteToasts` stack on the Friends screen offers Join/Dismiss
-    (`?invites-demo` seeds it). Verified in the browser preview (toasts render,
-    Dismiss removes). _Remaining (follow-up):_ surface the toast from **any** tab
-    (lift `useSocial` to an app-shell SocialContext) and the **launch handoff** on
-    Join (resolve gameId → catalog `Game` → `launch_game`); both need catalog
-    access at the invite mount point. Live end-to-end pairing also still needs the
-    server invite frame + a second peer.
+    `GameInviteToasts` stack offers Join/Dismiss (`?invites-demo` seeds it).
+  - [x] Cross-tab toasts + launch handoff. **Shipped in v0.10.11:** `useSocial`
+    is lifted to an app-root `SocialProvider`/`useSocialContext` (one live
+    gateway for the whole app), `GlobalGameInviteToasts` mounts the stack in
+    `AppShell` so invites surface on **every** tab, and Join now resolves the
+    gameId against the cached catalog and calls `launch_game`. SocialView reads
+    the same context instance. Verified in the browser preview (cross-tab render,
+    Dismiss removes, no console errors). _Remaining:_ live end-to-end pairing
+    still needs the server invite frame + a second peer (prod smoke test).
 - [ ] **T12e — Screen share / video calls.** `useVoice.ts` already owns the full
   WebRTC offer/answer/ICE/TURN flow; adding a video / `getDisplayMedia` track is
   incremental, not a new subsystem.

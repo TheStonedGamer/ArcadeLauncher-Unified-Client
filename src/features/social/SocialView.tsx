@@ -3,7 +3,7 @@
 // this component is composition only.
 
 import { useState } from "react";
-import { useSocial } from "./useSocial";
+import { useSocialContext } from "./SocialContext";
 import { useProfile } from "./useProfile";
 import { useFriendMeta } from "./useFriendMeta";
 import { usePrivacy } from "./usePrivacy";
@@ -17,7 +17,6 @@ import { ChatPane } from "./components/ChatPane";
 import { ProfilePanel } from "./components/ProfilePanel";
 import { PrivacyPanel } from "./components/PrivacyPanel";
 import { CallBar } from "./components/CallBar";
-import { GameInviteToasts } from "./components/GameInviteToasts";
 import type { GatewayState } from "./gateway";
 import { useSession } from "../session/SessionContext";
 
@@ -31,7 +30,7 @@ const STATE_LABEL: Record<GatewayState, string> = {
 export function SocialView() {
   const { session } = useSession();
   const auth = session ? { host: session.host, token: session.token } : null;
-  const social = useSocial(auth);
+  const social = useSocialContext();
   const profile = useProfile(auth, social.selfId);
   const friendMeta = useFriendMeta(auth);
   const privacy = usePrivacy(auth);
@@ -138,19 +137,6 @@ export function SocialView() {
       <ProfilePanel panel={profile} />
       <PrivacyPanel privacy={privacy} />
       <CallBar voice={voice} peerName={callPeerName} />
-      <GameInviteToasts
-        invites={social.gameInvites}
-        nameOf={(fromId) =>
-          social.friends.find((f) => f.accountId === fromId)?.username ?? `User ${fromId}`
-        }
-        onJoin={(inviteId) => {
-          // Send the accept + drop the toast. The launch handoff (resolve gameId
-          // → catalog Game → launch_game) lands when invites move to the app
-          // shell with catalog access; for now accepting signals the host.
-          social.acceptGameInvite(inviteId);
-        }}
-        onDismiss={social.declineGameInvite}
-      />
     </div>
   );
 }

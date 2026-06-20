@@ -13,6 +13,18 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.11] - 2026-06-20
+
+### Added
+- **Game invites, everywhere** (T12d follow-up): invite toasts now appear on any
+  tab — not just Friends — because the social connection is held once at the app
+  root. Clicking **Join** now also launches the game: it accepts the invite and
+  starts the matching title from your library automatically.
+
+### Changed
+- The launcher keeps a single live social connection for the whole app, so
+  presence, chat, and invites stay current no matter which screen you're on.
+
 ## [0.10.10] - 2026-06-20
 
 ### Added
