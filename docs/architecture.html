@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ArcadeLauncher — Platform Architecture</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2430; --border:#2d3644;
+    --ink:#e6edf3; --muted:#9aa7b4; --accent:#7c9cff; --accent2:#5be2a3;
+    --accent3:#ffb86b; --accent4:#ff7eb6; --code:#0b0f15;
+    --srv:#7c9cff; --cli:#5be2a3; --infra:#ffb86b; --ext:#ff7eb6;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px 120px}
+  header.hero{
+    padding:64px 24px 40px; text-align:center;
+    background:radial-gradient(1200px 400px at 50% -10%, rgba(124,156,255,.18), transparent 60%);
+    border-bottom:1px solid var(--border);
+  }
+  header.hero h1{font-size:2.6rem; margin:.2em 0 .1em; letter-spacing:-.02em}
+  header.hero .sub{color:var(--muted); font-size:1.1rem; max-width:680px; margin:0 auto}
+  .badge{display:inline-block; padding:3px 12px; border-radius:999px; font-size:.78rem;
+    font-weight:600; background:var(--panel2); border:1px solid var(--border); color:var(--accent)}
+  nav.toc{
+    position:sticky; top:0; z-index:10; backdrop-filter:blur(8px);
+    background:rgba(13,17,23,.82); border-bottom:1px solid var(--border);
+    padding:10px 24px; display:flex; gap:6px; flex-wrap:wrap; justify-content:center;
+  }
+  nav.toc a{color:var(--muted); text-decoration:none; font-size:.86rem; padding:5px 11px;
+    border-radius:7px}
+  nav.toc a:hover{color:var(--ink); background:var(--panel2)}
+  section{margin-top:56px; scroll-margin-top:64px}
+  h2{font-size:1.7rem; margin:0 0 6px; letter-spacing:-.01em;
+    display:flex; align-items:center; gap:10px}
+  h2 .dot{width:11px; height:11px; border-radius:50%}
+  h3{font-size:1.2rem; margin:30px 0 8px; color:var(--ink)}
+  p,li{color:#d4dce4}
+  .lead{color:var(--muted); margin-top:0}
+  a{color:var(--accent)}
+  code{background:var(--code); border:1px solid var(--border); border-radius:5px;
+    padding:1px 6px; font:13.5px/1.4 "SFMono-Regular",Consolas,monospace; color:#cfe3ff}
+  .fig{background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    padding:22px; margin:22px 0; overflow-x:auto}
+  .fig svg{display:block; margin:0 auto; max-width:100%; height:auto}
+  .figcap{text-align:center; color:var(--muted); font-size:.85rem; margin-top:12px}
+  table{width:100%; border-collapse:collapse; margin:18px 0; font-size:.92rem;
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden}
+  th,td{text-align:left; padding:10px 14px; border-bottom:1px solid var(--border); vertical-align:top}
+  th{background:var(--panel2); color:var(--ink); font-weight:600; font-size:.82rem;
+    text-transform:uppercase; letter-spacing:.04em}
+  tr:last-child td{border-bottom:none}
+  td code{white-space:nowrap}
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; margin:18px 0}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px}
+  .card h4{margin:0 0 6px; font-size:1rem}
+  .card p{margin:0; font-size:.9rem; color:var(--muted)}
+  .note{background:linear-gradient(180deg,rgba(124,156,255,.08),transparent);
+    border:1px solid var(--border); border-left:3px solid var(--accent);
+    border-radius:10px; padding:14px 18px; margin:18px 0; font-size:.94rem}
+  .note strong{color:var(--accent)}
+  .legend{display:flex; gap:18px; flex-wrap:wrap; justify-content:center; margin-top:14px; font-size:.82rem; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:6px}
+  .legend i{width:13px; height:13px; border-radius:3px; display:inline-block}
+  pre{background:var(--code); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; overflow-x:auto; font:13px/1.6 "SFMono-Regular",Consolas,monospace; color:#cfe3ff}
+  footer{margin-top:80px; padding-top:24px; border-top:1px solid var(--border);
+    color:var(--muted); font-size:.85rem; text-align:center}
+  /* svg helpers */
+  .s-box{rx:10}
+  text{font-family:-apple-system,"Segoe UI",Roboto,sans-serif}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <span class="badge">Platform Architecture · v0.10.x</span>
+  <h1>ArcadeLauncher</h1>
+  <p class="sub">A self-hosted, Steam-style game launcher and social platform — how the server, client, companion services, and infrastructure fit together end to end.</p>
+</header>
+
+<nav class="toc">
+  <a href="#overview">Overview</a>
+  <a href="#topology">Topology</a>
+  <a href="#server">Server</a>
+  <a href="#client">Client</a>
+  <a href="#dataflow">Data flow</a>
+  <a href="#subsystems">Subsystems</a>
+  <a href="#infra">Infrastructure</a>
+  <a href="#release">CI / Release</a>
+</nav>
+
+<div class="wrap">
+
+<!-- OVERVIEW -->
+<section id="overview">
+  <h2><span class="dot" style="background:var(--accent)"></span>What the platform is</h2>
+  <p class="lead">Four cooperating repositories under the <code>TheStonedGamer</code> org, all talking through one central Rust server.</p>
+  <p>ArcadeLauncher catalogs a personal game library (emulated and PC), lets users install / launch / track games, and layers a full social platform on top — friends, chat, voice, presence, profiles, and game invites.</p>
+
+  <table>
+    <tr><th>Component</th><th>Repo</th><th>Stack</th><th>Role</th></tr>
+    <tr><td><strong style="color:var(--srv)">Server</strong></td><td><code>ArcadeLauncher-Server</code></td><td>Rust / axum 0.7 · tokio · MariaDB</td><td>The hub. REST API, WebSocket social gateway, catalog/scan, auth, admin UI.</td></tr>
+    <tr><td><strong style="color:var(--cli)">Unified Client</strong></td><td><code>ArcadeLauncher-Unified-Client</code></td><td>Tauri v2 (Rust) · React · TS</td><td>Active cross-platform desktop client (Windows + Linux). <em>This repo.</em></td></tr>
+    <tr><td>Legacy Client</td><td><code>ArcadeLauncher-Client</code></td><td>C++17 · Win32 / Direct2D</td><td>Retired native client; kept only as a parity reference.</td></tr>
+    <tr><td>Requests</td><td><code>ArcadeLauncher-Requests</code></td><td>separate Rust binary</td><td>"Game Requests" service. Shares the server's MariaDB — no API between them.</td></tr>
+  </table>
+
+  <div class="note"><strong>Version lockstep.</strong> The client refuses to connect unless its <code>major.minor</code> matches the server's (patch floats). Both lines are <code>0.10.x</code>. Additive REST/WS changes are a <strong>patch</strong> (safe); anything that breaks compatibility is a <strong>minor</strong> bump, and the <strong>server deploys first</strong>.</div>
+</section>
+
+<!-- TOPOLOGY -->
+<section id="topology">
+  <h2><span class="dot" style="background:var(--accent2)"></span>System topology</h2>
+  <p class="lead">Everything radiates from the server. The client speaks REST + a live WebSocket; companion services share state through the database and object store.</p>
+  <div class="fig">
+    <svg viewBox="0 0 880 470" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="System topology diagram">
+      <defs>
+        <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#8aa0bf"/>
+        </marker>
+        <marker id="arrb" markerWidth="9" markerHeight="9" refX="2" refY="4.5" orient="auto">
+          <path d="M9,0 L0,4.5 L9,9 z" fill="#8aa0bf"/>
+        </marker>
+      </defs>
+
+      <!-- client -->
+      <rect x="40" y="170" width="190" height="120" rx="12" fill="#13241d" stroke="#5be2a3" stroke-width="1.5"/>
+      <text x="135" y="200" text-anchor="middle" fill="#5be2a3" font-size="15" font-weight="700">Unified Client</text>
+      <text x="135" y="222" text-anchor="middle" fill="#9aa7b4" font-size="11.5">Tauri v2 · React · TS</text>
+      <text x="135" y="252" text-anchor="middle" fill="#cfe3ff" font-size="11">Rust core + webview UI</text>
+      <text x="135" y="270" text-anchor="middle" fill="#9aa7b4" font-size="10.5">Windows · Linux</text>
+
+      <!-- server -->
+      <rect x="345" y="120" width="220" height="220" rx="14" fill="#161f33" stroke="#7c9cff" stroke-width="2"/>
+      <text x="455" y="150" text-anchor="middle" fill="#7c9cff" font-size="16" font-weight="700">ArcadeLauncher Server</text>
+      <text x="455" y="171" text-anchor="middle" fill="#9aa7b4" font-size="11.5">Rust · axum 0.7 · tokio</text>
+      <rect x="365" y="186" width="180" height="30" rx="7" fill="#0d1424" stroke="#2d3644"/>
+      <text x="455" y="206" text-anchor="middle" fill="#cfe3ff" font-size="11.5">REST  /api/*   :8721</text>
+      <rect x="365" y="222" width="180" height="30" rx="7" fill="#0d1424" stroke="#2d3644"/>
+      <text x="455" y="242" text-anchor="middle" fill="#cfe3ff" font-size="11.5">WS  /ws/social</text>
+      <rect x="365" y="258" width="180" height="30" rx="7" fill="#0d1424" stroke="#2d3644"/>
+      <text x="455" y="278" text-anchor="middle" fill="#cfe3ff" font-size="11.5">Admin UI   :8722</text>
+      <rect x="365" y="294" width="180" height="30" rx="7" fill="#0d1424" stroke="#2d3644"/>
+      <text x="455" y="314" text-anchor="middle" fill="#cfe3ff" font-size="11.5">catalog · auth · scan</text>
+
+      <!-- db -->
+      <rect x="680" y="60" width="160" height="74" rx="12" fill="#2a2233" stroke="#ff7eb6" stroke-width="1.5"/>
+      <text x="760" y="92" text-anchor="middle" fill="#ff7eb6" font-size="14" font-weight="700">MariaDB</text>
+      <text x="760" y="112" text-anchor="middle" fill="#9aa7b4" font-size="11">shared database</text>
+
+      <!-- requests -->
+      <rect x="680" y="200" width="160" height="74" rx="12" fill="#2a2417" stroke="#ffb86b" stroke-width="1.5"/>
+      <text x="760" y="232" text-anchor="middle" fill="#ffb86b" font-size="14" font-weight="700">Requests svc</text>
+      <text x="760" y="252" text-anchor="middle" fill="#9aa7b4" font-size="11">Rust binary</text>
+
+      <!-- minio -->
+      <rect x="680" y="340" width="160" height="74" rx="12" fill="#1c2430" stroke="#8aa0bf" stroke-width="1.5"/>
+      <text x="760" y="372" text-anchor="middle" fill="#cfe3ff" font-size="14" font-weight="700">MinIO (S3)</text>
+      <text x="760" y="392" text-anchor="middle" fill="#9aa7b4" font-size="11">attachments · shots</text>
+
+      <!-- edges client<->server -->
+      <line x1="230" y1="212" x2="343" y2="212" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr)"/>
+      <line x1="343" y1="244" x2="230" y2="244" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="287" y="203" text-anchor="middle" fill="#9aa7b4" font-size="10">REST</text>
+      <text x="287" y="262" text-anchor="middle" fill="#9aa7b4" font-size="10">WS push</text>
+
+      <!-- server -> db -->
+      <line x1="567" y1="170" x2="678" y2="110" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr)"/>
+      <!-- requests -> db -->
+      <line x1="760" y1="200" x2="760" y2="136" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="640" y="175" fill="#9aa7b4" font-size="10">SQL</text>
+      <text x="770" y="170" fill="#9aa7b4" font-size="10">shared SQL</text>
+      <!-- server <-> minio -->
+      <line x1="567" y1="300" x2="678" y2="368" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="600" y="350" fill="#9aa7b4" font-size="10">presign / PUT</text>
+    </svg>
+    <div class="legend">
+      <span><i style="background:var(--cli)"></i>Client</span>
+      <span><i style="background:var(--srv)"></i>Server</span>
+      <span><i style="background:var(--infra)"></i>Companion service</span>
+      <span><i style="background:var(--ext)"></i>Data store</span>
+    </div>
+    <div class="figcap">Client ↔ Server over REST + <code>/ws/social</code>. Requests shares the DB; attachments use presigned S3.</div>
+  </div>
+</section>
+
+<!-- SERVER -->
+<section id="server">
+  <h2><span class="dot" style="background:var(--srv)"></span>The server</h2>
+  <p class="lead"><code>arcadelauncher-server</code> · port <code>8721</code> (REST + WS), admin UI on <code>8722</code>. A single Rust/axum service backed by MariaDB — the source of truth for catalog, users, social graph, and live session state.</p>
+
+  <h3>Source map (<code>src/</code>)</h3>
+  <table>
+    <tr><th>Module</th><th>Responsibility</th></tr>
+    <tr><td><code>main.rs</code></td><td>Boot, router wiring, schema setup, filesystem watcher, bind <code>:8721</code>.</td></tr>
+    <tr><td><code>handlers.rs</code></td><td>Core REST handlers — catalog, games, health, metrics.</td></tr>
+    <tr><td><code>auth.rs</code> · <code>crypto.rs</code></td><td>Challenge-response login, token mint/verify, password hashing.</td></tr>
+    <tr><td><code>password_reset.rs</code></td><td>Forgot-password single-use email links (1 h TTL).</td></tr>
+    <tr><td><code>registration.rs</code> · <code>users_api.rs</code></td><td>Account creation, admin-notify, user CRUD.</td></tr>
+    <tr><td><code>social_api.rs</code></td><td><strong>Social subsystem</strong> — REST <code>/api/social/*</code> + the <code>/ws/social</code> gateway. Friends, chat, reactions, replies, presence, profiles, voice signaling, rooms.</td></tr>
+    <tr><td><code>fanout.rs</code></td><td>Server-side message fan-out to connected social peers.</td></tr>
+    <tr><td><code>manifest.rs</code></td><td>Per-game install manifests (paths, sha256, archive type).</td></tr>
+    <tr><td><code>scan.rs</code> · <code>scan_jobs.rs</code></td><td>Library scanning + background scan jobs.</td></tr>
+    <tr><td><code>igdb.rs</code></td><td>IGDB cover-art lookup (Twitch client-creds → IGDB v4).</td></tr>
+    <tr><td><code>files.rs</code> · <code>s3.rs</code></td><td>File serving + S3/MinIO presign for attachments &amp; screenshots.</td></tr>
+    <tr><td><code>db.rs</code> · <code>db_setup.rs</code> · <code>models.rs</code></td><td>MariaDB pool, schema setup, row models.</td></tr>
+    <tr><td><code>admin_html.rs</code> · <code>admin_extra.rs</code></td><td>Server-rendered admin web UI (<code>:8722</code>).</td></tr>
+    <tr><td><code>discord.rs</code></td><td>Discord changelog / announce hooks.</td></tr>
+  </table>
+
+  <h3>What it exposes</h3>
+  <div class="cards">
+    <div class="card"><h4>Catalog &amp; games</h4><p>Catalog metadata, install manifests (Bearer), cover-art.</p></div>
+    <div class="card"><h4>Auth</h4><p>Challenge-response + TOTP. Forgot-password emails identical responses to avoid account enumeration.</p></div>
+    <div class="card"><h4>Social REST + WS</h4><p>Friends, DM/group chat (edit/delete/react/reply/attach), presence, profiles (XP/level), privacy, invites, rooms, voice relay.</p></div>
+    <div class="card"><h4>Cloud saves</h4><p>Per-game save files with traversal rejection &amp; a 50 MB/file cap.</p></div>
+    <div class="card"><h4>Attachments</h4><p>presign → PUT-to-MinIO → presigned-GET; bytes never touch the DB.</p></div>
+    <div class="card"><h4>Streaming</h4><p>TURN credential vending + Sunshine/Moonlight pairing.</p></div>
+    <div class="card"><h4>Admin UI</h4><p>TOTP-gated, server-rendered; Cloudflare Tunnel (external) + nginx2 (LAN).</p></div>
+    <div class="card"><h4>Health / metrics</h4><p><code>/api/health</code> reports the live VERSION; <code>/api/metrics</code> scraped by Prometheus.</p></div>
+  </div>
+
+  <div class="note"><strong>Deploy &amp; startup.</strong> Pushing to <code>main</code> auto-bumps <code>VERSION</code> (bot commit) and builds a release. Prod deploy is git-pull based: pull → <code>cargo build --release</code> → swap binary → <code>systemctl restart</code>. After restart the process runs schema setup + spawns the fs watcher before binding <code>:8721</code> (~25 s) — health returns connection-refused during that window. Poll ~30 s for <code>API listening on http://0.0.0.0:8721</code>.</div>
+</section>
+
+<!-- CLIENT -->
+<section id="client">
+  <h2><span class="dot" style="background:var(--cli)"></span>The client</h2>
+  <p class="lead">Tauri v2 (Rust core) + React + TypeScript. One cross-platform client replacing two retired native codebases — a webview gets rendering, WebRTC, and WebSockets "for free."</p>
+
+  <h3>Two halves: Rust core + React UI</h3>
+  <div class="fig">
+    <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Client internal architecture">
+      <defs>
+        <marker id="arr2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#8aa0bf"/></marker>
+      </defs>
+      <!-- rust core -->
+      <rect x="40" y="40" width="360" height="240" rx="14" fill="#161f33" stroke="#7c9cff" stroke-width="1.5"/>
+      <text x="220" y="68" text-anchor="middle" fill="#7c9cff" font-size="15" font-weight="700">src-tauri/ · Rust core</text>
+      <rect x="64" y="86" width="312" height="40" rx="8" fill="#0d1424" stroke="#2d3644"/>
+      <text x="220" y="105" text-anchor="middle" fill="#cfe3ff" font-size="12">&lt;feature&gt;/commands.rs</text>
+      <text x="220" y="120" text-anchor="middle" fill="#9aa7b4" font-size="10">reqwest + Bearer token</text>
+      <rect x="64" y="134" width="312" height="36" rx="8" fill="#0d1424" stroke="#2d3644"/>
+      <text x="220" y="157" text-anchor="middle" fill="#5be2a3" font-size="11.5" font-weight="600">🔒 token lives Rust-side only</text>
+      <text x="220" y="196" text-anchor="middle" fill="#9aa7b4" font-size="11">catalog · social · download · saves</text>
+      <text x="220" y="214" text-anchor="middle" fill="#9aa7b4" font-size="11">session · launch · streaming · tray</text>
+      <text x="220" y="232" text-anchor="middle" fill="#9aa7b4" font-size="11">presence · hotkey · controller · …</text>
+      <text x="220" y="262" text-anchor="middle" fill="#cfe3ff" font-size="10.5">cargo tests (KATs)</text>
+
+      <!-- IPC -->
+      <line x1="400" y1="150" x2="480" y2="150" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr2)"/>
+      <line x1="480" y1="178" x2="400" y2="178" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr2)"/>
+      <text x="440" y="140" text-anchor="middle" fill="#9aa7b4" font-size="10">invoke</text>
+      <text x="440" y="198" text-anchor="middle" fill="#9aa7b4" font-size="10">events</text>
+
+      <!-- react ui -->
+      <rect x="480" y="40" width="360" height="240" rx="14" fill="#13241d" stroke="#5be2a3" stroke-width="1.5"/>
+      <text x="660" y="68" text-anchor="middle" fill="#5be2a3" font-size="15" font-weight="700">src/ · React + TS UI</text>
+      <rect x="504" y="86" width="312" height="40" rx="8" fill="#0d1424" stroke="#2d3644"/>
+      <text x="660" y="105" text-anchor="middle" fill="#cfe3ff" font-size="12">features/&lt;x&gt;/api.ts</text>
+      <text x="660" y="120" text-anchor="middle" fill="#9aa7b4" font-size="10">thin IPC wrappers (no fetch)</text>
+      <rect x="504" y="134" width="312" height="36" rx="8" fill="#0d1424" stroke="#2d3644"/>
+      <text x="660" y="156" text-anchor="middle" fill="#cfe3ff" font-size="11.5">hooks + components</text>
+      <text x="660" y="196" text-anchor="middle" fill="#9aa7b4" font-size="11">pure cores: reducers · selectors · FSMs</text>
+      <text x="660" y="232" text-anchor="middle" fill="#9aa7b4" font-size="11">client-local state in per-user files</text>
+      <text x="660" y="262" text-anchor="middle" fill="#cfe3ff" font-size="10.5">vitest unit tests</text>
+    </svg>
+    <div class="figcap">The golden rule: authed REST never uses <code>fetch</code> — the bearer token stays Rust-side.</div>
+  </div>
+
+  <div class="note"><strong>The five-file recipe.</strong> Wiring a new server endpoint into the client = Rust command → IPC registration → TS api wrapper → React hook → UI, plus tests on both sides.</div>
+
+  <h3>Rust core modules (<code>src-tauri/src/</code>)</h3>
+  <table>
+    <tr><th>Module</th><th>Responsibility</th></tr>
+    <tr><td><code>catalog</code></td><td>Library catalog, IGDB cover-art, per-game prefs (favorites/hidden/collections/save-paths) in <code>catalog_prefs.json</code>, stats.</td></tr>
+    <tr><td><code>session</code></td><td>Challenge-response login, token persistence (HMAC-CTR obfuscated at rest — no plaintext, no OS keychain), auto-restore.</td></tr>
+    <tr><td><code>social</code></td><td>WebSocket gateway client, chat/reactions/replies, attachments (presign+PUT, 25 MiB cap), profiles, presence, privacy, voice signaling.</td></tr>
+    <tr><td><code>download</code></td><td>Resumable ranged-GET installer (<code>.part</code> → sha256 → atomic rename), throttle, concurrency cap, pause/resume/cancel, zip-slip-guarded extract.</td></tr>
+    <tr><td><code>saves</code></td><td>Cloud-save sync (last-write-wins by mtime, conflict policies), managed or mapped save path.</td></tr>
+    <tr><td><code>launch</code> · <code>emulators</code></td><td>Game launch (emulator/PC), playtime tracking, emulator + BIOS config.</td></tr>
+    <tr><td><code>presence</code> · <code>hotkey</code> · <code>controller</code></td><td>Discord Rich Presence, global shortcut, gamepad / Big-Picture input.</td></tr>
+    <tr><td><code>tray</code> · <code>window</code></td><td>System tray, single-instance guard, fullscreen.</td></tr>
+    <tr><td><code>streaming</code> · <code>retroachievements</code> · <code>requests</code></td><td>Sunshine/Moonlight streaming, RetroAchievements, in-client Game Requests board.</td></tr>
+  </table>
+
+  <div class="note"><strong>Install / update model.</strong> Steam-style — per-user install (<code>%LocalAppData%</code> / <code>~/.local</code>), admin needed at most once, updates <em>never elevate</em> (Tauri updater consumes a signed NSIS <code>setup.exe</code>). A single-instance guard surfaces the existing window on a second launch.</div>
+</section>
+
+<!-- DATAFLOW -->
+<section id="dataflow">
+  <h2><span class="dot" style="background:var(--accent3)"></span>Data flow: a request, end to end</h2>
+  <p class="lead">How a UI action becomes an authed server call and back — the path every feature follows.</p>
+  <div class="fig">
+    <svg viewBox="0 0 880 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="End to end request flow">
+      <defs><marker id="arr3" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7c9cff"/></marker></defs>
+      <!-- nodes -->
+      <g font-size="11.5">
+      <rect x="20"  y="80" width="130" height="60" rx="10" fill="#13241d" stroke="#5be2a3"/>
+      <text x="85" y="106" text-anchor="middle" fill="#5be2a3" font-weight="700">React UI</text>
+      <text x="85" y="124" text-anchor="middle" fill="#9aa7b4" font-size="10">hook / component</text>
+
+      <rect x="190" y="80" width="130" height="60" rx="10" fill="#13241d" stroke="#5be2a3"/>
+      <text x="255" y="106" text-anchor="middle" fill="#cfe3ff">api.ts</text>
+      <text x="255" y="124" text-anchor="middle" fill="#9aa7b4" font-size="10">invoke()</text>
+
+      <rect x="360" y="80" width="130" height="60" rx="10" fill="#161f33" stroke="#7c9cff"/>
+      <text x="425" y="106" text-anchor="middle" fill="#7c9cff" font-weight="700">commands.rs</text>
+      <text x="425" y="124" text-anchor="middle" fill="#9aa7b4" font-size="10">+ Bearer token</text>
+
+      <rect x="530" y="80" width="130" height="60" rx="10" fill="#161f33" stroke="#7c9cff"/>
+      <text x="595" y="106" text-anchor="middle" fill="#cfe3ff">reqwest</text>
+      <text x="595" y="124" text-anchor="middle" fill="#9aa7b4" font-size="10">HTTPS /api/*</text>
+
+      <rect x="700" y="80" width="160" height="60" rx="10" fill="#161f33" stroke="#7c9cff"/>
+      <text x="780" y="106" text-anchor="middle" fill="#7c9cff" font-weight="700">Server</text>
+      <text x="780" y="124" text-anchor="middle" fill="#9aa7b4" font-size="10">axum → MariaDB</text>
+      </g>
+      <!-- arrows -->
+      <line x1="150" y1="110" x2="188" y2="110" stroke="#7c9cff" stroke-width="2" marker-end="url(#arr3)"/>
+      <line x1="320" y1="110" x2="358" y2="110" stroke="#7c9cff" stroke-width="2" marker-end="url(#arr3)"/>
+      <line x1="490" y1="110" x2="528" y2="110" stroke="#7c9cff" stroke-width="2" marker-end="url(#arr3)"/>
+      <line x1="660" y1="110" x2="698" y2="110" stroke="#7c9cff" stroke-width="2" marker-end="url(#arr3)"/>
+      <text x="440" y="40" text-anchor="middle" fill="#9aa7b4" font-size="11">webview boundary — token never crosses left of here →</text>
+      <line x1="335" y1="55" x2="335" y2="165" stroke="#2d3644" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="180" y="185" text-anchor="middle" fill="#5be2a3" font-size="10">webview (untrusted with secrets)</text>
+      <text x="600" y="185" text-anchor="middle" fill="#7c9cff" font-size="10">native Rust (holds the token)</text>
+    </svg>
+    <div class="figcap">Live social events flow the other way: server → <code>/ws/social</code> → Rust <code>social</code> → IPC event → <code>useSocial</code> reducer → UI.</div>
+  </div>
+</section>
+
+<!-- SUBSYSTEMS -->
+<section id="subsystems">
+  <h2><span class="dot" style="background:var(--accent4)"></span>Notable subsystems</h2>
+
+  <h3>Social / live gateway</h3>
+  <p>Client <code>useSocial</code> ↔ Rust <code>social</code> WS client ↔ server <code>/ws/social</code> (<code>social_api.rs</code> + <code>fanout.rs</code>). Carries chat, presence, reactions, replies, attachments, profiles, game invites, rooms, and voice signaling.</p>
+  <div class="note"><strong>Heartbeat gotcha.</strong> A WS <em>control</em> ping does not wake the receive loop. The client sends an application <code>{"type":"ping"}</code> every 20 s and the server answers with a <strong>data-frame</strong> <code>{"type":"pong"}</code> that does. Don't remove either side.</div>
+
+  <h3>Voice — P2P WebRTC</h3>
+  <p>Chosen over a server binary relay. The server only relays <code>voice_signal</code> frames (offer/answer/ICE) — <strong>no media passes through it</strong>. ICE uses public STUN plus a coturn TURN server (<code>turn.orlandoaio.net</code>) for symmetric-NAT peers. Being P2P, it doesn't interop with the legacy binary-relay client (fine post-cutover; unified↔unified works).</p>
+
+  <h3>Installer / downloads</h3>
+  <p>Pure FSM core (manifest / paths / sha256 / queue) + live HTTP transport (resumable ranged GET) + zip-slip-guarded extract. The Install button GETs the server manifest (Bearer), resolves <code>app_data/games/&lt;id&gt;</code>, and hands off to the engine.</p>
+
+  <h3>Cloud saves</h3>
+  <p>Pure <code>plan_sync</code> core decides Upload / Download / InSync / Conflict by mtime; execution does atomic temp+rename and stamps downloads with the server mtime.</p>
+</section>
+
+<!-- INFRA -->
+<section id="infra">
+  <h2><span class="dot" style="background:var(--infra)"></span>Infrastructure</h2>
+  <p class="lead">All hosts on the <code>10.0.0.0/24</code> homelab LAN; public access via nginx + Cloudflare.</p>
+  <table>
+    <tr><th>Host</th><th>Address</th><th>Role</th></tr>
+    <tr><td>Proxmox PVE</td><td><code>10.0.0.98</code></td><td>Hypervisor (<code>pve3</code>) for the CTs/VMs below.</td></tr>
+    <tr><td>App server CT</td><td><code>10.0.0.210:8721</code></td><td><code>arcadelauncher-server</code>, library root <code>/srv/arcade-library</code>, admin UI <code>:8722</code>, Requests <code>:8723</code>, <code>cloudflared</code>.</td></tr>
+    <tr><td>nginx (public)</td><td><code>10.0.0.203</code></td><td><code>arcade.orlandoaio.net</code> → <code>:8721</code>. WSS scoped to <code>/ws/</code> only.</td></tr>
+    <tr><td>nginx2 (internal)</td><td><code>10.0.0.163</code></td><td>Wildcard <code>*.orlandoaio.net</code> LAN vhosts incl. <code>arcade-admin</code>, <code>grafana</code>.</td></tr>
+    <tr><td>MinIO CT</td><td><code>10.0.0.220</code></td><td>S3 object store (bucket <code>arcade-attachments</code>).</td></tr>
+    <tr><td>coturn</td><td><code>10.0.0.180</code></td><td>TURN/STUN for WebRTC voice (<code>turn.orlandoaio.net</code>).</td></tr>
+    <tr><td>Monitoring</td><td><code>10.0.0.235</code></td><td>Prometheus + Grafana; scrapes <code>/api/metrics</code>.</td></tr>
+    <tr><td>Domain Controller</td><td><code>10.0.0.3</code></td><td>AD + internal DNS (zone <code>orlandoaio.net</code>), Kerberos SSO.</td></tr>
+  </table>
+</section>
+
+<!-- RELEASE -->
+<section id="release">
+  <h2><span class="dot" style="background:var(--accent2)"></span>CI / Release pipeline</h2>
+  <p class="lead">CI runs on every push; a signed release fires only on a <code>vX.Y.Z</code> tag.</p>
+  <div class="fig">
+    <svg viewBox="0 0 880 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Release pipeline">
+      <defs><marker id="arr4" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#8aa0bf"/></marker></defs>
+      <!-- tag -->
+      <rect x="20" y="100" width="120" height="50" rx="10" fill="#1c2430" stroke="#8aa0bf"/>
+      <text x="80" y="122" text-anchor="middle" fill="#cfe3ff" font-size="12" font-weight="700">push tag</text>
+      <text x="80" y="138" text-anchor="middle" fill="#9aa7b4" font-size="10">vX.Y.Z</text>
+      <!-- create draft -->
+      <rect x="180" y="100" width="150" height="50" rx="10" fill="#161f33" stroke="#7c9cff"/>
+      <text x="255" y="122" text-anchor="middle" fill="#7c9cff" font-size="12" font-weight="700">create-release</text>
+      <text x="255" y="138" text-anchor="middle" fill="#9aa7b4" font-size="10">one draft up front</text>
+      <!-- win leg -->
+      <rect x="380" y="40" width="200" height="56" rx="10" fill="#161f33" stroke="#7c9cff"/>
+      <text x="480" y="62" text-anchor="middle" fill="#cfe3ff" font-size="12" font-weight="700">release-windows</text>
+      <text x="480" y="79" text-anchor="middle" fill="#9aa7b4" font-size="10">VM 111 native MSVC → NSIS + MSI</text>
+      <!-- linux leg -->
+      <rect x="380" y="154" width="200" height="56" rx="10" fill="#161f33" stroke="#7c9cff"/>
+      <text x="480" y="176" text-anchor="middle" fill="#cfe3ff" font-size="12" font-weight="700">release-linux</text>
+      <text x="480" y="193" text-anchor="middle" fill="#9aa7b4" font-size="10">CT 130 → deb · rpm · AppImage</text>
+      <!-- publish -->
+      <rect x="630" y="100" width="150" height="50" rx="10" fill="#13241d" stroke="#5be2a3"/>
+      <text x="705" y="122" text-anchor="middle" fill="#5be2a3" font-size="12" font-weight="700">publish</text>
+      <text x="705" y="138" text-anchor="middle" fill="#9aa7b4" font-size="10">+ Discord announce</text>
+
+      <line x1="140" y1="125" x2="178" y2="125" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr4)"/>
+      <line x1="330" y1="120" x2="378" y2="78"  stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr4)"/>
+      <line x1="330" y1="130" x2="378" y2="178" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr4)"/>
+      <line x1="580" y1="74"  x2="628" y2="116" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr4)"/>
+      <line x1="580" y1="180" x2="628" y2="134" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr4)"/>
+      <text x="480" y="128" text-anchor="middle" fill="#9aa7b4" font-size="10">both legs upload into the same draft (parallel)</text>
+    </svg>
+    <div class="figcap">Three-phase flow avoids the duplicate-release race; the draft publishes only when both legs succeed.</div>
+  </div>
+
+  <h3>Cutting a client release</h3>
+  <pre>1. Land the feature (CI green on both OSes).
+2. Add a CHANGELOG.md entry under a new [X.Y.Z] heading
+   (the Discord announcer extracts this section verbatim).
+3. Bump the version in ALL FOUR files:
+     package.json
+     src-tauri/tauri.conf.json
+     src-tauri/Cargo.toml
+     src-tauri/Cargo.lock  (arcade_launcher stanza)
+4. Commit "Release vX.Y.Z", then push the vX.Y.Z tag → fires release.yml.
+
+Client-only feature releases are PATCH bumps, to keep major.minor
+matching the live server (a minor bump trips version-lockstep).</pre>
+</section>
+
+<footer>
+  ArcadeLauncher platform architecture · generated from project docs &amp; memory · v0.10.x line<br>
+  See <code>ARCHITECTURE.md</code> · <code>CHANGELOG.md</code> · <code>FEATURES.md</code> · <code>ROADMAP.md</code> · <code>HANDOFF.md</code>
+</footer>
+
+</div>
+</body>
+</html>
