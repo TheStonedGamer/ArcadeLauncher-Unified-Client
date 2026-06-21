@@ -13,6 +13,20 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.19] - 2026-06-21
+
+### Added
+- **Group rooms / channels.** A new **Rooms** tab in Friends lets you create a
+  named room, invite friends into it, and chat with everyone at once. Owners can
+  rename a room, add members, and anyone can leave.
+- **Group voice calls.** Start a voice call from inside a room and everyone joins
+  a single call — see who's connected, mute yourself, and leave from the in-call
+  bar.
+- **Save version history.** Each game's cloud-saves panel can now show a list of
+  restorable save snapshots (with timestamp and size), take a snapshot on demand,
+  and restore an older one — your current save is snapshotted first, so a restore
+  is itself undoable.
+
 ## [0.10.18] - 2026-06-21
 
 ### Added

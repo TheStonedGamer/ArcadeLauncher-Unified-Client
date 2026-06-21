@@ -468,7 +468,7 @@ from scratch.
 - [ ] **T12e — Screen share / video calls.** `useVoice.ts` already owns the full
   WebRTC offer/answer/ICE/TURN flow; adding a video / `getDisplayMedia` track is
   incremental, not a new subsystem.
-- [~] **T12f — Group DMs / channels.** Multi-party rooms over the same gateway +
+- [x] **T12f — Group DMs / channels.** Multi-party rooms over the same gateway +
   reducer (DMs are strictly 1:1 today).
   - [x] Protocol + pure room-state core (groundwork): `room_created` /
     `room_renamed` / `room_member_added` / `room_member_removed` / `room_deleted`
@@ -477,10 +477,14 @@ from scratch.
     4 KATs) and `features/social/protocol.ts`; pure `features/social/rooms.ts`
     reducer (upsert-snapshot/rename/member add+remove/remove-room, self-removal →
     drop room, frame→action mapping, sort/count/membership selectors; 17 vitest).
-  - [ ] Room list + multi-party composer UI and the gateway send/receive wiring;
-    message threading reuses the chat reducer keyed by room. Deferred: needs the
-    server room frames live + a computer-use smoke test (user away).
-- [~] **T12g — Group voice (3+).** Small mesh now (SFU later) on top of the current
+  - [x] Room list + multi-party composer UI and the gateway send/receive wiring
+    (v0.10.19). `useSocial` drives the rooms reducer from the room_* membership
+    frames + a new room-chat layer (room_chat/room_message frames mirrored in
+    Rust+TS; pure roomChat log reducer keyed by roomId, 10 vitest). UI: a Rooms
+    roster tab + create-from-friends picker (RoomsPanel) and a room thread +
+    composer with owner controls (RoomChatPane). Live end-to-end still needs the
+    server to honor the room_create/room_chat frames (deferred).
+- [x] **T12g — Group voice (3+).** Small mesh now (SFU later) on top of the current
   P2P 1:1 voice.
   - [x] Pure mesh peer-set core (groundwork): `features/social/voiceMesh.ts` —
     `MeshState` (selfId + per-peer `{phase,muted}` map + local mute) with a
@@ -490,9 +494,14 @@ from scratch.
     (lower id offers) and selectors (`peersToOffer`/`meshPeers`/`connectedCount`/
     `participantCount`/`isMeshActive`). 13 vitest KATs. Reuses the existing
     per-peer `voice_signal` relay addressed to each member.
-  - [ ] `useGroupVoice` engine (one RTCPeerConnection per peer driven by
-    `peersToOffer`) + in-call roster UI + group-call start over a room. Deferred:
-    needs the room/group plumbing (T12f UI) live + a multi-peer smoke test.
+  - [x] `useGroupVoice` engine (one RTCPeerConnection per peer driven by the mesh
+    reducer) + in-call roster UI + group-call start over a room (v0.10.19).
+    Signaling reuses the per-peer voice_signal relay with payloads tagged
+    group:true + roomId (routed to a dedicated group handler so 1:1 + group voice
+    coexist); pure groupSignal/parseGroupSignal codec (5 vitest). UI: 📞 Start
+    call in RoomChatPane + a GroupCallBar roster (per-peer phase/mute, my mute/
+    leave). Engine is browser-API glue (untestable under jsdom, like useVoice);
+    live multi-peer e2e still needs the server room-call relay + a smoke test.
 
 **Library & launch quality**
 
@@ -526,7 +535,7 @@ from scratch.
     `10.0.0.203`); shares the main server's DB via a composed `EnvironmentFile`.
     Verified end-to-end over public HTTPS: `/requests/health` → ok,
     `/requests/api/me` → `{"signedIn":false}`, bad bearer → 401.
-- [~] **T12i — Auto-sync cloud saves on launch/exit + version history.** Saves are
+- [x] **T12i — Auto-sync cloud saves on launch/exit + version history.** Saves are
   manual + last-write-wins today; auto-sync on game exit and keep N restorable
   save versions to retire the conflict problem.
   - [x] Version-history core + thin store (shipped groundwork): pure
@@ -538,9 +547,11 @@ from scratch.
     itself undoable). Frontend `features/saves/saves.ts` pure core (auto-sync
     prefs parse/clamp, `shouldAutoSync`, byte/version formatting; 10 vitest KATs)
     + typed IPC wrappers.
-  - [ ] Wire auto-sync triggers into the actual launch/exit lifecycle and a
-    Settings + per-game version-history UI (restore picker). Deferred: needs the
-    launch-flow seam + a computer-use smoke test (user away).
+  - [x] Auto-sync triggers wired into the launch/exit lifecycle (v0.10.18) and
+    the per-game version-history restore UI (v0.10.19): GameDetail's cloud-saves
+    panel lists restorable snapshots (UTC timestamp + file/size), snapshots on
+    demand, and restores an older version (the live save is snapshotted first, so
+    a restore is itself undoable). Pure formatVersionTime helper (3 vitest).
 - [x] **T12j — "Continue playing" row + stats dashboard.** Use the playtime we
   already track to surface most-played and headline library numbers.
   - [x] "Continue Playing" row atop the catalog (recently-played, click-to-launch)

@@ -9,6 +9,26 @@ Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit vi
 Last updated: 2026-06-21. Client + server share a `0.10` `major.minor` lockstep
 line. PS2 BIOS hosted on prod and wired end-to-end.
 
+**v0.10.19 — half-built T12 items finished (2026-06-21).** Three client-only
+increments, all green locally (344 vitest, 263 cargo, tsc + vite build + cargo
+check --release clean) and tagged from `main`:
+- **T12f group rooms/channels** — rooms wired into `useSocial` from the room_*
+  membership frames + a new room-chat layer (room_chat/room_message frames
+  mirrored Rust+TS; pure `roomChat` log reducer keyed by roomId, 10 vitest). UI:
+  a Rooms roster tab + create-from-friends picker + room thread/composer with
+  owner controls.
+- **T12g group voice (mesh)** — `useGroupVoice` RTCPeerConnection-per-peer engine
+  driven by the mesh reducer; signaling reuses the per-peer voice_signal relay
+  with payloads tagged `group:true`+roomId (routed to a dedicated handler so 1:1
+  and group voice coexist). Pure groupSignal codec (5 vitest); 📞 Start call in
+  RoomChatPane + GroupCallBar roster.
+- **T12i save version-history restore UI** — GameDetail cloud-saves panel lists/
+  snapshots/restores save versions (pure `formatVersionTime`, 3 vitest).
+**Live end-to-end for T12f/T12g still needs the SERVER to honor the room_create/
+room_chat/room-call relay frames + a multi-peer smoke test (deferred).** The
+group-voice engine + room composer are browser-API glue (untestable under jsdom,
+like useVoice) — pure cores are KAT-covered.
+
 **RELEASED: v0.10.15 — admin moves server-side (2026-06-21).** Tagged from `main`;
 Release run `27906012877` built both legs green (Windows native VM 111 + Linux),
 GitHub Release **published** (not draft, 11 signed assets + `latest.json`
