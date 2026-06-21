@@ -6,11 +6,73 @@ left* is [`ROADMAP.md`](ROADMAP.md); this file captures *current state*, the
 Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit via
 `npm run memory -- set …`, never by hand).
 
-Last updated: 2026-06-20. Client + server share a `0.10` `major.minor` lockstep
+Last updated: 2026-06-21. Client + server share a `0.10` `major.minor` lockstep
 line. PS2 BIOS hosted on prod and wired end-to-end.
 
-**BUILD-INFRA (2026-06-20, ROADMAP "BI1") — IMPLEMENTED. Windows is cross-compiled
-on a Linux runner; the prox-win VM is dead.** Windows artifacts now build with
+**RELEASED: v0.10.13 — self-service registration is LIVE end-to-end (2026-06-21).**
+Tagged from `main` (version-bump `713076e`, feature `5b410dd`); Release run
+`27889786185` built both legs green (Windows native VM 111 + Linux) and the
+GitHub Release is **published** (not draft) with all 7-platform signed assets +
+`latest.json` advertising `0.10.13` → installed launchers auto-update on next
+launch. Server `/api/auth/register` independently verified live on
+`arcade.orlandoaio.net` (`/api/health` → 0.10.2; empty form → `400 "username
+must be 3–32 characters"`; `ARCADE_REGISTRATION_OPEN=true`). End-to-end: user
+updates → "Create one" → submit → account pending admin approval → approve/deny
+via emailed links. _Known non-fatal CI nit (FIXED in workflow, not yet released):_
+the publish-release "Announce changelog to Discord" step 403'd
+("Resource not accessible by integration") because the job lacked
+`actions: write` to `workflow_dispatch` `discord-changelog.yml` — the release
+itself was unaffected (it had already published). Fix: added `actions: write` to
+the `publish-release` job `permissions` in `release.yml` (takes effect next
+release; the v0.10.13 Discord ping did not fire).
+
+---
+
+## CURRENT STATE (2026-06-21) — read this first; older sections below are history
+
+**TSd self-service registration — SHIPPED + DEPLOYED end-to-end.** A "Create one"
+link on the sign-in modal opens a `RegisterPanel` (host/username/email/password +
+confirm) with client-side validation (username 3–32, password ≥10, match), calling
+a new `session_register` Tauri command that POSTs form data to
+`POST /api/auth/register`. Accounts are created **pending admin approval**; on
+success the panel shows a submitted-confirmation.
+- **Client** (`5b410dd` on `main`): `RegisterPanel.tsx` (new), `LoginPanel.tsx`
+  ("Create one" footer), `session/commands.rs` (`session_register`), `lib.rs`
+  (invoke handler), `api.ts` (`sessionRegister`/`RegisterOutcome`), `global.css`.
+  `npm run build` + `cargo check --release` green locally; **verified in browser
+  preview** (modal opens, validation: short-pw + mismatch → error & disabled,
+  valid → enabled, submit wires to invoke). CI run `27889295007`: Linux ✅,
+  **Windows leg was still in flight at handoff — confirm green before relying on it.**
+- **Server** (`059ed20` on `ArcadeLauncher-Server` `main`): `registration.rs`
+  (`api_auth_register` + `api_auth_approve`/`api_auth_deny` GET link handlers,
+  `pending_registrations` table, argon2 hash + single-use token, admin email).
+  **DEPLOYED to prod CT `10.0.0.210`** — rebuilt natively (`/root/.cargo/bin/cargo`,
+  ~3m18s), binary swapped, service restarted. `/api/health` now reports **0.10.2**;
+  `/api/auth/register` is **live and OPEN** (invalid POST → 400 validation, proving
+  `ARCADE_REGISTRATION_OPEN=true` took). Pre-deploy backups:
+  binary `…/arcadelauncher-server.bak.<epoch>`, env
+  `/root/arcadelauncher-server.env.pre-reg.<epoch>`.
+- **Registration is gated by `ARCADE_REGISTRATION_OPEN`** (must equal the string
+  `true`) in `/etc/arcadelauncher-server.env` — set this turn. Approval emails use
+  `ARCADE_ADMIN_EMAIL`/`ARCADE_REGISTRATION_NOTIFY_EMAIL` (both + SMTP confirmed
+  set); if SMTP ever fails, the approve/deny links are logged to journald so an
+  admin can still act. To CLOSE signup again: flip the var to `false` + restart.
+- Adding a route is patch-compatible (no `[minor]`), so 0.10.x lockstep holds.
+
+**BUILD-INFRA — native Windows builds on VM 111 (supersedes the BI1 cross-compile
+section below).** The BI1 `cargo-xwin` cross-compile was abandoned; the Windows
+CI/release leg now builds **natively** on Proxmox **VM 111 `arcade-win10-runner`**
+(label `arcade-win10`), with MSI back in the bundle. Three gotchas codified in the
+workflows: (1) put cargo on `$GITHUB_PATH` via `rustup which cargo` (dtolnay action
+skips it when rustup pre-exists); (2) WiX `light.exe` ICE validation needs the
+runner service as **LocalSystem**; (3) the runner runs as LocalSystem so tauri's
+32-bit `makensis` hits **WOW64 file-system redirection** — release.yml junctions
+`SysWOW64\…\systemprofile\AppData\Local\tauri` → the real `System32\…` dir. The old
+BI1/prox-xwin text below is OBSOLETE — ignore it.
+
+---
+
+**BUILD-INFRA (2026-06-20, ROADMAP "BI1") — OBSOLETE, see CURRENT STATE above.** Windows artifacts now build with
 **`cargo-xwin` + the `x86_64-pc-windows-msvc` target** (MSVC ABI, clang-cl + lld,
 CRT/SDK auto-downloaded — no Windows host). **MSI is DROPPED**; Windows ships the
 **NSIS `.exe`** (+ portable) only (`makensis` runs on Linux). `tauri.conf.json`
@@ -55,18 +117,17 @@ pinning:
   so a re-dispatched tag queues rather than aborting a signing build).
 - `861a964` (HELD) — **parallelize** the Windows+Linux legs in BOTH ci.yml and
   release.yml (dropped `needs: windows` / `needs: release-windows` + the
-  `!cancelled()` gates; publish-release still waits on both legs). **SUPERSEDED
-  by BI1:** with cross-compile there is no separate self-hosted Windows runner —
-  the Windows leg becomes a `cargo-xwin` cross job that runs on the same
-  `ubuntu-*` runner, so the disjoint-core-pinning premise no longer applies.
-  Re-evaluate this commit against the BI1 workflow before pushing (the leg
-  structure changes); the core-pinning rationale is moot.
+  `!cancelled()` gates; publish-release still waits on both legs). **Re-evaluate
+  against CURRENT STATE (native VM 111 Windows runner):** the Windows leg now
+  runs on its own native runner (`arcade-win10`) separate from the Linux runner,
+  so parallelizing the legs is sound — just confirm the workflow `runs-on`
+  labels match the live topology before pushing.
 - ~~**Owner action pending on PVE host `10.0.0.98`:** pin VM 131 (prox-win) and
-  CT 130 to disjoint cores so parallel runners don't contend.~~ **DROPPED (BI1).**
-  VM 131 (prox-win) is abandoned — no Windows runner to pin. The CPU-contention
-  problem disappears because Windows now cross-compiles on the Linux runner. Do
-  not perform the `qm set 131 --affinity` / `pct set 130` pinning; tag `v0.10.11`
-  once the held release.yml change is reconciled with the BI1 cross job.
+  CT 130 to disjoint cores so parallel runners don't contend.~~ **OBSOLETE — see
+  CURRENT STATE.** VM 131/`prox-win` is abandoned; the live Windows runner is the
+  separate native **VM 111 `arcade-win10-runner`**, so the original same-host
+  contention premise no longer applies as written. Do not perform the
+  `qm set 131 --affinity` / `pct set 130` pinning.
 
 **`v0.10.10` is RELEASED** —
 the GitHub Release is published (not draft) with all artifacts (Windows NSIS +
