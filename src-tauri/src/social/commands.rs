@@ -699,3 +699,78 @@ pub async fn social_ignore_set(host: String, token: String, user_id: u64, ignore
     }
     Ok(())
 }
+
+/// One entry in the friends activity feed (ROADMAP 3.7). `kind` is the event
+/// type (`played` | `review` | `screenshot` | …) and `payload` is passed
+/// through as raw kind-specific JSON for the UI to render. `game_id` is present
+/// for game-scoped events.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivityItem {
+    pub id: u64,
+    pub user_id: u64,
+    pub username: String,
+    pub kind: String,
+    pub game_id: Option<String>,
+    pub payload: serde_json::Value,
+    pub created_at: i64,
+}
+
+/// Fetch the caller's friends activity feed (own + accepted friends, newest
+/// first, ≤100). Server-derived and bearer-authed; done in Rust so the token
+/// stays out of the renderer.
+#[tauri::command]
+pub async fn social_activity_fetch(host: String, token: String) -> AppResult<Vec<ActivityItem>> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Row {
+        #[serde(default)]
+        id: u64,
+        #[serde(default)]
+        user_id: u64,
+        #[serde(default)]
+        username: String,
+        #[serde(default)]
+        kind: String,
+        #[serde(default)]
+        game_id: Option<String>,
+        #[serde(default)]
+        payload: serde_json::Value,
+        #[serde(default)]
+        created_at: i64,
+    }
+    #[derive(Deserialize)]
+    struct Resp {
+        #[serde(default)]
+        activity: Vec<Row>,
+    }
+
+    let endpoint = Endpoint::new(host, token);
+    let client = http_client();
+    let resp = client
+        .get(endpoint.activity_url())
+        .bearer_auth(endpoint.token())
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("activity request failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("activity lookup failed (HTTP {})", resp.status())));
+    }
+    let r: Resp = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid activity response: {e}")))?;
+    Ok(r
+        .activity
+        .into_iter()
+        .map(|row| ActivityItem {
+            id: row.id,
+            user_id: row.user_id,
+            username: row.username,
+            kind: row.kind,
+            game_id: row.game_id,
+            payload: row.payload,
+            created_at: row.created_at,
+        })
+        .collect())
+}

@@ -98,6 +98,12 @@ impl Endpoint {
         format!("https://{}/api/social/turn", self.host)
     }
 
+    /// REST URL for the caller's friends activity feed (GET; self + accepted
+    /// friends, newest first, server-derived).
+    pub fn activity_url(&self) -> String {
+        format!("https://{}/api/social/activity", self.host)
+    }
+
     /// The bearer token, for the `Authorization` header on REST calls.
     pub fn token(&self) -> &str {
         &self.token
@@ -158,6 +164,7 @@ mod tests {
         assert_eq!(e.privacy_url(), "https://arcade.example.com/api/social/privacy");
         assert_eq!(e.ignores_url(), "https://arcade.example.com/api/social/ignores");
         assert_eq!(e.turn_url(), "https://arcade.example.com/api/social/turn");
+        assert_eq!(e.activity_url(), "https://arcade.example.com/api/social/activity");
     }
 
     #[test]

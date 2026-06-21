@@ -7,10 +7,12 @@ import { useSocialContext } from "./SocialContext";
 import { useProfile } from "./useProfile";
 import { useFriendMeta } from "./useFriendMeta";
 import { usePrivacy } from "./usePrivacy";
+import { useActivity } from "./useActivity";
 import { useVoice } from "./useVoice";
 import { fetchTurnServers } from "./api";
 import { FriendList } from "./components/FriendList";
 import { RequestsPanel } from "./components/RequestsPanel";
+import { ActivityFeed } from "./components/ActivityFeed";
 import { AddFriend } from "./components/AddFriend";
 import { StatusPicker } from "./components/StatusPicker";
 import { ChatPane } from "./components/ChatPane";
@@ -34,6 +36,7 @@ export function SocialView() {
   const profile = useProfile(auth, social.selfId);
   const friendMeta = useFriendMeta(auth);
   const privacy = usePrivacy(auth);
+  const activity = useActivity(auth);
   const voice = useVoice(!!auth && social.connected, {
     voiceSend: social.voiceSend,
     setVoiceHandler: social.setVoiceHandler,
@@ -41,7 +44,7 @@ export function SocialView() {
       ? async () => (await fetchTurnServers(auth.host, auth.token)).iceServers
       : undefined,
   });
-  const [rosterTab, setRosterTab] = useState<"friends" | "requests">("friends");
+  const [rosterTab, setRosterTab] = useState<"friends" | "requests" | "activity">("friends");
   const requestCount = social.incoming.length + social.outgoing.length;
   const peer = social.friends.find((f) => f.accountId === social.selectedPeer) ?? null;
   const callPeerName =
@@ -95,8 +98,17 @@ export function SocialView() {
               Requests
               {requestCount > 0 && <span className="social__rosterbadge">{requestCount}</span>}
             </button>
+            <button
+              className={`social__rostertab${rosterTab === "activity" ? " social__rostertab--active" : ""}`}
+              onClick={() => {
+                setRosterTab("activity");
+                activity.refresh();
+              }}
+            >
+              Activity
+            </button>
           </div>
-          {rosterTab === "friends" ? (
+          {rosterTab === "friends" && (
             <FriendList
               friends={social.friends}
               selectedPeer={social.selectedPeer}
@@ -104,13 +116,15 @@ export function SocialView() {
               meta={auth ? friendMeta : undefined}
               ignore={auth ? { isIgnored: privacy.isIgnored, toggleIgnore: privacy.toggleIgnore } : undefined}
             />
-          ) : (
+          )}
+          {rosterTab === "requests" && (
             <RequestsPanel
               incoming={social.incoming}
               outgoing={social.outgoing}
               onRespond={social.respondToRequest}
             />
           )}
+          {rosterTab === "activity" && <ActivityFeed activity={activity} />}
         </aside>
         <section className="social__chat">
           <ChatPane

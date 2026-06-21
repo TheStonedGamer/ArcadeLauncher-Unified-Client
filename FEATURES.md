@@ -119,6 +119,10 @@ gateway. See §3 for the full subsystem.
 - **Personalization** — favorites, nicknames, recent-interaction sort, and
   per-user sound/presence-alert preferences, all kept client-side and overlaid
   on the server-authoritative friend list.
+- **Activity feed** — a roster tab showing what you and your accepted friends
+  have been up to (played a game, posted a review, shared a screenshot),
+  newest-first, fetched from the server's `/api/social/activity`. Unknown event
+  kinds render generically so a newer server never breaks an older client.
 - **Resilient connection** — automatic reconnect with exponential backoff, an
   application-level heartbeat, and on-resume reconciliation of the friend list
   and open conversations so nothing is missed while offline.
