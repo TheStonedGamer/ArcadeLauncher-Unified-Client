@@ -1,6 +1,8 @@
 // Mirror of the Rust `General` settings struct (serde camelCase). Keep in sync
 // with src-tauri/src/settings/model.rs.
 
+import type { AutoSyncSettings } from "../saves/saves";
+
 export interface GeneralSettings {
   libraryPath: string;
   closeToTray: boolean;
@@ -17,4 +19,6 @@ export interface GeneralSettings {
   steamgriddbApiKey: string;
   retroachievementsUsername: string;
   retroachievementsApiKey: string;
+  /** Cloud-save auto-sync preferences (pull-on-launch / push-on-exit). */
+  autoSync: AutoSyncSettings;
 }

@@ -5,6 +5,8 @@ import {
   clampKeep,
   parseAutoSync,
   shouldAutoSync,
+  shouldRunAutoSync,
+  autoSyncPolicy,
   formatBytes,
   versionLabel,
   sortVersions,
@@ -53,6 +55,32 @@ describe("shouldAutoSync", () => {
     const s = { syncOnLaunch: true, syncOnExit: false, keepVersions: 10 };
     expect(shouldAutoSync(s, "launch")).toBe(true);
     expect(shouldAutoSync(s, "exit")).toBe(false);
+  });
+});
+
+describe("shouldRunAutoSync", () => {
+  const settings = { syncOnLaunch: true, syncOnExit: true, keepVersions: 10 };
+  it("requires signed-in, server-backed, and the event toggle", () => {
+    expect(shouldRunAutoSync({ signedIn: true, serverBacked: true, settings }, "launch")).toBe(true);
+    expect(shouldRunAutoSync({ signedIn: true, serverBacked: true, settings }, "exit")).toBe(true);
+  });
+  it("is false when signed out", () => {
+    expect(shouldRunAutoSync({ signedIn: false, serverBacked: true, settings }, "launch")).toBe(false);
+  });
+  it("is false for non-server-backed games", () => {
+    expect(shouldRunAutoSync({ signedIn: true, serverBacked: false, settings }, "exit")).toBe(false);
+  });
+  it("respects the per-event toggle", () => {
+    const off = { syncOnLaunch: false, syncOnExit: true, keepVersions: 10 };
+    expect(shouldRunAutoSync({ signedIn: true, serverBacked: true, settings: off }, "launch")).toBe(false);
+    expect(shouldRunAutoSync({ signedIn: true, serverBacked: true, settings: off }, "exit")).toBe(true);
+  });
+});
+
+describe("autoSyncPolicy", () => {
+  it("prefers remote before play and local after", () => {
+    expect(autoSyncPolicy("launch")).toBe("preferRemote");
+    expect(autoSyncPolicy("exit")).toBe("preferLocal");
   });
 });
 

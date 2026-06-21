@@ -42,6 +42,22 @@ export function shouldAutoSync(settings: AutoSyncSettings, event: "launch" | "ex
   return event === "launch" ? settings.syncOnLaunch : settings.syncOnExit;
 }
 
+/** Full gate for a lifecycle auto-sync: only fire when the user is signed in,
+ *  the game is server-backed (cloud saves only exist server-side), and the
+ *  per-event toggle is on. Pure so the launch/exit glue stays trivial + tested. */
+export function shouldRunAutoSync(
+  opts: { signedIn: boolean; serverBacked: boolean; settings: AutoSyncSettings },
+  event: "launch" | "exit",
+): boolean {
+  return opts.signedIn && opts.serverBacked && shouldAutoSync(opts.settings, event);
+}
+
+/** Conflict policy for each lifecycle direction: before play the cloud copy
+ *  wins (we just pulled it); after play the local copy wins (it's freshest). */
+export function autoSyncPolicy(event: "launch" | "exit"): "preferRemote" | "preferLocal" {
+  return event === "launch" ? "preferRemote" : "preferLocal";
+}
+
 /** Human-readable byte size for a version's footprint. */
 export function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";

@@ -4,6 +4,26 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Per-device cloud-save auto-sync preferences (T12i). Pulled before launch,
+/// snapshotted + pushed on exit. Mirrors the TS `AutoSyncSettings` in
+/// `src/features/saves/saves.ts`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AutoSync {
+    /// Pull the latest cloud save before a game launches.
+    pub sync_on_launch: bool,
+    /// Snapshot + push the local save when a game exits.
+    pub sync_on_exit: bool,
+    /// How many restorable versions to keep per game (clamped [1,100] by Rust).
+    pub keep_versions: u32,
+}
+
+impl Default for AutoSync {
+    fn default() -> Self {
+        AutoSync { sync_on_launch: true, sync_on_exit: true, keep_versions: 10 }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct General {
@@ -40,6 +60,8 @@ pub struct General {
     pub retroachievements_username: String,
     /// RetroAchievements Web API key (user-supplied). https://retroachievements.org/settings
     pub retroachievements_api_key: String,
+    /// Cloud-save auto-sync preferences (pull-on-launch / push-on-exit).
+    pub auto_sync: AutoSync,
 }
 
 impl Default for General {
@@ -60,6 +82,7 @@ impl Default for General {
             steamgriddb_api_key: String::new(),
             retroachievements_username: String::new(),
             retroachievements_api_key: String::new(),
+            auto_sync: AutoSync::default(),
         }
     }
 }

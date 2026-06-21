@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { applyHotkey, loadSettings, saveSettings } from "./api";
 import type { GeneralSettings } from "./types";
+import { DEFAULT_AUTO_SYNC } from "../saves/saves";
 
 const DEFAULTS: GeneralSettings = {
   libraryPath: "",
@@ -21,6 +22,7 @@ const DEFAULTS: GeneralSettings = {
   steamgriddbApiKey: "",
   retroachievementsUsername: "",
   retroachievementsApiKey: "",
+  autoSync: DEFAULT_AUTO_SYNC,
 };
 
 export function useSettings() {

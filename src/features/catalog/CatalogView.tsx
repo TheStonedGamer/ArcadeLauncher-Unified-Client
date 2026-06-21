@@ -40,10 +40,16 @@ interface CatalogViewProps {
 }
 
 export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
-  const { games, loading, error, status, load, syncFromServer, launch } = useCatalog();
   const prefs = useCatalogPrefs();
   const { session } = useSession();
   const { draft: settings } = useSettings();
+  // Wire cloud-save auto-sync (T12i) into the launch/exit lifecycle: pull before
+  // launch, snapshot + push on exit, gated by the user's Settings toggles.
+  const { games, loading, error, status, load, syncFromServer, launch } = useCatalog({
+    session,
+    autoSync: settings.autoSync,
+    savePathById: (id) => prefs.prefs.savePaths[id] ?? "",
+  });
   const installOverlay = useInstallOverlay(session);
 
   // Install trigger (T4d-3): start the engine for a server game using the

@@ -15,6 +15,7 @@ import { StreamingSection } from "../streaming/StreamingSection";
 import { useState } from "react";
 import { fetchRaSummary, type RaSummary } from "../retroachievements/api";
 import { pointsToLevel, summaryHeadline, topUnlocks, unlockLabel } from "../retroachievements/ra";
+import { clampKeep, type AutoSyncSettings } from "../saves/saves";
 
 export function SettingsView() {
   const { draft, loading, saved, error, set, save } = useSettings();
@@ -105,6 +106,8 @@ export function SettingsView() {
           spellCheck={false}
         />
       </label>
+
+      <CloudSavesSection autoSync={draft.autoSync} onChange={(next) => set("autoSync", next)} />
 
       <ControllerSection
         enabled={draft.controllerEnabled}
@@ -240,6 +243,55 @@ function RetroAchievementsSection({
           )}
         </div>
       )}
+    </>
+  );
+}
+
+/** Cloud-save auto-sync (T12i): pull-before-launch / push-on-exit toggles and the
+ *  per-game version-retention count. Persisted in the General settings draft as a
+ *  nested `autoSync` object; the launch/exit wiring lives in useCatalog. */
+function CloudSavesSection({
+  autoSync,
+  onChange,
+}: {
+  autoSync: AutoSyncSettings;
+  onChange: (next: AutoSyncSettings) => void;
+}) {
+  return (
+    <>
+      <h2 className="settings__heading">Cloud saves</h2>
+      <p className="catalog__status">
+        Keep your game saves in sync with the server. On launch the latest cloud save is pulled down;
+        on exit your save is snapshotted (a restorable version) and pushed back up. Applies to
+        server-backed games while you’re signed in.
+      </p>
+      <label className="settings__check">
+        <input
+          type="checkbox"
+          checked={autoSync.syncOnLaunch}
+          onChange={(e) => onChange({ ...autoSync, syncOnLaunch: e.target.checked })}
+        />
+        Pull latest save before launching
+      </label>
+      <label className="settings__check">
+        <input
+          type="checkbox"
+          checked={autoSync.syncOnExit}
+          onChange={(e) => onChange({ ...autoSync, syncOnExit: e.target.checked })}
+        />
+        Back up &amp; push save on exit
+      </label>
+      <label className="settings__field">
+        <span className="settings__label">Save versions to keep (per game)</span>
+        <input
+          className="settings__input settings__input--num"
+          type="number"
+          min={1}
+          max={100}
+          value={autoSync.keepVersions}
+          onChange={(e) => onChange({ ...autoSync, keepVersions: clampKeep(Number(e.target.value)) })}
+        />
+      </label>
     </>
   );
 }
