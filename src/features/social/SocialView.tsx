@@ -16,6 +16,8 @@ import { ActivityFeed } from "./components/ActivityFeed";
 import { AddFriend } from "./components/AddFriend";
 import { StatusPicker } from "./components/StatusPicker";
 import { ChatPane } from "./components/ChatPane";
+import { RoomsPanel } from "./components/RoomsPanel";
+import { RoomChatPane } from "./components/RoomChatPane";
 import { ProfilePanel } from "./components/ProfilePanel";
 import { PrivacyPanel } from "./components/PrivacyPanel";
 import { CallBar } from "./components/CallBar";
@@ -44,9 +46,20 @@ export function SocialView() {
       ? async () => (await fetchTurnServers(auth.host, auth.token)).iceServers
       : undefined,
   });
-  const [rosterTab, setRosterTab] = useState<"friends" | "requests" | "activity">("friends");
+  const [rosterTab, setRosterTab] = useState<"friends" | "requests" | "activity" | "rooms">("friends");
   const requestCount = social.incoming.length + social.outgoing.length;
   const peer = social.friends.find((f) => f.accountId === social.selectedPeer) ?? null;
+  const activeRoom = social.rooms.find((r) => r.roomId === social.selectedRoom) ?? null;
+  // The right pane shows a room when one is open, else the 1:1 DM. Selecting a
+  // friend closes any open room and vice-versa so only one is active.
+  const selectPeer = (id: number | null) => {
+    social.selectRoom(null);
+    social.select(id);
+  };
+  const selectRoom = (id: number) => {
+    social.select(null);
+    social.selectRoom(id);
+  };
   const callPeerName =
     social.friends.find((f) => f.accountId === voice.call.peerId)?.username ?? "";
 
@@ -99,6 +112,13 @@ export function SocialView() {
               {requestCount > 0 && <span className="social__rosterbadge">{requestCount}</span>}
             </button>
             <button
+              className={`social__rostertab${rosterTab === "rooms" ? " social__rostertab--active" : ""}`}
+              onClick={() => setRosterTab("rooms")}
+            >
+              Rooms
+              {social.rooms.length > 0 && <span className="social__rosterbadge">{social.rooms.length}</span>}
+            </button>
+            <button
               className={`social__rostertab${rosterTab === "activity" ? " social__rostertab--active" : ""}`}
               onClick={() => {
                 setRosterTab("activity");
@@ -112,9 +132,18 @@ export function SocialView() {
             <FriendList
               friends={social.friends}
               selectedPeer={social.selectedPeer}
-              onSelect={social.select}
+              onSelect={selectPeer}
               meta={auth ? friendMeta : undefined}
               ignore={auth ? { isIgnored: privacy.isIgnored, toggleIgnore: privacy.toggleIgnore } : undefined}
+            />
+          )}
+          {rosterTab === "rooms" && (
+            <RoomsPanel
+              rooms={social.rooms}
+              selectedRoom={social.selectedRoom}
+              friends={social.friends}
+              onSelect={selectRoom}
+              onCreateRoom={social.createRoom}
             />
           )}
           {rosterTab === "requests" && (
@@ -127,7 +156,20 @@ export function SocialView() {
           {rosterTab === "activity" && <ActivityFeed activity={activity} />}
         </aside>
         <section className="social__chat">
-          <ChatPane
+          {activeRoom ? (
+            <RoomChatPane
+              room={activeRoom}
+              messages={social.roomConversation}
+              selfId={social.selfId}
+              friends={social.friends}
+              connected={social.connected}
+              onSend={social.sendRoomMessage}
+              onRename={social.renameRoom}
+              onAddMember={social.addRoomMember}
+              onLeave={social.leaveRoom}
+            />
+          ) : (
+            <ChatPane
             peer={peer}
             conversation={social.conversation}
             selfId={social.selfId}
@@ -144,7 +186,8 @@ export function SocialView() {
             onOpenAttachment={social.attachEnabled ? social.openAttachment : undefined}
             onViewProfile={auth ? profile.open : undefined}
             onCall={voice.enabled && peer ? () => voice.startCall(peer.accountId) : undefined}
-          />
+            />
+          )}
         </section>
       </div>
 

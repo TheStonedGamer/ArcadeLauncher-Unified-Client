@@ -87,6 +87,11 @@ describe("parseInbound", () => {
       userId: 9,
     });
     expect(parseInbound('{"type":"room_deleted","roomId":5}')).toEqual({ type: "room_deleted", roomId: 5 });
+    expect(
+      parseInbound(
+        '{"type":"room_message","roomId":5,"messageId":42,"senderId":3,"text":"gg","timestamp":1700000000}',
+      ),
+    ).toEqual({ type: "room_message", roomId: 5, messageId: 42, senderId: 3, text: "gg", timestamp: 1700000000 });
   });
 
   it("returns null for malformed json", () => {
@@ -117,5 +122,6 @@ describe("outbound", () => {
     expect(outbound.roomRename(5, "Crew")).toBe('{"type":"room_rename","roomId":5,"name":"Crew"}');
     expect(outbound.roomAddMember(5, 9)).toBe('{"type":"room_add_member","roomId":5,"userId":9}');
     expect(outbound.roomLeave(5)).toBe('{"type":"room_leave","roomId":5}');
+    expect(outbound.roomChat(5, "gg")).toBe('{"type":"room_chat","roomId":5,"text":"gg"}');
   });
 });

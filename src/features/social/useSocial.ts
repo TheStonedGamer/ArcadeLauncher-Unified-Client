@@ -30,6 +30,15 @@ import {
   sortedInvites,
   type GameInvite,
 } from "./invites";
+import { roomsReducer, roomActionFromFrame, sortedRooms, type Room } from "./rooms";
+import {
+  applyRoomMessage,
+  localEchoRoom,
+  clearRoomChat,
+  roomMessages,
+  type RoomChats,
+  type RoomMessage,
+} from "./roomChat";
 import type { Conversation, Friend } from "./types";
 
 export interface SocialApi {
@@ -88,6 +97,25 @@ export interface SocialApi {
   acceptGameInvite: (inviteId: number) => string | null;
   /** Decline/dismiss an invite: tell the server and drop it locally. */
   declineGameInvite: (inviteId: number) => void;
+  // --- Group rooms / channels (T12f) ------------------------------------
+  /** Rooms I belong to, sorted for display. */
+  rooms: Room[];
+  /** The currently-open room (null = none). */
+  selectedRoom: number | null;
+  /** Open a room (or close with null). */
+  selectRoom: (roomId: number | null) => void;
+  /** Messages in the selected room, oldest-first. */
+  roomConversation: RoomMessage[];
+  /** Create a room with an initial member set. */
+  createRoom: (name: string, memberIds: number[]) => void;
+  /** Rename a room I own. */
+  renameRoom: (roomId: number, name: string) => void;
+  /** Add a friend to a room. */
+  addRoomMember: (roomId: number, userId: number) => void;
+  /** Leave a room (drops it locally too). */
+  leaveRoom: (roomId: number) => void;
+  /** Post a message to the selected room (optimistic echo + gateway send). */
+  sendRoomMessage: (text: string) => void;
 }
 
 const EMPTY_CONV: Conversation = {
@@ -135,6 +163,12 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
   const [invites, setInvites] = useState<GameInvite[]>([]);
   const invitesRef = useRef(invites);
   invitesRef.current = invites;
+  // Group rooms / channels (T12f). Membership in `rooms`, per-room message logs
+  // in `roomChats`; both driven by the room_* frames below and unit-tested in
+  // rooms.test.ts / roomChat.test.ts.
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [roomChats, setRoomChats] = useState<RoomChats>({});
+  const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
   const gatewayRef = useRef<Gateway | null>(null);
   // Latest chosen status, read on (re)connect to re-assert presence without
   // re-subscribing the connect effect to status changes.
@@ -160,6 +194,17 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
       // an invite action; everything else is ignored by the mapper.
       const ia = inviteActionFromFrame(msg, Date.now());
       if (ia) setInvites((prev) => invitesReducer(prev, ia));
+      // Group rooms (T12f): membership frames drive the room reducer; room_message
+      // appends to that room's log; leaving/deletion clears the log too.
+      const selfId = socialRef.current.selfId;
+      const ra = roomActionFromFrame(msg, selfId);
+      if (ra) setRooms((prev) => roomsReducer(prev, ra));
+      if (msg.type === "room_message") {
+        setRoomChats((prev) => applyRoomMessage(prev, msg.roomId, msg));
+      }
+      if (msg.type === "room_deleted" || (msg.type === "room_member_removed" && msg.userId === selfId)) {
+        setRoomChats((prev) => clearRoomChat(prev, msg.roomId));
+      }
       // A friend_* frame means the relationship graph changed (new request,
       // accept, or removal). The reducer can't synthesize the row, so re-pull the
       // authoritative roster — this is what keeps the Requests tab live.
@@ -190,6 +235,9 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
       gw.disconnect();
       gatewayRef.current = null;
       setInvites([]); // invites are per-session; drop them on sign-out/reconnect-rebuild.
+      setRooms([]);
+      setRoomChats({});
+      setSelectedRoom(null);
     };
     // Rebuild the gateway when the session host/token changes (sign in/out).
   }, [host, token]);
@@ -330,6 +378,44 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     setInvites((prev) => invitesReducer(prev, { type: "remove", inviteId }));
   }, []);
 
+  const selectRoom = useCallback((roomId: number | null) => setSelectedRoom(roomId), []);
+
+  const createRoom = useCallback((name: string, memberIds: number[]) => {
+    const n = name.trim();
+    if (n) gatewayRef.current?.send(outbound.roomCreate(n, memberIds));
+  }, []);
+
+  const renameRoom = useCallback((roomId: number, name: string) => {
+    const n = name.trim();
+    if (roomId && n) gatewayRef.current?.send(outbound.roomRename(roomId, n));
+  }, []);
+
+  const addRoomMember = useCallback((roomId: number, userId: number) => {
+    if (roomId && userId) gatewayRef.current?.send(outbound.roomAddMember(roomId, userId));
+  }, []);
+
+  const leaveRoom = useCallback((roomId: number) => {
+    if (!roomId) return;
+    gatewayRef.current?.send(outbound.roomLeave(roomId));
+    // Optimistically drop the room + its log; the server echo (room_member_removed
+    // for us / room_deleted) would do the same, but don't wait for it.
+    setRooms((prev) => roomsReducer(prev, { type: "removeRoom", roomId }));
+    setRoomChats((prev) => clearRoomChat(prev, roomId));
+    setSelectedRoom((cur) => (cur === roomId ? null : cur));
+  }, []);
+
+  const sendRoomMessage = useCallback(
+    (text: string) => {
+      const roomId = selectedRoom;
+      const trimmed = text.trim();
+      if (roomId == null || trimmed === "") return;
+      const self = socialRef.current.selfId;
+      setRoomChats((prev) => localEchoRoom(prev, roomId, self, trimmed, Date.now()));
+      gatewayRef.current?.send(outbound.roomChat(roomId, trimmed));
+    },
+    [selectedRoom],
+  );
+
   const editMessage = useCallback((msgId: number, text: string) => {
     const trimmed = text.trim();
     if (!msgId || trimmed === "") return;
@@ -362,6 +448,11 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
   }, []);
 
   const friends = useMemo(() => sortedFriends(social), [social]);
+  const roomList = useMemo(() => sortedRooms(rooms), [rooms]);
+  const roomConversation = useMemo(
+    () => (selectedRoom != null ? roomMessages(roomChats, selectedRoom) : []),
+    [roomChats, selectedRoom],
+  );
   const gameInvites = useMemo(() => sortedInvites(invites), [invites]);
   const incoming = useMemo(() => incomingRequests(social), [social]);
   const outgoing = useMemo(() => outgoingRequests(social), [social]);
@@ -400,5 +491,14 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     sendGameInvite,
     acceptGameInvite,
     declineGameInvite,
+    rooms: roomList,
+    selectedRoom,
+    selectRoom,
+    roomConversation,
+    createRoom,
+    renameRoom,
+    addRoomMember,
+    leaveRoom,
+    sendRoomMessage,
   };
 }

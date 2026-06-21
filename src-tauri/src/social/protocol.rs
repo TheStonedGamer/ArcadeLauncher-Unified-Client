@@ -157,6 +157,20 @@ pub enum Inbound {
         #[serde(default)]
         room_id: u64,
     },
+    /// A chat message posted to a room we're in (T12f-2).
+    #[serde(rename = "room_message", rename_all = "camelCase")]
+    RoomMessage {
+        #[serde(default)]
+        room_id: u64,
+        #[serde(default)]
+        message_id: u64,
+        #[serde(default)]
+        sender_id: u64,
+        #[serde(default)]
+        text: String,
+        #[serde(default)]
+        timestamp: u64,
+    },
     /// Any frame type we don't model yet (e.g. voice_signal — that's T4).
     #[serde(other)]
     Unknown,
@@ -251,6 +265,11 @@ pub mod outbound {
     /// Leave a room we're in.
     pub fn room_leave(room_id: u64) -> String {
         json!({ "type": "room_leave", "roomId": room_id }).to_string()
+    }
+
+    /// Post a chat message to a room (T12f-2).
+    pub fn room_chat(room_id: u64, text: &str) -> String {
+        json!({ "type": "room_chat", "roomId": room_id, "text": text }).to_string()
     }
 }
 
@@ -423,6 +442,29 @@ mod tests {
             r#"{"roomId":5,"type":"room_add_member","userId":9}"#
         );
         assert_eq!(outbound::room_leave(5), r#"{"roomId":5,"type":"room_leave"}"#);
+    }
+
+    #[test]
+    fn parses_room_message() {
+        let f = r#"{"type":"room_message","roomId":5,"messageId":42,"senderId":3,"text":"gg","timestamp":1700000000}"#;
+        assert_eq!(
+            Inbound::parse(f),
+            Some(Inbound::RoomMessage {
+                room_id: 5,
+                message_id: 42,
+                sender_id: 3,
+                text: "gg".into(),
+                timestamp: 1700000000,
+            })
+        );
+    }
+
+    #[test]
+    fn room_chat_outbound_shape() {
+        assert_eq!(
+            outbound::room_chat(5, "gg"),
+            r#"{"roomId":5,"text":"gg","type":"room_chat"}"#
+        );
     }
 
     #[test]

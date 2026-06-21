@@ -26,6 +26,8 @@ export type Inbound =
   | { type: "room_member_added"; roomId: number; userId: number }
   | { type: "room_member_removed"; roomId: number; userId: number }
   | { type: "room_deleted"; roomId: number }
+  // Group-room chat (T12f-2): a message posted to a room we belong to.
+  | { type: "room_message"; roomId: number; messageId: number; senderId: number; text: string; timestamp: number }
   // Voice (ROADMAP T9g): opaque WebRTC signaling relayed between friends. The
   // `payload` is interpreted by voice.ts (parseSignal); we keep it untyped here.
   | { type: "voice_signal"; fromId: number; payload: unknown }
@@ -125,6 +127,15 @@ export function parseInbound(utf8: string): Inbound | null {
       return { type: "room_member_removed", roomId: num(v.roomId), userId: num(v.userId) };
     case "room_deleted":
       return { type: "room_deleted", roomId: num(v.roomId) };
+    case "room_message":
+      return {
+        type: "room_message",
+        roomId: num(v.roomId),
+        messageId: num(v.messageId),
+        senderId: num(v.senderId),
+        text: str(v.text),
+        timestamp: num(v.timestamp),
+      };
     case "voice_signal":
       return { type: "voice_signal", fromId: num(v.fromId), payload: v.payload };
     default:
@@ -167,6 +178,8 @@ export const outbound = {
   roomAddMember: (roomId: number, userId: number): string =>
     JSON.stringify({ type: "room_add_member", roomId, userId }),
   roomLeave: (roomId: number): string => JSON.stringify({ type: "room_leave", roomId }),
+  // Group-room chat (T12f-2): post a message to a room.
+  roomChat: (roomId: number, text: string): string => JSON.stringify({ type: "room_chat", roomId, text }),
   // Voice (ROADMAP T9g): relay an opaque WebRTC signaling payload to a friend.
   // The server's voice_signal handler also gates the (caller,peer) pair on
   // invite/accept/end, so `payload.kind` must carry those alongside offer/answer/

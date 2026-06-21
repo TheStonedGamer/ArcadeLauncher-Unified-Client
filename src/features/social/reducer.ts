@@ -286,6 +286,7 @@ export function applyInbound(state: SocialState, msg: Inbound, now: number): Soc
     case "room_member_added":
     case "room_member_removed":
     case "room_deleted":
+    case "room_message": // handled by the roomChat reducer, not DM chat state
     case "pong":
     case "unknown":
       return state;
