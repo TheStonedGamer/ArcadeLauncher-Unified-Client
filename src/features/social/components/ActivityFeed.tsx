@@ -48,6 +48,19 @@ function describe(item: ActivityItem): { verb: string; detail: string } {
   }
 }
 
+/** Collapse a raw IPC/transport error into a short, non-scary line. The full
+ *  detail stays available on hover (title attr) for debugging. */
+function friendlyError(raw: string): string {
+  const r = raw.toLowerCase();
+  if (r.includes("error sending request") || r.includes("connect") || r.includes("timed out") || r.includes("dns")) {
+    return "Couldn't reach the activity service.";
+  }
+  if (r.includes("http 401") || r.includes("unauthorized")) return "Session expired — reconnect to see activity.";
+  if (r.includes("http 404")) return "Activity isn't available on this server yet.";
+  if (r.includes("http 5")) return "The activity service is having trouble. Try again shortly.";
+  return "Couldn't load activity right now.";
+}
+
 export function ActivityFeed({ activity }: { activity: ActivityApi }) {
   const { items, loading, error, refresh } = activity;
 
@@ -60,7 +73,14 @@ export function ActivityFeed({ activity }: { activity: ActivityApi }) {
         </button>
       </div>
 
-      {error && <div className="social__activity-error">{error}</div>}
+      {error && (
+        <div className="social__activity-error" title={error}>
+          <span>{friendlyError(error)}</span>
+          <button className="social__activity-retry" onClick={refresh} disabled={loading}>
+            Retry
+          </button>
+        </div>
+      )}
       {!error && !loading && items.length === 0 && (
         <div className="social__activity-empty">No recent activity from you or your friends yet.</div>
       )}
