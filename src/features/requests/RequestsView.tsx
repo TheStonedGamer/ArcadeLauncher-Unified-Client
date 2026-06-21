@@ -1,7 +1,8 @@
 // Game Requests board view: the search-and-request composer, status + platform
 // filter chips, and the request list (cover, title/subtitle, community star
-// rating, upvote, and — for admins — a status triage dropdown). State + actions
-// come from useRequests; this component is composition + presentation only.
+// rating, and upvote). Admin status triage now lives in the server admin UI
+// (/admin/requests), not inline here. State + actions come from useRequests;
+// this component is composition + presentation only.
 
 import { useRequests } from "./useRequests";
 import { RequestComposer } from "./components/RequestComposer";
@@ -12,7 +13,6 @@ import {
   STATUSES,
   statusLabel,
   type GameRequest,
-  type RequestStatus,
 } from "./requests";
 import { useSession } from "../session/SessionContext";
 
@@ -87,10 +87,8 @@ export function RequestsView() {
             <RequestRow
               key={req.id}
               req={req}
-              isAdmin={r.isAdmin}
               onVote={() => r.vote(req.id)}
               onRate={(stars) => r.rate(req.id, stars)}
-              onStatus={(s) => r.setStatus(req.id, s)}
             />
           ))}
         </ul>
@@ -101,13 +99,11 @@ export function RequestsView() {
 
 interface RequestRowProps {
   req: GameRequest;
-  isAdmin: boolean;
   onVote: () => void;
   onRate: (stars: number) => void;
-  onStatus: (status: RequestStatus) => void;
 }
 
-function RequestRow({ req, isAdmin, onVote, onRate, onStatus }: RequestRowProps) {
+function RequestRow({ req, onVote, onRate }: RequestRowProps) {
   return (
     <li className="reqrow">
       <button
@@ -141,21 +137,6 @@ function RequestRow({ req, isAdmin, onVote, onRate, onStatus }: RequestRowProps)
           />
         </div>
       </div>
-
-      {isAdmin && (
-        <select
-          className="reqrow__triage"
-          value={req.status}
-          onChange={(e) => onStatus(e.target.value as RequestStatus)}
-          title="Set status (admin)"
-        >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {statusLabel(s)}
-            </option>
-          ))}
-        </select>
-      )}
     </li>
   );
 }
