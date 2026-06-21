@@ -136,6 +136,34 @@ jobs:
           Copy-Item src-tauri/target/release/updater.exe `
             src-tauri/binaries/updater-x86_64-pc-windows-msvc.exe
 
+      # WOW64 redirection fix for makensis under LocalSystem.
+      # The runner runs as LocalSystem, so tauri caches its (32-bit) NSIS toolset
+      # under %LOCALAPPDATA% = C:\Windows\System32\config\systemprofile\AppData\
+      # Local\tauri\NSIS. When tauri spawns the 32-bit makensis.exe, the WOW64
+      # File System Redirector rewrites every `System32\...` path it touches to
+      # `SysWOW64\...` — which doesn't exist — so makensis fails to find its own
+      # Bin\Stubs ("Unable to start child process, error 0x2" / DLL-not-found).
+      # A junction at the redirected SysWOW64 location pointing back at the real
+      # System32 cache makes those redirected lookups resolve to the real files.
+      # Both paths are the same physical dir, so it survives cache re-downloads.
+      # (We keep LocalSystem because WiX light.exe ICE validation needs it; a
+      # non-system32 cache path isn't reachable since the dirs crate ignores
+      # %LOCALAPPDATA% and uses SHGetKnownFolderPath.)
+      - name: Fix WOW64 redirection for makensis (self-hosted LocalSystem)
+        shell: powershell
+        run: |
+          $real = "C:\Windows\System32\config\systemprofile\AppData\Local\tauri"
+          $wowParent = "C:\Windows\SysWOW64\config\systemprofile\AppData\Local"
+          $wowLink = Join-Path $wowParent "tauri"
+          New-Item -ItemType Directory -Path $real -Force | Out-Null
+          New-Item -ItemType Directory -Path $wowParent -Force | Out-Null
+          if (-not (Test-Path $wowLink)) {
+            cmd /c mklink /J "$wowLink" "$real"
+            if ($LASTEXITCODE -ne 0) { throw "mklink failed ($LASTEXITCODE)" }
+          } else {
+            "junction already present"
+          }
+
       - name: Build + upload Windows artifacts (native → NSIS + MSI)
         uses: tauri-apps/tauri-action@v0
         env:
@@ -230,4 +258,23 @@ jobs:
               release_id: ${{ needs.create-release.outputs.release_id }},
               draft: false,
               prerelease: false,
+            });
+
+      # Fire the Discord changelog announcement. We CANNOT rely on the
+      # `release: published` event: the updateRelease call above is made with the
+      # default GITHUB_TOKEN, and GitHub deliberately does NOT start new workflow
+      # runs from events raised by GITHUB_TOKEN (anti-recursion). workflow_dispatch
+      # is exempt from that rule, so dispatch discord-changelog.yml explicitly,
+      # passing the tag it expects. (discord-changelog no-ops if DISCORD_WEBHOOK_URL
+      # is unset, so this is safe on forks.)
+      - name: Announce changelog to Discord
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'discord-changelog.yml',
+              ref: '${{ needs.create-release.outputs.tag }}',
+              inputs: { tag: '${{ needs.create-release.outputs.tag }}' },
             });
