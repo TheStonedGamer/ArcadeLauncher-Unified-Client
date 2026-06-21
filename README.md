@@ -12,7 +12,7 @@ signed updater).
 **Releases:** [GitHub Releases](https://github.com/TheStonedGamer/ArcadeLauncher-Unified-Client/releases/latest)
 — Windows NSIS, Linux `.deb`/`.rpm`/AppImage, signed in-app updater.
 
-The phase plan lives in [`ROADMAP.md`](ROADMAP.md). The native C++ clients are
+The phase plan lives in [`ROADMAP.md`](docs/ROADMAP.md). The native C++ clients are
 retired as of T10c; this is the sole shipping client.
 
 ## Architecture (modular by design)

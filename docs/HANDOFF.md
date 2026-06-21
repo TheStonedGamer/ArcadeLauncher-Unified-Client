@@ -290,7 +290,7 @@ seam and a computer-use smoke test while the user is interactive).
    commit, push `main`, confirm CI green, then push a `vX.Y.Z` tag. Signing
    secrets are configured.
 6. **Changelog is mandatory + user-facing.** Every shipped change lands an entry
-   under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md) (Added/Changed/Fixed/
+   under `[Unreleased]` in [`CHANGELOG.md`](../CHANGELOG.md) (Added/Changed/Fixed/
    Removed), written for users, not commit-speak. On release-publish,
    `.github/workflows/discord-changelog.yml` posts that version's section to
    Discord verbatim — the changelog *is* the announcement, so keep it clean.

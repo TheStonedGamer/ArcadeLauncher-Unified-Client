@@ -31,3 +31,6 @@ arcade-updater.key*
 
 # Local secrets — runner VM credentials, never commit
 .secrets/
+
+# In-project agent memory (local-only, never committed)
+memory/

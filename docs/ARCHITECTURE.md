@@ -4,7 +4,7 @@
 > together, and how the server and client work — end to end. This document lives
 > in the **Unified Client** repo but describes the whole product (server, client,
 > companion services, and infrastructure). For per-feature change history see
-> [`CHANGELOG.md`](CHANGELOG.md), [`FEATURES.md`](FEATURES.md), and
+> [`CHANGELOG.md`](../CHANGELOG.md), [`FEATURES.md`](FEATURES.md), and
 > [`ROADMAP.md`](ROADMAP.md). For cold-start operational state see
 > [`HANDOFF.md`](HANDOFF.md).
 

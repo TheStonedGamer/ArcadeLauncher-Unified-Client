@@ -17,12 +17,15 @@
 // refreshes its "updated" date. Entries are delimited by HTML comment markers so
 // the body can contain any Markdown without breaking the parser.
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const FILE = join(ROOT, "AGENT_MEMORY.md");
+// In-project agent memory lives under memory/ (gitignored — local-only, not
+// committed). mkdirSync ensures the folder exists before the first write.
+const MEM_DIR = join(ROOT, "memory");
+const FILE = join(MEM_DIR, "AGENT_MEMORY.md");
 const TYPES = ["project", "feedback", "reference", "user"];
 
 const HEADER = `# Agent Memory
@@ -79,6 +82,7 @@ function write(entries) {
       "\n"
     : "## Index\n\n_(empty — add the first fact with `node scripts/memory.mjs set`)_\n";
   const body = sorted.map(renderEntry).join("\n\n");
+  mkdirSync(MEM_DIR, { recursive: true });
   writeFileSync(FILE, `${HEADER}${index}\n---\n\n${body}${body ? "\n" : ""}`, "utf8");
 }
 
