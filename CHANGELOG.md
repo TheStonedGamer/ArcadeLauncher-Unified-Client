@@ -13,6 +13,20 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.18] - 2026-06-21
+
+### Added
+- **Cloud-save auto-sync.** Saves now sync automatically around play: the latest
+  cloud save is pulled before a game launches and your save is snapshotted (a
+  restorable version) and pushed back up when it exits. Toggle each direction and
+  set how many versions to keep under **Settings → Cloud saves**. Applies to
+  server-backed games while signed in.
+
+### Changed
+- **The welcome tour now shows once per account, not once per device.** Whether
+  you've completed onboarding is remembered on your account (server-side), so it
+  no longer reappears after reinstalling or signing in on another PC.
+
 ## [0.10.17] - 2026-06-21
 
 ### Changed
