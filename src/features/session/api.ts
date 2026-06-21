@@ -14,6 +14,27 @@ export function sessionLogin(
   return call<Session>("session_login", { host, username, password, totpCode });
 }
 
+/** Result of a self-registration request (account left pending admin approval). */
+export interface RegisterOutcome {
+  status: string;
+  message: string;
+}
+
+/**
+ * Submit a self-registration request. The account is created in a pending state
+ * server-side and an admin must approve it (via emailed Approve/Deny links)
+ * before the user can sign in. Rejects with the server's message on failure
+ * (registration closed, duplicate username/email, validation error).
+ */
+export function sessionRegister(
+  host: string,
+  username: string,
+  email: string,
+  password: string,
+): Promise<RegisterOutcome> {
+  return call<RegisterOutcome>("session_register", { host, username, email, password });
+}
+
 /** A session as remembered on disk (the live Session plus expiry bookkeeping). */
 export interface StoredSession extends Session {
   savedUnix: number;

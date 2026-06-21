@@ -165,6 +165,74 @@ async fn login_with_password(
     })
 }
 
+/// Outcome of a self-registration request: the server-supplied human-readable
+/// message to show the user (the account is created in a pending state and an
+/// admin must approve it before sign-in works).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegisterOutcome {
+    pub status: String,
+    pub message: String,
+}
+
+#[derive(Deserialize)]
+struct RegisterResp {
+    #[serde(default)]
+    status: String,
+    #[serde(default)]
+    message: String,
+}
+
+/// Submit a self-registration request to `host`. On success the account is left
+/// pending admin approval; the password is sent over TLS to the register
+/// endpoint (the server hashes it) and is never stored locally.
+#[tauri::command]
+pub async fn session_register(
+    host: String,
+    username: String,
+    email: String,
+    password: String,
+) -> AppResult<RegisterOutcome> {
+    let host = normalize_host(&host);
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .post(format!("https://{host}/api/auth/register"))
+        .form(&[
+            ("username", username.trim()),
+            ("email", email.trim()),
+            ("password", password.as_str()),
+        ])
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("register request failed: {e}")))?;
+
+    let status = resp.status();
+    if !status.is_success() {
+        // Surface the server's `error` message (closed/duplicate/validation).
+        let msg = resp
+            .json::<serde_json::Value>()
+            .await
+            .ok()
+            .and_then(|j| j.get("error").and_then(|e| e.as_str()).map(|s| s.to_string()))
+            .unwrap_or_else(|| format!("registration failed (HTTP {status})"));
+        return Err(AppError::msg(msg));
+    }
+
+    let r: RegisterResp = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid register response: {e}")))?;
+    Ok(RegisterOutcome {
+        status: if r.status.is_empty() { "pending".into() } else { r.status },
+        message: if r.message.is_empty() {
+            "Request submitted — an administrator must approve your account.".into()
+        } else {
+            r.message
+        },
+    })
+}
+
 /// Prefer the server-confirmed username; fall back to what the user typed.
 fn pick_name(from_server: String, typed: &str) -> String {
     if from_server.is_empty() {

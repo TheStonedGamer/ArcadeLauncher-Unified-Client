@@ -5,9 +5,11 @@
 
 import { useState, type FormEvent } from "react";
 import { useSession } from "./SessionContext";
+import { RegisterPanel } from "./RegisterPanel";
 
 export function LoginPanel({ onClose }: { onClose?: () => void }) {
   const { login, lastHost, lastUsername } = useSession();
+  const [registering, setRegistering] = useState(false);
   const [host, setHost] = useState(lastHost || "arcade.orlandoaio.net");
   const [username, setUsername] = useState(lastUsername);
   const [password, setPassword] = useState("");
@@ -29,6 +31,10 @@ export function LoginPanel({ onClose }: { onClose?: () => void }) {
       setBusy(false);
     }
   };
+
+  if (registering) {
+    return <RegisterPanel onBack={() => setRegistering(false)} onClose={onClose} />;
+  }
 
   return (
     <div className="detail-backdrop" onClick={onClose}>
@@ -80,6 +86,12 @@ export function LoginPanel({ onClose }: { onClose?: () => void }) {
             </button>
           )}
         </div>
+        <p className="login__alt">
+          Need an account?{" "}
+          <button type="button" className="login__altbtn" onClick={() => setRegistering(true)}>
+            Create one
+          </button>
+        </p>
       </form>
     </div>
   );

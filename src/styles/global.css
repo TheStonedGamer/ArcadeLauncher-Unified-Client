@@ -70,9 +70,18 @@ body {
   display: flex; flex-direction: column; gap: 12px;
 }
 .login__title { margin: 0 0 4px; font-size: 18px; }
+.login__hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
 .login__cancel {
   padding: 8px 14px; border-radius: 8px; cursor: pointer;
   border: 1px solid var(--border); background: transparent; color: var(--muted);
+}
+/* Footer link to swap the sign-in modal to the registration form. */
+.login__alt {
+  margin: 4px 0 0; font-size: 12px; color: var(--muted); text-align: center;
+}
+.login__altbtn {
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--accent); font-size: 12px; text-decoration: underline;
 }
 
 /* ── Settings ──────────────────────────────────────────────────────────── */
