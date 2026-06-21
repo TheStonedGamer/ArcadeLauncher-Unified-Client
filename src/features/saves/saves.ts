@@ -78,6 +78,19 @@ export function versionLabel(v: SaveVersion): string {
   return `${files} · ${formatBytes(v.totalBytes)}`;
 }
 
+/** Deterministic UTC timestamp label for a version (createdAt is Unix seconds).
+ *  UTC keeps it locale/timezone-independent so it's unit-testable; the seconds
+ *  field is dropped for readability. Invalid input → "—". */
+export function formatVersionTime(createdAt: number): string {
+  if (!Number.isFinite(createdAt) || createdAt <= 0) return "—";
+  const d = new Date(Math.trunc(createdAt) * 1000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ` +
+    `${p(d.getUTCHours())}:${p(d.getUTCMinutes())} UTC`
+  );
+}
+
 /** Sort a version list newest-first (defensive — the backend already does, but
  *  the UI shouldn't assume order). */
 export function sortVersions(versions: SaveVersion[]): SaveVersion[] {

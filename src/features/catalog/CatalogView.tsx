@@ -29,7 +29,14 @@ import { searchArtwork, applyCover } from "./api";
 import { installGame, updateGame, verifyGame } from "../download/api";
 import { useInstallOverlay } from "../download/useInstallOverlay";
 import { effectiveInstallState } from "../download/installState";
-import { syncSaves, type ConflictPolicy, type SyncReport } from "../saves/api";
+import {
+  syncSaves,
+  listSaveVersions,
+  snapshotSaves,
+  restoreSaveVersion,
+  type ConflictPolicy,
+  type SyncReport,
+} from "../saves/api";
 import type { CardProgress } from "../download/selectors";
 import type { Game } from "./types";
 
@@ -109,6 +116,19 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
       return syncSaves(session.host, session.token, game.id, policy, savePath);
     },
     [session, prefs],
+  );
+
+  // Save version-history (T12i): snapshots live under a managed per-game folder,
+  // so these don't need the session — but they honor the configured save path.
+  const listVersions = useCallback((game: Game) => listSaveVersions(game.id), []);
+  const snapshotNow = useCallback(
+    (game: Game) => snapshotSaves(game.id, prefs.prefs.savePaths[game.id] ?? ""),
+    [prefs],
+  );
+  const restoreVersion = useCallback(
+    (game: Game, versionId: string) =>
+      restoreSaveVersion(game.id, versionId, prefs.prefs.savePaths[game.id] ?? ""),
+    [prefs],
   );
 
   // Overlay the user's favorite/hidden/collection overrides onto the read-only
@@ -371,6 +391,9 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
           canSync={!!session}
           onSetSavePath={prefs.setSavePath}
           savePathFor={(g) => prefs.prefs.savePaths[g.id] ?? ""}
+          onListVersions={listVersions}
+          onSnapshotSaves={snapshotNow}
+          onRestoreVersion={restoreVersion}
           onFindArtwork={apiKey ? findArtwork : undefined}
           onPickArtwork={apiKey ? pickArtwork : undefined}
         />

@@ -519,6 +519,13 @@ body {
 .detail__saves-resolve { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .detail__saves-folder { display: flex; flex-direction: column; gap: 4px; width: 100%; }
 .detail__saves-folder .settings__input { width: 100%; }
+.detail__saves-history { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.detail__saves-historyhead { display: flex; gap: 8px; align-items: center; }
+.detail__versions { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.detail__version { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 8px; border-radius: 6px; background: var(--surface-2, rgba(127,127,127,0.08)); }
+.detail__version-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.detail__version-time { font-size: 12px; }
+.detail__version-meta { font-size: 11px; opacity: 0.7; }
 
 /* ── Social ────────────────────────────────────────────────────────────── */
 .social { display: flex; flex-direction: column; height: 100%; }

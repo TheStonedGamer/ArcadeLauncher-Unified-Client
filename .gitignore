@@ -34,3 +34,5 @@ arcade-updater.key*
 
 # In-project agent memory (local-only, never committed)
 memory/
+
+LOOP_PROMPT.md

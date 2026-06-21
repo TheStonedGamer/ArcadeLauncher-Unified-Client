@@ -10,6 +10,7 @@ import {
   formatBytes,
   versionLabel,
   sortVersions,
+  formatVersionTime,
 } from "./saves";
 
 const v = (id: string, createdAt: number, fileCount = 1, totalBytes = 1): SaveVersion => ({
@@ -112,5 +113,21 @@ describe("sortVersions", () => {
     const input = [v("a", 100), v("b", 200)];
     sortVersions(input);
     expect(input.map((x) => x.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("formatVersionTime", () => {
+  it("renders a deterministic UTC label", () => {
+    // 2026-06-20 19:40:00 UTC = 1781984400
+    expect(formatVersionTime(1781984400)).toBe("2026-06-20 19:40 UTC");
+  });
+  it("zero-pads month/day/time", () => {
+    // 2021-01-02 03:04:05 UTC = 1609556645
+    expect(formatVersionTime(1609556645)).toBe("2021-01-02 03:04 UTC");
+  });
+  it("returns a dash for invalid input", () => {
+    expect(formatVersionTime(0)).toBe("—");
+    expect(formatVersionTime(NaN)).toBe("—");
+    expect(formatVersionTime(-5)).toBe("—");
   });
 });

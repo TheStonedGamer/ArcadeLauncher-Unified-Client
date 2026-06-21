@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { checkRunnable, type ArtCandidate, type TargetStatus } from "../api";
 import type { Game } from "../types";
-import type { ConflictPolicy, SyncReport } from "../../saves/api";
+import type { ConflictPolicy, SyncReport, SaveVersion } from "../../saves/api";
+import { sortVersions, versionLabel, formatVersionTime } from "../../saves/saves";
 import { yearOf, collectionsOf } from "../query";
 import { variantLabel, type VariantGroup } from "../variants";
 import { StreamFromHost } from "../../streaming/StreamFromHost";
@@ -35,6 +36,14 @@ interface Props {
   onSetSavePath?: (game: Game, path: string) => void;
   /** The currently-configured save folder for a game (blank = managed folder). */
   savePathFor?: (game: Game) => string;
+  /** List the game's restorable save snapshots, newest-first (T12i). Absent for
+   *  non-server games. */
+  onListVersions?: (game: Game) => Promise<SaveVersion[]>;
+  /** Snapshot the current save folder into a new restorable version. Returns the
+   *  kept versions after pruning. */
+  onSnapshotSaves?: (game: Game) => Promise<SaveVersion[]>;
+  /** Restore a stored snapshot back into the live save folder (itself undoable). */
+  onRestoreVersion?: (game: Game, versionId: string) => Promise<boolean>;
   /** Search SteamGridDB for cover candidates for a game. Absent when no API key
    *  is configured. */
   onFindArtwork?: (game: Game) => Promise<ArtCandidate[]>;
@@ -74,6 +83,9 @@ export function GameDetail({
   canSync,
   onSetSavePath,
   savePathFor,
+  onListVersions,
+  onSnapshotSaves,
+  onRestoreVersion,
   onFindArtwork,
   onPickArtwork,
 }: Props) {
@@ -83,6 +95,10 @@ export function GameDetail({
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
   const [syncConflicts, setSyncConflicts] = useState(0);
+  // Save version-history (T12i): lazily-loaded restorable snapshots.
+  const [versions, setVersions] = useState<SaveVersion[] | null>(null);
+  const [versionsBusy, setVersionsBusy] = useState(false);
+  const [versionMsg, setVersionMsg] = useState("");
   const [savePath, setSavePathState] = useState(savePathFor ? savePathFor(group.representative) : "");
   const game = group.representative;
   // A cover chosen via the artwork picker this session wins immediately, so the
@@ -198,6 +214,49 @@ export function GameDetail({
       setSyncMsg(`Couldn't sync saves: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const loadVersions = async () => {
+    if (!onListVersions) return;
+    setVersionsBusy(true);
+    setVersionMsg("");
+    try {
+      setVersions(sortVersions(await onListVersions(game)));
+    } catch (e) {
+      setVersionMsg(`Couldn't load history: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setVersionsBusy(false);
+    }
+  };
+
+  const snapshotNow = async () => {
+    if (!onSnapshotSaves) return;
+    setVersionsBusy(true);
+    setVersionMsg("");
+    try {
+      setVersions(sortVersions(await onSnapshotSaves(game)));
+      setVersionMsg("Snapshot saved ✓");
+    } catch (e) {
+      setVersionMsg(`Couldn't snapshot: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setVersionsBusy(false);
+    }
+  };
+
+  const restoreVersion = async (versionId: string) => {
+    if (!onRestoreVersion) return;
+    setVersionsBusy(true);
+    setVersionMsg("");
+    try {
+      await onRestoreVersion(game, versionId);
+      // The live folder was snapshotted before replacement, so refresh the list.
+      if (onListVersions) setVersions(sortVersions(await onListVersions(game)));
+      setVersionMsg("Restored ✓ (your previous save was snapshotted first)");
+    } catch (e) {
+      setVersionMsg(`Couldn't restore: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setVersionsBusy(false);
     }
   };
 
@@ -388,6 +447,49 @@ export function GameDetail({
                 </div>
               )}
               {syncMsg && <span className="detail__fetchmsg">{syncMsg}</span>}
+
+              {onListVersions && (
+                <div className="detail__saves-history">
+                  <div className="detail__saves-historyhead">
+                    <button
+                      className="detail__fetch"
+                      onClick={versions === null ? loadVersions : snapshotNow}
+                      disabled={versionsBusy || (versions !== null && !onSnapshotSaves)}
+                    >
+                      {versionsBusy
+                        ? "Working…"
+                        : versions === null
+                          ? "🕑 Version history"
+                          : "📸 Snapshot now"}
+                    </button>
+                  </div>
+                  {versions !== null && (
+                    <div className="detail__versions">
+                      {versions.length === 0 && (
+                        <span className="detail__fetchmsg">No saved versions yet.</span>
+                      )}
+                      {versions.map((v) => (
+                        <div key={v.id} className="detail__version">
+                          <div className="detail__version-info">
+                            <span className="detail__version-time">{formatVersionTime(v.createdAt)}</span>
+                            <span className="detail__version-meta">{versionLabel(v)}</span>
+                          </div>
+                          {onRestoreVersion && (
+                            <button
+                              className="detail__fetch"
+                              onClick={() => restoreVersion(v.id)}
+                              disabled={versionsBusy}
+                            >
+                              Restore
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {versionMsg && <span className="detail__fetchmsg">{versionMsg}</span>}
+                </div>
+              )}
             </div>
           )}
 
