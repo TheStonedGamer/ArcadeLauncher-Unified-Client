@@ -9,6 +9,20 @@ Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit vi
 Last updated: 2026-06-21. Client + server share a `0.10` `major.minor` lockstep
 line. PS2 BIOS hosted on prod and wired end-to-end.
 
+**RELEASED: v0.10.15 — admin moves server-side (2026-06-21).** Tagged from `main`;
+Release run `27906012877` built both legs green (Windows native VM 111 + Linux),
+GitHub Release **published** (not draft, 11 signed assets + `latest.json`
+advertising `0.10.15` → auto-update on next launch), and the Discord changelog
+announce fired successfully (the `actions: write` fix from v0.10.13 is now live).
+Change: the **Requests board no longer shows the admin-only inline status
+dropdown** — game-request triage (approve/fulfil/decline) moved to the **server
+admin UI** (`/admin/requests`, prod server 0.10.9). The read-only status badge
+stays; `RequestsView.tsx` lost the triage `<select>`, its `isAdmin`/`onStatus`
+props, and the `RequestStatus` import (`useRequests.setStatus` is now unused but
+left in place). Server also gained `/admin/accounts` (full account management +
+pending self-service signup approve/deny). Earlier this session: **v0.10.14**
+added the "Forgot password?" self-service reset UI.
+
 **RELEASED: v0.10.13 — self-service registration is LIVE end-to-end (2026-06-21).**
 Tagged from `main` (version-bump `713076e`, feature `5b410dd`); Release run
 `27889786185` built both legs green (Windows native VM 111 + Linux) and the

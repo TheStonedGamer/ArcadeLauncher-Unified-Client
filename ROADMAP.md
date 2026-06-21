@@ -217,7 +217,15 @@ the social/download features. Mirrors the server's `auth.rs`.
   login, clears on sign-out; token never touches localStorage.
 - [ ] **TSc** Wire the session host+token into the social live connection
   (unblocks social-live) and the download install trigger (unblocks T4d-3).
-- [ ] **TSd** Account creation / self-registration with admin email approval.
+- [x] **TSd** Account creation / self-registration with admin email approval.
+  **DONE & LIVE (v0.10.13, server 0.10.2+).** Plus follow-ups this session:
+  **TSd-2** self-service password reset (`ForgotPanel` + server `/api/auth/forgot|reset`,
+  v0.10.14); **TSd-3** new-signup emails now go to **every enabled admin** as a
+  multipart HTML message with **Accept/Deny buttons** (the single notify-address
+  config was removed); **TSd-4** an in-app admin path to approve/deny pending
+  signups now lives in the **server admin UI** at `/admin/accounts` (alongside full
+  account management), and game-request triage moved to `/admin/requests` — the
+  client Requests board's inline admin status dropdown was **removed** (v0.10.15).
   A new-user signup flow (client `RegisterPanel` → server `POST /api/auth/register`)
   that creates the account in a **pending** state and sends the admin
   (`orlandb204567@outlook.com`) an email with **Approve / Deny** links (signed,
@@ -491,6 +499,11 @@ from scratch.
 - [x] **T12h — In-client Game Requests board.** Surface the existing
   `ArcadeLauncher-Requests` companion service inside the client (browse / upvote /
   request) instead of a separate web app. Shipped in **v0.10.4**.
+  - [x] **T12h-5** (v0.10.15) Admin status triage **removed from the client** and
+    relocated to the server admin UI (`/admin/requests`). The board now shows a
+    read-only status badge only. Also fixed the companion service's **502 on board
+    load** — a NULL `AVG(stars)` panicked into `f64`; read via `Option<f64>` +
+    `CAST(... AS DOUBLE)`.
   - [x] **T12h-1** Pure core (`requests/api.rs`): Endpoint URL builders
     (login/logout/me/search+platform/requests/vote/rating/status), `GameRequest`/
     `Board`/`SearchHit`/`Me`/`CreateBody`/`RateResult` models + `parse_*`,

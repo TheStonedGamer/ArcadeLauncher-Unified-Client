@@ -8,11 +8,20 @@
 
 ## Index
 
+- [Admin triage & account mgmt are server-side](#admin-pages-server-side) — _project_ — Game-request triage and account management live in the server admin UI, not the client.
 - [Controller remap editor](#controller-config) — _project_ — Per-emulator host-button to SDL-token rebinding, saved+applied to native configs.
 - [BIOS/firmware auto-deploy](#firmware-deploy) — _project_ — On-launch self-heal of server-staged BIOS/firmware into installed emulators; read-only deployment status in Settings.
 - [Release process](#release-process) — _reference_ — Releases are tag-triggered; normal pushes only run CI.
 
 ---
+
+<!-- am:start id=admin-pages-server-side type=project -->
+### Admin triage & account mgmt are server-side
+_Updated 2026-06-21_
+> Game-request triage and account management live in the server admin UI, not the client.
+
+Game-request triage (status) and full account management live in the SERVER admin UI: /admin/requests and /admin/accounts (server >=0.10.9, code in admin_extra.rs; pages share admin_post via a return_to form field). The client Requests board shows a read-only status badge only — the admin status dropdown was removed in v0.10.15. Pending self-service signups are approved/denied at /admin/accounts.
+<!-- am:end -->
 
 <!-- am:start id=controller-config type=project -->
 ### Controller remap editor

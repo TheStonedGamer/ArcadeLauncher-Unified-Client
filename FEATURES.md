@@ -1,231 +1,340 @@
-# ArcadeLauncher Unified Client — Features
+# ArcadeLauncher — Platform Features
 
-The **Unified Client** is the cross-platform (Windows + Linux) rewrite of the two
-native ArcadeLauncher launchers (Windows C++/Direct2D and Linux C++/nanovg),
-collapsing them into a single **Tauri v2 (Rust core) + React + TypeScript**
-application. It is at **full feature parity** with the native clients (see
-[`PARITY.md`](PARITY.md)) and is the shipping client going forward.
+> This document is **identical in both repos** (`ArcadeLauncher-Client` and
+> `ArcadeLauncher-Server`) and describes the whole platform — the native Windows
+> launcher, the Rust backend, the social subsystem, and the companion services —
+> as a single product. Keep the two copies in sync when editing.
 
-Architecture: a thin React/TypeScript UI over a Rust core. Pure, unit-tested logic
-(catalog queries, download/queue state, social reducers, sync planning) lives in
-TypeScript and Rust modules; the Rust core (`src-tauri/`) owns the privileged work
-— filesystem, networking, archive extraction, the tray/hotkey/pickers, and the
-WebSocket/HTTP transports. Install/update is **Steam-style**: per-user install
-(`%LocalAppData%` / `~/.local`), admin needed at most once, and updates never
-elevate (Tauri updater).
+ArcadeLauncher is a private, self-hosted game platform: a native Windows launcher
+that unifies local emulators and PC storefronts with a personal, server-hosted
+game library you stream and install on demand — plus an account system, a
+Steam/Discord-style social layer (friends, DMs, presence, voice), cloud saves,
+and a community game-request board.
 
 ---
 
-## 1. Game library
+## 1. The Launcher (client)
 
-- A single cover-art grid spanning **local emulator ROMs**, **PC storefront
-  installs**, and **server-backed games** from the private ArcadeLauncher Server
-  catalog (downloaded and installed on demand).
-- Per-game install states (*missing / downloading / installed / update available*);
-  launch always runs the local installed copy through the right emulator or exe.
-- **Rich search & filtering** — by title, genre, platform, year, developer
-  (`catalog/query.ts`).
-- **Sort modes & user collections**; **favorites** and **hidden** games, stored in
-  a separate `catalog_prefs.json` that never rewrites `library.json`.
-- **"Continue Playing" row** *(new)* — a Steam-style horizontal strip of
-  recently-played games atop the grid (shown on All Games with no active search);
-  click a tile to launch directly. Backed by a pure `catalog/stats.ts` core
-  (`recentlyPlayed` / `mostPlayed` / `libraryStats` / `formatDuration` /
-  `formatLastPlayed`) over the playtime + last-played data the launcher tracks.
-- **Library stats dashboard** *(new)* — a collapsible panel atop the catalog with
-  headline numbers (games / played / total playtime) and a **"Most Played" bar
-  chart**, backed by the same pure `stats.ts` core (`playtimeBars` /
-  `libraryStats`).
-- **ROM-variant grouping** with a picker for multi-region/-revision dumps.
-- **Detail panel** with cover/hero art and developer/publisher/franchise metadata;
-  **IGDB cover-art fetch** (Twitch OAuth, creds-gated) per game.
-- **SteamGridDB cover-art picker** *(new)* — from the detail panel, **🎨 Find cover
-  art** searches SteamGridDB for the title and shows a thumbnail grid; pick one and
-  it's downloaded into the per-user art cache and set as the game's cover. Stored
-  as a client-local override (`cover_overrides` in `catalog_prefs.json`), so
-  `library.json` is never rewritten. Needs a SteamGridDB API key (Settings).
-- **Installed tab** scoping the grid to what's on disk.
-- **Controller-friendly** — full gamepad navigation and a **Big Picture**
-  fullscreen mode; a **global hotkey** summons the launcher from anywhere.
+Native **C++17 / Win32 / Direct2D** application for Windows. No managed runtime,
+no Electron — the entire UI is GPU-drawn with Direct2D/DirectWrite, images decode
+through WIC, networking is WinHTTP, and archive extraction uses a bundled LZMA
+SDK. Everything is statically linked or shipped in the MSI, so there are no
+external runtime dependencies.
 
-### 1.1 Card context menu *(new)*
-- **Right-click any game tile** for Steam-style per-game actions — Play, Install /
-  Reinstall, **Verify files**, Add/Remove favorite, Hide/Unhide — anchored at the
-  cursor and edge-clamped to the viewport. The menu adapts to the game's install
-  state (e.g. Play/Verify only appear for installed, server-backed games).
+> **Unified Client (current):** a cross-platform **Tauri v2 (Rust) + React**
+> client — `ArcadeLauncher-Unified-Client` — now replaces the separate native
+> Windows (C++/Direct2D) and Linux (C++/nanovg) launchers with one codebase
+> shipping on both OSes, at full parity with the features below (plus a card
+> right-click context menu, Steam-style Validate & Repair, a controller remap
+> editor with firmware/BIOS auto-deploy, and a pending-friend-requests tab). Its
+> own `FEATURES.md` lives in that repo. The capabilities in §1 describe the
+> launcher product regardless of which client renders them.
 
-## 2. Downloads & installation
+### 1.1 Unified game library
+- A single cover-art grid spanning **three sources** at once:
+  - **Local emulator ROMs** (see Platform Support below).
+  - **PC storefront installs** auto-discovered from **Steam**, **Epic Games**,
+    and **GOG Galaxy**.
+  - **Server-backed games** from your private ArcadeLauncher Server catalog,
+    downloaded and installed on demand.
+- Per-game install states: *missing*, *downloading*, *installed*, *update
+  available*. Launch always runs the local installed copy through the correct
+  emulator or directly as an exe — nothing streams off a network share at play
+  time.
+- Cover art and metadata are **IGDB-enriched** with art pulled from SteamGridDB.
 
-- **Manifest-driven installs** — each server game is a manifest of files with byte
-  sizes, **SHA-256 hashes**, and download URLs.
-- **Resumable downloads** — each file is a resumable ranged HTTP GET streamed to a
-  `.part` file, verified by full-file SHA-256, then atomically renamed. Path
-  traversal (`..`) is rejected; archive installs are extracted with a zip-slip
-  guard.
-- **Download controls** — pause, resume, cancel, a configurable **bandwidth limit**,
-  and a concurrency cap; a **Downloads tab** with an active-count badge shows
-  live speed and the queue.
+### 1.2 Library navigation & presentation
+- **Per-platform sidebar tabs** — GameCube and Wii are surfaced as their own
+  tabs (both launch through Dolphin), plus N64, SNES, NES, PS1/PS2, Switch
+  (Ryujinx), PS3 (RPCS3), Xbox/Xbox 360, and PC repacks.
+- **Rich search & filtering** — search by title, genre, platform, release year,
+  and developer.
+- **Sort options & collections** — multiple sort modes and user-defined
+  collections for organizing the grid.
+- **Favorites & hidden games** — pin favorites; hide entries you don't want to
+  see.
+- **Detail panel** — slides in from the right with cover/hero art, screenshots,
+  and developer / publisher / franchise metadata.
+- **Controller-friendly** — full **gamepad navigation** and a **Big Picture**
+  fullscreen mode for couch/arcade-cabinet use.
+- **Global hotkey** to summon the launcher from anywhere.
 
-### 2.2 Delta / patch updates *(new)*
-- The client tracks each install's content **version**; on sign-in a background
-  **update check** (`check_updates`) compares it against the server's current
-  manifest version per installed game and flags an **⬆ Update available** on the
-  detail panel. Applying it runs the verify engine against the new manifest, which
-  re-hashes on-disk files and **re-downloads only the changed files** — not the
-  whole game — then finalizes the record at the new version.
+### 1.3 Downloads & installation
+- **Manifest-driven installs** — each server game install is described by a
+  manifest of files with byte sizes, **SHA-256 hashes**, and download URLs.
+- **Resumable downloads** — each file is pulled as a single resumable HTTP
+  **byte-range GET**, streamed write-through to a `.part` file, then verified by
+  full-file SHA-256 before commit. Path-traversal (`..`) entries are rejected
+  before any write.
+- **Background worker** — the UI never blocks on downloads; the install button
+  queues a job. Games are **not** auto-launched on completion (started manually).
+- **Steam-style Downloads view** — a topbar Downloads button with a count badge
+  opens a status window with current download speed, disk-write speed, peak, a
+  live throughput line graph, and the queue.
+- **Download controls** — pause, resume, cancel, and a configurable **bandwidth
+  limit**.
+- **Periodic re-sync** — the server catalog is re-fetched every ~10 minutes and
+  on window focus, preserving local install state.
 
-### 2.1 Validate & Repair *(new)*
-- A Steam-style **"Verify files"** pass (`download_verify`) re-checks every manifest
-  file already on disk by **size + SHA-256** (streamed via `sha256_file`, so
-  multi-GB files hash without buffering), and **re-downloads only the missing or
-  corrupt files** — mirroring the native launcher's Validate & Repair. It reuses
-  the normal install engine, so progress/status arrive on the same
-  `download://progress` / `download://status` events. Triggered from the card
-  context menu's "Verify files".
+### 1.4 Emulator management
+- **First-launch wizard** + Settings can **auto-download emulators** straight
+  from their GitHub Releases (e.g. RPCS3, Gopher64, Mesen2), extracting `.7z`
+  in-process via the bundled LZMA SDK (falling back to external `7za.exe`/`7z.exe`
+  if present). Assets shipped as bare `.exe` are used directly.
+- **Update checker** — background checks of each emulator's latest GitHub release
+  tag; Settings shows installed-vs-latest.
+- **Custom libraries** — user-defined ROM/repack directories with per-library
+  enable toggles (e.g. FitGirl repacks).
 
-## 3. Emulators & launch
+### 1.5 Metadata
+- **IGDB integration** via Twitch OAuth — fuzzy-matches scanned titles to IGDB
+  entries; ambiguous matches resolve through a manual picker dialog.
+- **SteamGridDB cover art** downloaded per game.
+- **Hero/banner art and screenshots** in the detail panel.
+- **Manual edit** of game title and launch path; manual metadata re-pick.
 
-- **Pre/post-launch hooks** per game and **playtime tracking** reported to the
-  server.
-- **Process monitoring** with optional minimize-on-launch / restore-on-exit.
-- **Discord Rich Presence** (settings-gated) and **close-to-tray /
-  launch-minimized**.
+### 1.6 Accounts & sign-in
+- Username/password sign-in to the server at startup; a bearer token is issued
+  and used for all subsequent API calls and downloads.
+- **Account self-service** from inside the launcher: view/update profile, change
+  password (off the UI thread, with real WinHTTP error surfacing), and
+  enable/disable **TOTP two-factor** (the server returns an `otpauth://` URI the
+  client renders as a QR code).
+- Server URL is configured at sign-in; schemeless hosts are normalized
+  automatically.
 
-### 3.1 Controller remap editor *(new)*
-- An in-app **controller remap editor** plus **firmware auto-deploy**: required
-  emulator firmware/BIOS blobs are staged into the right per-emulator location and
-  the emulator's config is pointed at them automatically — including
-  **PS2 BIOS auto-deploy into PCSX2** (and the equivalent DuckStation / xemu
-  paths), so server-backed console games are runnable without manual BIOS setup.
-- **Runnable diagnostics** surface emulator/firmware status from the client.
-- **Firmware deployment status in Settings** *(new)* — the Settings ▸ Emulators
-  page shows a read-only **per-console** panel (PlayStation / PS2 / Original Xbox /
-  PS3) reporting whether each console's BIOS is merely *staged* on disk or actually
-  **deployed into its emulator** (e.g. PS2 BIOS into PCSX2), so you can confirm a
-  console will boot without launching a game. Backed by a read-only `firmware_status`
-  command that inspects the same paths the on-launch auto-deploy writes.
+### 1.7 Social (in the launcher)
+A Steam/Discord-style social panel, all over a single persistent WebSocket
+gateway. See §3 for the full subsystem.
+- Friends list with **friend requests** (inline Accept/Decline, send-feedback
+  toasts).
+- **Presence** — online / away / in-game, with the current game surfaced.
+- **Direct messages** in a dedicated chat window, with typing indicators and
+  history.
+- **Voice calls** — real-time voice chat captured/rendered through WASAPI,
+  relayed as PCM over the gateway's binary channel.
+- **Notifications & toasts** — friend request/accepted/online/in-game, new
+  message, voice invite, and system events, with a bell panel + capped history
+  and hover-to-pause toasts.
+- **Personalization** — favorites, nicknames, recent-interaction sort, and
+  per-user sound/presence-alert preferences, all kept client-side and overlaid
+  on the server-authoritative friend list.
+- **Resilient connection** — automatic reconnect with exponential backoff, an
+  application-level heartbeat, and on-resume reconciliation of the friend list
+  and open conversations so nothing is missed while offline.
 
-### 3.2 RetroAchievements *(new)*
-- A **RetroAchievements** panel (Settings) shows your **score, global rank, and
-  recent unlocks** via the RetroAchievements Web API (creds-gated on your RA
-  username + Web API key). Your RA points are mapped onto the launcher's own
-  **level curve** (the same `floor(sqrt(points/100))` the social profile uses), so
-  RA mastery previews as a launcher level. *Live in-game unlock toasts, social
-  activity events, and writing RA points into server XP are planned follow-ups —
-  standalone emulators run their own rcheevos client today.*
+### 1.8 Cloud saves
+- **Cloud Saves v1** — per-game save sync between the client and server
+  endpoints, so progress follows you across machines.
 
-## 4. Accounts & cloud saves
+### 1.9 Launch integration
+- **Pre/post-launch hooks** per game (run a command before/after a game runs).
+- **Process monitoring** — the launcher minimizes on launch (optional) and
+  re-shows itself when the game process exits.
+- **Discord Rich Presence** — shows what you're playing.
+- **Per-game desktop / Start-menu shortcuts** with icons generated from the
+  game's own cover art.
+- **Windows Defender exclusion** toggle for PC game folders (elevated, opt-in).
 
-- Challenge-response login with the server, **TOTP two-factor**, and token
-  persistence obfuscated at rest (no plaintext token, no OS-keychain dependency,
-  so Windows/Linux behave identically); the session auto-restores on launch.
-- **Cloud saves** — per-game sync between client and server (managed save folder or
-  a per-game absolute save path), last-write-wins with conflict resolution.
-- **Save version history** *(new, groundwork)* — every snapshot of a game's save
-  folder is recorded as a restorable version; the launcher keeps the newest N and
-  prunes the rest, so last-write-wins can no longer silently destroy an old save.
-  A restore snapshots the current state first, so it's itself undoable. Backed by
-  a pure, KAT-tested retention core (`saves::versions` + `features/saves/saves.ts`)
-  under thin snapshot/list/restore commands. The restore UI and automatic
-  snapshot-on-exit are the next increment.
-
-## 5. Social
-
-A Steam/Discord-style social layer over a single persistent WebSocket gateway,
-authenticated by the session token, with automatic reconnect + on-reconnect
-reconciliation of the friend list and open conversations.
-
-- **Friends & presence** — live roster with presence (online / away / busy /
-  in-game, surfacing the current game), custom status text, and DND.
-- **Friend organization** — groups, private notes, pinning, username search, and
-  add-by-username.
-- **Pending friend requests tab** *(new)* — a dedicated **Requests** tab on the
-  roster (with a count badge) listing **incoming** requests with
-  **Accept / Decline / Ignore** and **outgoing** ("Sent") requests with **Cancel**.
-  Backed by `POST /api/social/friends/respond`; the roster auto-refreshes on every
-  `friend_request` / `friend_accepted` / `friend_removed` gateway event so the tab
-  stays live.
-- **Direct messages** — live chat with typing indicators, read markers, history,
-  message **edit/delete**, emoji **reactions**, **replies**, and **file
-  attachments** (presigned upload to object storage; bytes never transit the
-  webview).
-- **Profiles** — banner, bio, and a level/XP bar.
-- **Privacy** — who-can-friend-me and who-can-DM-me policies plus a persistent
-  per-user ignore list.
-- **Game invites** *(new, groundwork)* — the social gateway protocol now carries
-  a friend's "join my game" invite (and its cancellation), and a pure,
-  KAT-tested `invites.ts` reducer tracks the pending invites you've received
-  (deduped per sender+game, auto-expiring stale ones) with a `joinTarget`
-  selector for the launch handoff. The invite toast + one-click **Join** UI is
-  the next increment.
-- **Voice calls** — peer-to-peer **WebRTC** voice (mute, busy auto-decline),
-  signaled over the server's `voice_signal` relay. ICE uses public STUN **plus a
-  deployed coturn TURN server** for symmetric-NAT / off-LAN traversal, with
-  short-lived TURN credentials minted on demand from `GET /api/social/turn`.
-- **Game Requests board** *(new)* — a dedicated **Requests** tab to browse and
-  vote on games the community wants added. Search a game and request it (a
-  duplicate folds into an upvote), rate games **1–5 stars** (averaged), upvote
-  entries, and filter the board by **status** or **platform**; admins set each
-  request's status inline. Talks to the `ArcadeLauncher-Requests` service using
-  your existing launcher sign-in (bearer token — no separate board login),
-  reachable at `arcade.orlandoaio.net/requests`. Backed by a pure, unit-tested
-  core (`requests/api.rs` + `features/requests`) under thin Rust commands.
-
-## 6. Personalization & onboarding *(new)*
-
-- **Themes** — **Dark / Midnight / Light** color modes plus **6 accent presets**,
-  chosen in Settings → Appearance. Changes apply **instantly** (CSS variables on
-  `:root`) and persist per device; the resolution logic is a pure, unit-tested
-  `theme.ts` core.
-- **First-run onboarding** — a 5-step guided overlay introduces the library,
-  sign-in, Continue Playing, Friends, and personalization; shown once and
-  dismissable with Skip.
-- **Keyboard-shortcut help** — press **`?`** (or the header **?** button) for a
-  cheat-sheet of keyboard and controller shortcuts.
-
-## 6.1 Remote game streaming *(new)*
-
-- **Sunshine host control** — the client pairs with a Sunshine host (4-digit
-  PIN), lists the games it offers, and adds a launcher game to it, over an HTTPS
-  connection that **pins the host's self-signed certificate** on first pairing
-  (trust-on-first-use) and refuses to connect if the cert later changes. Host +
-  pin are saved per-user (`streaming_hosts.json`); Sunshine credentials are used
-  per-request and never written to disk.
-- **Moonlight launch** — the client detects an installed Moonlight client
-  (`moonlight_available`) and launches a stream of a chosen game from a paired
-  host (`stream_launch`) at your configured resolution, frame rate, bitrate, HDR,
-  and window mode. Moonlight (GPL) is invoked as a separate process, never linked;
-  a pure, KAT-tested core shapes the command line.
-- **Streaming UI** — a **Settings → Streaming** section pairs with / forgets
-  Sunshine hosts (PIN entry, with a live "Moonlight installed" indicator) and
-  holds your stream-quality defaults (resolution / frame rate / bitrate / window
-  mode / HDR), persisted locally and passed through to every stream. Once a host
-  is paired, a **▶ Stream from host** button on a game's detail panel launches it
-  over Moonlight (auto-picking a lone host, or offering a picker). Pure
-  `streaming.ts` core (clamp/sanitize, PIN validation, stored-settings parse) is
-  vitest-KAT'd.
-
-## 7. Platform & packaging
-
-- **One codebase, both OSes** — Windows and Linux (deb / rpm / AppImage + Arch
-  PKGBUILD), CI green on both before release.
-- **Auto-update** via the signed Tauri updater; **version lockstep** with the
-  server (client refuses to connect unless `major.minor` matches). Client and
-  server are released on a **shared version line** (`major.minor`, currently
-  **0.10**) so a coordinated `x.x.0` bump keeps both sides in lockstep;
-  client-only feature releases are **patch** bumps (e.g. `0.10.1`) that preserve
-  `major.minor`.
+### 1.10 Auto-update
+- The launcher **updates itself on launch**: after a release is published it
+  pulls and applies the new version with no manual MSI step.
+- **Version lockstep** with the server: the client refuses to connect unless the
+  server's **major.minor** matches its own (patch floats), preventing
+  incompatible client/server pairings.
 
 ---
 
-## Tech stack at a glance
+## 2. The Backend (server)
+
+**Rust / axum 0.7 / tokio** service backed by **MariaDB** (`mysql_async`), with
+Argon2 password hashing and TOTP. Serves the catalog API, the file downloads, the
+social gateway, account management, and an HTML admin UI.
+
+### 2.1 Catalog & content
+- **Native filesystem scanner** catalogs known emulator ROM formats, Xbox 360
+  GOD directories, and PC archive installs from a library root, then syncs them
+  into MariaDB.
+- Catalog content paths are stored **relative** to the library root (never
+  absolute NAS paths). Stable game IDs are `<platform>-<sha1_short(relpath)>`.
+- **Auto-rescan** on a background interval (default 30 min; configurable,
+  `0` disables) that no-ops while a scan is running, so moved/renamed folders
+  self-heal and stale rows can't linger. Manual rescans can be kicked from the
+  admin UI with live per-platform hashing progress; a filesystem watcher also
+  triggers syncs.
+- **Per-game manifests** with relative path, byte size, SHA-256 hash, download
+  URL, and the launch-target relative path.
+
+### 2.2 File serving
+- `GET /files/{id}/{relative-path}` streams game files with **HTTP byte-range**
+  support for resumable launcher downloads.
+- Missing backing files return a **404** with an admin-facing "rescan" message
+  (not a 500), and a per-chunk fallback path exists for manifest files without a
+  direct URL.
+
+### 2.3 API surface
+- `GET /api/health` — status + live server `VERSION`.
+- `GET /api/catalog` — catalog entries (no per-file hashes).
+- `GET /api/games/{id}/manifest` — full file manifest for one game.
+- `GET /api/emulators` — flat list of server-known emulator runtimes and their
+  firmware/BIOS blobs (with `kind`), so a client can auto-deploy required firmware
+  (e.g. PS2 BIOS → PCSX2) without manual setup.
+- `GET /files/{id}/{relative-path}` — ranged file download.
+- `GET /api/saves/{id}` and `GET/PUT /api/saves/{id}/file?path=&mtime=` — per-game
+  **cloud-save** listing and per-file get/put (traversal-guarded, 50 MB/file cap).
+- `GET /api/social/turn` — short-lived **TURN credentials** (HMAC of the coturn
+  shared secret + TTL) for the unified client's WebRTC voice.
+- `GET/POST /api/account`, `/api/account/password`,
+  `/api/account/totp/{setup,enable,disable}` — launcher account self-service.
+- `/api/social/*` + `/ws/social` — the social subsystem (see §3).
+
+### 2.4 Accounts, auth & admin
+- Username/password login for both admin and launcher clients; **Argon2** hashing
+  and **TOTP** two-factor.
+- **Bearer-token auth** — clients send `Authorization: Bearer <token>`; tokens
+  can be a global `ARCADE_AUTH_TOKEN` or named per-user tokens minted in the
+  admin UI.
+- **HTML admin UI** (`/admin`) can:
+  - create, rotate, and delete named launcher/user bearer tokens;
+  - show library root, catalog paths, and per-platform game counts;
+  - trigger an async catalog rescan with live per-platform hashing status;
+  - sign in with username/email + password;
+  - issue password-reset links by email;
+  - force a user to change their password on next login.
+- **Account management page** (`/admin/accounts`) — full account administration on
+  its own page (off the main dashboard): full-text-filterable user cards (edit
+  email/role/status, reset password, toggle 2FA, force password change, delete),
+  create-user form, issued-token table, and a **Pending Account Requests** table
+  that lets an admin **Approve** (creates a standard non-admin account) or **Deny**
+  each outstanding self-service signup — the in-app counterpart to the emailed
+  Accept/Deny links.
+- **Game-request triage page** (`/admin/requests`) — set each community request's
+  status (pending / approved / fulfilled / declined) or delete it. This replaces
+  the inline admin status dropdown that used to live on the client Requests board.
+- **New-signup notifications** email **every enabled admin** (each admin's own
+  address) with HTML **Accept / Deny** buttons.
+- **First-boot bootstrap** of an admin account from environment variables when no
+  admin exists.
+- **Password-reset email** via optional SMTP settings; if SMTP is unconfigured, a
+  temporary reset URL is shown for LAN/recovery use.
+
+### 2.5 Versioning & releases
+- A single `VERSION` file is the source of truth, reported through `/api/health`.
+- Pushing to `main` triggers GitHub Actions, which auto-bumps the version (patch
+  by default; `[minor]`/`[major]` keywords), tags `server-vX.Y.Z`, and publishes
+  a release. `[minor]` is the rule for any change that breaks client↔server
+  compatibility (API shape, auth flow, manifest/catalog format).
+
+---
+
+## 3. Social subsystem (client + server)
+
+A persistent, full-duplex social layer shared between the launcher's
+`src/Social/` module and the server's `social_api.rs`.
+
+### 3.1 Transport — the `/ws/social` gateway
+- One **persistent WebSocket per signed-in client**, authenticated by `?token=`
+  query param (or `Authorization: Bearer`) **before** the upgrade.
+- **Text channel** carries JSON control frames: presence diffs, chat delivery,
+  typing indicators, and friend request/accept events. On connect the server
+  sends a `hello{selfId}` frame.
+- **Binary channel** carries voice PCM, kept on a separate path from control/chat
+  JSON.
+- The client side uses the WinHTTP WebSocket API on its own worker thread; the
+  server uses axum's native WebSocket.
+
+### 3.2 Features over the gateway
+- **Friends & requests** — send/accept/decline friend requests, block, and a REST
+  friend list + DM history (`/api/social/*`) used for initial load and reconnect
+  reconciliation. `POST /api/social/friends/respond` carries `{userId, action}`
+  where `action` ∈ `accept | decline | cancel | remove | ignore` (`ignore`
+  silently drops an incoming request without notifying the sender); clients
+  surface this as a pending-requests tab.
+- **Presence** — online / away / in-game broadcast as diffs.
+- **Direct messages** — delivered live, persisted as history server-side. The
+  unified client adds **edit/delete, emoji reactions, replies, and file
+  attachments** (presigned `POST /api/social/attachments/presign` → object-store
+  PUT → `GET /api/social/attachments/{id}`), plus **profiles** (banner/bio/level-XP),
+  **privacy** policies, and a per-user **ignore** list.
+- **Voice** — two relay models. The **native** launcher relays raw **PCM over the
+  binary channel**. The **unified client** instead does **peer-to-peer WebRTC**,
+  using the gateway only to relay `voice_signal` offer/answer/ICE; media flows P2P
+  via **STUN + a deployed coturn TURN server**, with TTL-limited TURN credentials
+  served from `GET /api/social/turn`. (The two voice models don't interop — fine
+  post-cutover since the unified client is now the sole shipping client.)
+
+### 3.3 Keepalive & resilience (the hard-won bits)
+- **Server-side control Ping every 25s** keeps proxies/timeouts happy.
+- **Application-level heartbeat** — because WinHTTP answers WS *control* pings
+  internally and never wakes a blocked receive, the client also sends an
+  application `{"type":"ping"}` every 20s and the server replies with a
+  **data-frame** `{"type":"pong"}` that actually wakes the receive loop. The
+  client's WS receive timeout is 45s. This pairing is load-bearing — without it
+  an idle connection silently dies and reconnect-loops.
+- **Reconnect with backoff** (1s → cap 30s) and post-reconnect reconciliation of
+  friends + open conversations.
+- **Scheme handling** — the client maps `wss://`→`https://` (and `ws://`→`http://`)
+  before parsing the URL, and normalizes schemeless base URLs, so the upgrade
+  request is formed correctly. (These were the root causes of the long-standing
+  "Reconnecting…" bug, now fixed.)
+
+### 3.4 Infrastructure note
+- Behind nginx, the upgrade headers (`proxy_http_version 1.1`, `Upgrade`,
+  `Connection "upgrade"`, long read/send timeouts) are scoped to a dedicated
+  `location /ws/` block — never applied globally, so long multi-file download
+  sequences keep their HTTP keep-alive.
+
+---
+
+## 4. Companion service — Game Requests
+
+A separate binary, **ArcadeLauncher-Requests**, runs alongside the server and
+provides a community request board:
+- Logged-in launcher users **request game releases** to be added to the catalog,
+  **search IGDB** to pick the exact release, and **upvote** each other's
+  requests.
+- Admins triage the board: **approve / fulfill / decline** — now from the main
+  server admin UI (`/admin/requests`), which updates the shared `game_requests`
+  table directly (the client board no longer carries an inline admin dropdown).
+- Intentionally decoupled: it shares the same MariaDB and launcher accounts
+  (authenticating against the server's `admin_users` table and reading IGDB
+  credentials from `server_settings` — no duplicated secrets), owns only its own
+  three tables, runs on its own port (`8723`) with its own session cookie, and
+  emails the admin on each brand-new request.
+
+---
+
+## 5. Deployment & operations
+
+- **Server** runs as a systemd service in a Proxmox CT, port `8721`, with the
+  game library mounted at the library root. Deploy artifacts live in `deploy/`
+  (`install-linux.sh`, service + env templates).
+- **Reverse proxy** — nginx fronts the server at a public domain, terminating TLS
+  and routing both the HTTP API and the `/ws/social` gateway to the upstream.
+- **TURN/voice** — a **coturn** server (Docker, host networking) provides WebRTC
+  TURN relay for symmetric-NAT / off-LAN voice; the app server mints time-limited
+  credentials against coturn's shared secret via `GET /api/social/turn`. TURN media
+  is its own UDP/TCP service (router-forwarded), not proxied through nginx.
+- **Clients** connect to the public URL (works on-LAN and remotely); the raw LAN
+  IP only works inside the home network.
+- Both repos auto-version and publish GitHub releases on push to `main`; the
+  client installer is downloaded/applied by the launcher's self-update. The
+  **server and unified client share a version line** (currently **0.10.0**) so the
+  `major.minor` lockstep stays satisfied — coordinated `x.x.0` bumps go to both.
+
+---
+
+## 6. Tech stack at a glance
 
 | Layer | Tech |
 |-------|------|
-| UI | React + TypeScript (webview) |
-| Core | Tauri v2 / Rust (filesystem, net, tray, hotkey, pickers) |
-| Transport | Native WebSocket (social) + HTTP (catalog/downloads/saves), bearer tokens |
-| Voice | P2P WebRTC, signaled over the gateway's `voice_signal` relay |
-| Auth | Challenge-response login, TOTP 2FA, obfuscated token at rest |
-| Metadata | IGDB (Twitch OAuth) |
-| Packaging | Tauri updater (minisign-signed), GitHub Actions, deb/rpm/AppImage/PKGBUILD |
+| Launcher UI | C++17, Win32, Direct2D, DirectWrite, WIC |
+| Launcher networking | WinHTTP (REST + WebSocket), bearer tokens |
+| Launcher voice | WASAPI capture/render, PCM over WS binary frames |
+| Launcher packaging | WiX v4 MSI, GitHub Actions, self-update |
+| Backend | Rust, axum 0.7, tokio |
+| Database | MariaDB via `mysql_async` |
+| Auth | Argon2 passwords, TOTP 2FA, bearer tokens |
+| Metadata | IGDB (Twitch OAuth) + SteamGridDB |
+| Proxy / hosting | nginx + TLS, Proxmox CT, systemd |
+| Requests service | Separate Rust binary, shared DB |
