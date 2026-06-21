@@ -190,12 +190,12 @@ the existing window to the front instead of opening a duplicate) plus the
 launcher is already running surfaces the live window instead of reinstalling over
 it — process detection in `src-tauri/updater/src/instance.rs`, pure + unit-tested),
 and carried the T12i save-history + T12d game-invite groundwork. No server-side
-deploy was required for either. Separately, the
-**Requests 503 fix** is DEPLOYED on prod CT `10.0.0.210` — the
-`arcadelauncher-requests` binary now reads the catalog DB's real `server_settings`
-columns (`setting_key`/`setting_value`); search works again. The `v0.10.4` Game
-Requests board remains DEPLOYED on the same CT (systemd `arcadelauncher-requests`,
-User=arcade, `0.0.0.0:8723`) behind nginx `10.0.0.203` at `/requests`.
+deploy was required for either. The Game Requests board (client Requests tab) is
+served from the main server: the former standalone `ArcadeLauncher-Requests`
+binary (once systemd `arcadelauncher-requests` on `0.0.0.0:8723`) has been
+**folded into `arcadelauncher-server`** as `mod requests_app` under `/requests`
+(one binary; the `:8723` unit retired). Still reached via nginx `10.0.0.203` at
+`/requests`; reuses the server's DB pool and launcher bearer tokens.
 
 **Interactive smoke test (2026-06-20, computer-use):** the installed launcher was
 driven end-to-end and PASSED — boots straight to the library (2049 games synced,

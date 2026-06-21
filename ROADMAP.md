@@ -496,9 +496,12 @@ from scratch.
 
 **Library & launch quality**
 
-- [x] **T12h — In-client Game Requests board.** Surface the existing
-  `ArcadeLauncher-Requests` companion service inside the client (browse / upvote /
-  request) instead of a separate web app. Shipped in **v0.10.4**.
+- [x] **T12h — In-client Game Requests board.** Surface the Game Requests board
+  inside the client (browse / upvote / request) instead of a separate web app.
+  Shipped in **v0.10.4**. _Backend note (2026-06): the `ArcadeLauncher-Requests`
+  companion service was **folded into the main server** as `mod requests_app`
+  under `/requests` — same `https://{host}/requests` contract the client already
+  uses, so no client change; the standalone `:8723` binary is retired._
   - [x] **T12h-5** (v0.10.15) Admin status triage **removed from the client** and
     relocated to the server admin UI (`/admin/requests`). The board now shows a
     read-only status badge only. Also fixed the companion service's **502 on board
