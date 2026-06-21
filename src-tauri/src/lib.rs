@@ -146,6 +146,8 @@ pub fn run() {
             social::commands::social_ignore_set,
             social::commands::social_turn_servers,
             social::commands::social_activity_fetch,
+            social::commands::onboarding_get,
+            social::commands::onboarding_complete,
             download::commands::download_start,
             download::commands::download_install,
             download::commands::download_verify,

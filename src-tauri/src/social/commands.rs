@@ -774,3 +774,68 @@ pub async fn social_activity_fetch(host: String, token: String) -> AppResult<Vec
         })
         .collect())
 }
+
+/// The key under which the account-level "first-run tour seen" flag lives in the
+/// server-synced prefs blob. Account-scoped so a user sees onboarding once, on
+/// first login, regardless of device or reinstall.
+const ONBOARDING_PREFS_KEY: &str = "onboardingComplete";
+
+/// Fetch the caller's prefs blob (`{ prefs, updatedAt }`) and return just the
+/// prefs map. A missing/blank/garbage blob reads as an empty object so callers
+/// can merge into it safely.
+async fn fetch_prefs_map(
+    client: &reqwest::Client,
+    endpoint: &Endpoint,
+) -> AppResult<serde_json::Map<String, serde_json::Value>> {
+    let resp = client
+        .get(endpoint.prefs_url())
+        .bearer_auth(endpoint.token())
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("prefs request failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("prefs lookup failed (HTTP {})", resp.status())));
+    }
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid prefs response: {e}")))?;
+    Ok(body
+        .get("prefs")
+        .and_then(|p| p.as_object())
+        .cloned()
+        .unwrap_or_default())
+}
+
+/// Whether this account has already completed the first-run onboarding tour
+/// (server-synced, so it holds across devices and reinstalls). Used to gate the
+/// overlay on first login only.
+#[tauri::command]
+pub async fn onboarding_get(host: String, token: String) -> AppResult<bool> {
+    let endpoint = Endpoint::new(host, token);
+    let client = http_client();
+    let prefs = fetch_prefs_map(&client, &endpoint).await?;
+    Ok(prefs.get(ONBOARDING_PREFS_KEY).and_then(|v| v.as_bool()).unwrap_or(false))
+}
+
+/// Mark the first-run onboarding tour complete for this account. Read-modify-write
+/// so other keys in the shared prefs blob are preserved (last-write-wins).
+#[tauri::command]
+pub async fn onboarding_complete(host: String, token: String) -> AppResult<()> {
+    let endpoint = Endpoint::new(host, token);
+    let client = http_client();
+    let mut prefs = fetch_prefs_map(&client, &endpoint).await?;
+    prefs.insert(ONBOARDING_PREFS_KEY.to_string(), serde_json::Value::Bool(true));
+
+    let resp = client
+        .put(endpoint.prefs_url())
+        .bearer_auth(endpoint.token())
+        .json(&serde_json::Value::Object(prefs))
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("prefs save failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("prefs save failed (HTTP {})", resp.status())));
+    }
+    Ok(())
+}

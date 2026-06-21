@@ -104,6 +104,14 @@ impl Endpoint {
         format!("https://{}/api/social/activity", self.host)
     }
 
+    /// REST URL for the caller's server-synced prefs blob (GET) / upsert (PUT) —
+    /// an opaque per-account JSON map (last-write-wins across devices). The
+    /// account-level onboarding-seen flag lives here so the first-run tour shows
+    /// once per account, not once per device.
+    pub fn prefs_url(&self) -> String {
+        format!("https://{}/api/social/prefs", self.host)
+    }
+
     /// The bearer token, for the `Authorization` header on REST calls.
     pub fn token(&self) -> &str {
         &self.token
