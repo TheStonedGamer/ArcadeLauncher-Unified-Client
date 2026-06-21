@@ -13,6 +13,13 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.16] - 2026-06-21
+
+### Added
+- **Friends activity feed.** The social panel now has an **Activity** tab showing
+  what your friends have been up to — recent sessions and game activity — so you
+  can see what everyone's playing at a glance.
+
 ## [0.10.15] - 2026-06-21
 
 ### Changed
