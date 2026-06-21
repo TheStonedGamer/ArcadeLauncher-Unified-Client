@@ -143,3 +143,58 @@ export function participantCount(state: MeshState): number {
 export function isMeshActive(state: MeshState): boolean {
   return Object.keys(state.peers).length > 0;
 }
+
+// --- Group signaling codec -------------------------------------------------
+//
+// Group-voice signaling rides the SAME per-peer `voice_signal` relay as 1:1
+// voice, so payloads carry a `group: true` marker + the `roomId` to keep them
+// distinguishable from 1:1 call payloads (the receiver routes on the marker).
+// IO-free + unit-tested; the RTCPeerConnection engine (useGroupVoice) builds and
+// consumes these.
+
+/** Per-peer signaling within a room call. `announce` = "I joined this room's
+ *  call" (recipients add me + the initiator side offers); `leave` = I left. */
+export type GroupSignalKind = "announce" | "offer" | "answer" | "ice" | "mute" | "leave";
+
+export interface GroupSignal {
+  group: true;
+  roomId: number;
+  kind: GroupSignalKind;
+  /** SDP for offer/answer. */
+  sdp?: string;
+  /** JSON-encoded ICE candidate for `ice`. */
+  candidate?: string;
+  /** Mute state for `mute`. */
+  muted?: boolean;
+}
+
+const GROUP_KINDS: readonly GroupSignalKind[] = ["announce", "offer", "answer", "ice", "mute", "leave"];
+
+/** Build a group signal payload for the relay. */
+export function groupSignal(
+  roomId: number,
+  kind: GroupSignalKind,
+  extra: { sdp?: string; candidate?: string; muted?: boolean } = {},
+): GroupSignal {
+  return { group: true, roomId, kind, ...extra };
+}
+
+/** Parse + validate an opaque relayed payload as a group signal, or null. Lets
+ *  a combined voice_signal handler route group vs 1:1 payloads unambiguously. */
+export function parseGroupSignal(raw: unknown): GroupSignal | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  if (o.group !== true) return null;
+  if (typeof o.roomId !== "number") return null;
+  if (typeof o.kind !== "string" || !GROUP_KINDS.includes(o.kind as GroupSignalKind)) return null;
+  const sig: GroupSignal = { group: true, roomId: o.roomId, kind: o.kind as GroupSignalKind };
+  if (typeof o.sdp === "string") sig.sdp = o.sdp;
+  if (typeof o.candidate === "string") sig.candidate = o.candidate;
+  if (typeof o.muted === "boolean") sig.muted = o.muted;
+  return sig;
+}
+
+/** Whether an opaque relayed payload is a group-voice signal (vs a 1:1 one). */
+export function isGroupSignal(raw: unknown): boolean {
+  return parseGroupSignal(raw) !== null;
+}

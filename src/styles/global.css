@@ -1207,3 +1207,18 @@ body {
 .roomchat__msg-text { font-size: 13px; white-space: pre-wrap; word-break: break-word; }
 .roomchat__composer { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--border, rgba(127,127,127,0.2)); }
 .roomchat__composer .settings__input { flex: 1; }
+.roomchat__btn--call { font-weight: 600; }
+
+/* ── Group voice call (T12g) ────────────────────────────────────────────── */
+.groupcall { position: fixed; bottom: 16px; right: 16px; z-index: 40; width: 280px; padding: 10px 12px; border-radius: 12px; background: var(--surface-1, #1b1f24); border: 1px solid var(--border, rgba(127,127,127,0.25)); box-shadow: 0 8px 28px rgba(0,0,0,0.35); display: flex; flex-direction: column; gap: 8px; }
+.groupcall__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.groupcall__title { font-size: 12px; font-weight: 600; }
+.groupcall__controls { display: flex; gap: 6px; }
+.groupcall__btn { font-size: 12px; }
+.groupcall__btn--leave { color: #f87171; }
+.groupcall__roster { display: flex; flex-wrap: wrap; gap: 5px; }
+.groupcall__peer { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 2px 8px; border-radius: 10px; background: var(--surface-2, rgba(127,127,127,0.12)); }
+.groupcall__peer--connected { background: rgba(46,160,67,0.18); }
+.groupcall__peer--failed { background: rgba(248,81,73,0.18); }
+.groupcall__peer-dot { font-size: 10px; }
+.groupcall__peer-muted { font-size: 10px; }

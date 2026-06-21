@@ -17,6 +17,10 @@ interface Props {
   onRename: (roomId: number, name: string) => void;
   onAddMember: (roomId: number, userId: number) => void;
   onLeave: (roomId: number) => void;
+  /** Start a group voice call over this room (T12g). Absent when voice is off. */
+  onStartCall?: (roomId: number, memberIds: number[]) => void;
+  /** Whether a group call is already active (hides the start button). */
+  callActive?: boolean;
 }
 
 export function RoomChatPane({
@@ -29,6 +33,8 @@ export function RoomChatPane({
   onRename,
   onAddMember,
   onLeave,
+  onStartCall,
+  callActive,
 }: Props) {
   const [draft, setDraft] = useState("");
   const [renaming, setRenaming] = useState(false);
@@ -79,6 +85,14 @@ export function RoomChatPane({
           <h3 className="roomchat__title">{room.name || "Untitled room"}</h3>
         )}
         <div className="roomchat__actions">
+          {onStartCall && !callActive && room.members.length > 1 && (
+            <button
+              className="roomchat__btn roomchat__btn--call"
+              onClick={() => onStartCall(room.roomId, room.members)}
+            >
+              📞 Start call
+            </button>
+          )}
           {isOwner && (
             <button
               className="roomchat__btn"

@@ -31,6 +31,7 @@ import {
   type GameInvite,
 } from "./invites";
 import { roomsReducer, roomActionFromFrame, sortedRooms, type Room } from "./rooms";
+import { isGroupSignal } from "./voiceMesh";
 import {
   applyRoomMessage,
   localEchoRoom,
@@ -85,8 +86,10 @@ export interface SocialApi {
   setStatus: (status: SelfStatus, statusText: string) => void;
   /** Relay a WebRTC voice-signaling payload to a friend (ROADMAP T9g). */
   voiceSend: (to: number, payload: unknown) => void;
-  /** Register the handler for inbound voice_signal frames (useVoice owns it). */
+  /** Register the handler for inbound 1:1 voice_signal frames (useVoice owns it). */
   setVoiceHandler: (cb: (fromId: number, payload: unknown) => void) => void;
+  /** Register the handler for inbound group voice_signal frames (useGroupVoice). */
+  setGroupVoiceHandler: (cb: (fromId: number, payload: unknown) => void) => void;
   /** Pending "join my game" invites I've received, newest-first (ROADMAP T12d). */
   gameInvites: GameInvite[];
   /** Invite a friend to join the game I'm playing. */
@@ -181,6 +184,9 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
   // Voice signaling (T9g): inbound voice_signal frames are routed here so
   // useVoice can drive its RTCPeerConnection without a second gateway.
   const voiceHandlerRef = useRef<(fromId: number, payload: unknown) => void>(() => {});
+  // Group voice (T12g) rides the same voice_signal relay; payloads tagged
+  // `group: true` route here instead of the 1:1 handler so the two coexist.
+  const groupVoiceHandlerRef = useRef<(fromId: number, payload: unknown) => void>(() => {});
 
   const host = auth?.host ?? null;
   const token = auth?.token ?? null;
@@ -189,7 +195,10 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     const gw = gatewayFor(host && token ? { host, token } : null);
     gatewayRef.current = gw;
     gw.onFrame((msg) => {
-      if (msg.type === "voice_signal") voiceHandlerRef.current(msg.fromId, msg.payload);
+      if (msg.type === "voice_signal") {
+        if (isGroupSignal(msg.payload)) groupVoiceHandlerRef.current(msg.fromId, msg.payload);
+        else voiceHandlerRef.current(msg.fromId, msg.payload);
+      }
       // Game invites (T12d): a game_invite / cancel / friend_removed frame maps to
       // an invite action; everything else is ignored by the mapper.
       const ia = inviteActionFromFrame(msg, Date.now());
@@ -360,6 +369,10 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     voiceHandlerRef.current = cb;
   }, []);
 
+  const setGroupVoiceHandler = useCallback((cb: (fromId: number, payload: unknown) => void) => {
+    groupVoiceHandlerRef.current = cb;
+  }, []);
+
   const sendGameInvite = useCallback((to: number, gameId: string) => {
     if (to && gameId) gatewayRef.current?.send(outbound.gameInvite(to, gameId));
   }, []);
@@ -487,6 +500,7 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     setStatus,
     voiceSend,
     setVoiceHandler,
+    setGroupVoiceHandler,
     gameInvites,
     sendGameInvite,
     acceptGameInvite,

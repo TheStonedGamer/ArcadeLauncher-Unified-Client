@@ -9,6 +9,8 @@ import { useFriendMeta } from "./useFriendMeta";
 import { usePrivacy } from "./usePrivacy";
 import { useActivity } from "./useActivity";
 import { useVoice } from "./useVoice";
+import { useGroupVoice } from "./useGroupVoice";
+import { GroupCallBar } from "./components/GroupCallBar";
 import { fetchTurnServers } from "./api";
 import { FriendList } from "./components/FriendList";
 import { RequestsPanel } from "./components/RequestsPanel";
@@ -42,6 +44,13 @@ export function SocialView() {
   const voice = useVoice(!!auth && social.connected, {
     voiceSend: social.voiceSend,
     setVoiceHandler: social.setVoiceHandler,
+    iceProvider: auth
+      ? async () => (await fetchTurnServers(auth.host, auth.token)).iceServers
+      : undefined,
+  });
+  const groupVoice = useGroupVoice(social.selfId, !!auth && social.connected, {
+    voiceSend: social.voiceSend,
+    setGroupVoiceHandler: social.setGroupVoiceHandler,
     iceProvider: auth
       ? async () => (await fetchTurnServers(auth.host, auth.token)).iceServers
       : undefined,
@@ -167,6 +176,8 @@ export function SocialView() {
               onRename={social.renameRoom}
               onAddMember={social.addRoomMember}
               onLeave={social.leaveRoom}
+              onStartCall={voice.enabled ? groupVoice.joinCall : undefined}
+              callActive={groupVoice.inCall}
             />
           ) : (
             <ChatPane
@@ -194,6 +205,7 @@ export function SocialView() {
       <ProfilePanel panel={profile} />
       <PrivacyPanel privacy={privacy} />
       <CallBar voice={voice} peerName={callPeerName} />
+      <GroupCallBar group={groupVoice} selfId={social.selfId} friends={social.friends} />
     </div>
   );
 }

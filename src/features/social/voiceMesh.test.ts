@@ -8,6 +8,9 @@ import {
   connectedCount,
   participantCount,
   isMeshActive,
+  groupSignal,
+  parseGroupSignal,
+  isGroupSignal,
   type MeshState,
 } from "./voiceMesh";
 
@@ -113,5 +116,31 @@ describe("voiceMesh roles + selectors", () => {
   it("isMeshActive true once any peer present", () => {
     expect(isMeshActive(seeded([20]))).toBe(true);
     expect(isMeshActive(seeded([]))).toBe(false);
+  });
+});
+
+describe("group signaling codec", () => {
+  it("builds a tagged payload with extras", () => {
+    expect(groupSignal(5, "offer", { sdp: "v=0" })).toEqual({ group: true, roomId: 5, kind: "offer", sdp: "v=0" });
+    expect(groupSignal(5, "announce")).toEqual({ group: true, roomId: 5, kind: "announce" });
+  });
+  it("round-trips through parse", () => {
+    const s = groupSignal(7, "ice", { candidate: "{}" });
+    expect(parseGroupSignal(s)).toEqual(s);
+  });
+  it("rejects 1:1 voice payloads and junk", () => {
+    expect(parseGroupSignal({ kind: "offer", sdp: "x" })).toBeNull(); // no group marker
+    expect(parseGroupSignal({ group: true, kind: "offer" })).toBeNull(); // no roomId
+    expect(parseGroupSignal({ group: true, roomId: 5, kind: "bogus" })).toBeNull();
+    expect(parseGroupSignal(null)).toBeNull();
+    expect(parseGroupSignal("nope")).toBeNull();
+  });
+  it("isGroupSignal mirrors parse", () => {
+    expect(isGroupSignal(groupSignal(1, "leave"))).toBe(true);
+    expect(isGroupSignal({ kind: "accept" })).toBe(false);
+  });
+  it("drops fields of the wrong type", () => {
+    const out = parseGroupSignal({ group: true, roomId: 5, kind: "mute", muted: "yes" });
+    expect(out).toEqual({ group: true, roomId: 5, kind: "mute" });
   });
 });
