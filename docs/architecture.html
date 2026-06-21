@@ -81,7 +81,7 @@
 <header class="hero">
   <span class="badge">Platform Architecture · v0.10.x</span>
   <h1>ArcadeLauncher</h1>
-  <p class="sub">A self-hosted, Steam-style game launcher and social platform — how the server, client, companion services, and infrastructure fit together end to end.</p>
+  <p class="sub">A self-hosted, Steam-style game launcher and social platform — how the server, client, and infrastructure fit together end to end.</p>
 </header>
 
 <nav class="toc">
@@ -108,7 +108,7 @@
     <tr><td><strong style="color:var(--srv)">Server</strong></td><td><code>ArcadeLauncher-Server</code></td><td>Rust / axum 0.7 · tokio · MariaDB</td><td>The hub. REST API, WebSocket social gateway, catalog/scan, auth, admin UI.</td></tr>
     <tr><td><strong style="color:var(--cli)">Unified Client</strong></td><td><code>ArcadeLauncher-Unified-Client</code></td><td>Tauri v2 (Rust) · React · TS</td><td>Active cross-platform desktop client (Windows + Linux). <em>This repo.</em></td></tr>
     <tr><td>Legacy Client</td><td><code>ArcadeLauncher-Client</code></td><td>C++17 · Win32 / Direct2D</td><td>Retired native client; kept only as a parity reference.</td></tr>
-    <tr><td>Requests</td><td><code>ArcadeLauncher-Requests</code></td><td>separate Rust binary</td><td>"Game Requests" service. Shares the server's MariaDB — no API between them.</td></tr>
+    <tr><td>Requests <span style="color:var(--muted);font-size:.85em">(folded in)</span></td><td><code>ArcadeLauncher-Requests</code></td><td>was a separate Rust binary</td><td>"Game Requests" service, <strong>folded into the server</strong> (2026-06) as <code>mod requests_app</code> under <code>/requests</code>. Standalone repo now dormant.</td></tr>
   </table>
 
   <div class="note"><strong>Version lockstep.</strong> The client refuses to connect unless its <code>major.minor</code> matches the server's (patch floats). Both lines are <code>0.10.x</code>. Additive REST/WS changes are a <strong>patch</strong> (safe); anything that breaks compatibility is a <strong>minor</strong> bump, and the <strong>server deploys first</strong>.</div>
@@ -117,7 +117,7 @@
 <!-- TOPOLOGY -->
 <section id="topology">
   <h2><span class="dot" style="background:var(--accent2)"></span>System topology</h2>
-  <p class="lead">Everything radiates from the server. The client speaks REST + a live WebSocket; companion services share state through the database and object store.</p>
+  <p class="lead">Everything radiates from the server. The client speaks REST + a live WebSocket; state lives in the shared database and object store.</p>
   <div class="fig">
     <svg viewBox="0 0 880 470" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="System topology diagram">
       <defs>
@@ -137,56 +137,50 @@
       <text x="135" y="270" text-anchor="middle" fill="#9aa7b4" font-size="10.5">Windows · Linux</text>
 
       <!-- server -->
-      <rect x="345" y="120" width="220" height="220" rx="14" fill="#161f33" stroke="#7c9cff" stroke-width="2"/>
-      <text x="455" y="150" text-anchor="middle" fill="#7c9cff" font-size="16" font-weight="700">ArcadeLauncher Server</text>
-      <text x="455" y="171" text-anchor="middle" fill="#9aa7b4" font-size="11.5">Rust · axum 0.7 · tokio</text>
-      <rect x="365" y="186" width="180" height="30" rx="7" fill="#0d1424" stroke="#2d3644"/>
-      <text x="455" y="206" text-anchor="middle" fill="#cfe3ff" font-size="11.5">REST  /api/*   :8721</text>
-      <rect x="365" y="222" width="180" height="30" rx="7" fill="#0d1424" stroke="#2d3644"/>
-      <text x="455" y="242" text-anchor="middle" fill="#cfe3ff" font-size="11.5">WS  /ws/social</text>
-      <rect x="365" y="258" width="180" height="30" rx="7" fill="#0d1424" stroke="#2d3644"/>
-      <text x="455" y="278" text-anchor="middle" fill="#cfe3ff" font-size="11.5">Admin UI   :8722</text>
-      <rect x="365" y="294" width="180" height="30" rx="7" fill="#0d1424" stroke="#2d3644"/>
-      <text x="455" y="314" text-anchor="middle" fill="#cfe3ff" font-size="11.5">catalog · auth · scan</text>
+      <rect x="345" y="110" width="220" height="262" rx="14" fill="#161f33" stroke="#7c9cff" stroke-width="2"/>
+      <text x="455" y="138" text-anchor="middle" fill="#7c9cff" font-size="16" font-weight="700">ArcadeLauncher Server</text>
+      <text x="455" y="158" text-anchor="middle" fill="#9aa7b4" font-size="11.5">Rust · axum 0.7 · tokio · :8721</text>
+      <rect x="365" y="170" width="180" height="28" rx="7" fill="#0d1424" stroke="#2d3644"/>
+      <text x="455" y="189" text-anchor="middle" fill="#cfe3ff" font-size="11.5">REST  /api/*</text>
+      <rect x="365" y="202" width="180" height="28" rx="7" fill="#0d1424" stroke="#2d3644"/>
+      <text x="455" y="221" text-anchor="middle" fill="#cfe3ff" font-size="11.5">WS  /ws/social</text>
+      <rect x="365" y="234" width="180" height="28" rx="7" fill="#1f2a1c" stroke="#5be2a3"/>
+      <text x="455" y="253" text-anchor="middle" fill="#5be2a3" font-size="11.5">/requests/*  (folded in)</text>
+      <rect x="365" y="266" width="180" height="28" rx="7" fill="#0d1424" stroke="#2d3644"/>
+      <text x="455" y="285" text-anchor="middle" fill="#cfe3ff" font-size="11.5">Admin UI   :8722</text>
+      <rect x="365" y="298" width="180" height="28" rx="7" fill="#0d1424" stroke="#2d3644"/>
+      <text x="455" y="317" text-anchor="middle" fill="#cfe3ff" font-size="11.5">catalog · auth · scan</text>
 
       <!-- db -->
-      <rect x="680" y="60" width="160" height="74" rx="12" fill="#2a2233" stroke="#ff7eb6" stroke-width="1.5"/>
-      <text x="760" y="92" text-anchor="middle" fill="#ff7eb6" font-size="14" font-weight="700">MariaDB</text>
-      <text x="760" y="112" text-anchor="middle" fill="#9aa7b4" font-size="11">shared database</text>
-
-      <!-- requests -->
-      <rect x="680" y="200" width="160" height="74" rx="12" fill="#2a2417" stroke="#ffb86b" stroke-width="1.5"/>
-      <text x="760" y="232" text-anchor="middle" fill="#ffb86b" font-size="14" font-weight="700">Requests svc</text>
-      <text x="760" y="252" text-anchor="middle" fill="#9aa7b4" font-size="11">Rust binary</text>
+      <rect x="680" y="70" width="160" height="74" rx="12" fill="#2a2233" stroke="#ff7eb6" stroke-width="1.5"/>
+      <text x="760" y="102" text-anchor="middle" fill="#ff7eb6" font-size="14" font-weight="700">MariaDB</text>
+      <text x="760" y="122" text-anchor="middle" fill="#9aa7b4" font-size="11">catalog · social · requests</text>
 
       <!-- minio -->
-      <rect x="680" y="340" width="160" height="74" rx="12" fill="#1c2430" stroke="#8aa0bf" stroke-width="1.5"/>
-      <text x="760" y="372" text-anchor="middle" fill="#cfe3ff" font-size="14" font-weight="700">MinIO (S3)</text>
-      <text x="760" y="392" text-anchor="middle" fill="#9aa7b4" font-size="11">attachments · shots</text>
+      <rect x="680" y="300" width="160" height="74" rx="12" fill="#1c2430" stroke="#8aa0bf" stroke-width="1.5"/>
+      <text x="760" y="332" text-anchor="middle" fill="#cfe3ff" font-size="14" font-weight="700">MinIO (S3)</text>
+      <text x="760" y="352" text-anchor="middle" fill="#9aa7b4" font-size="11">attachments · shots</text>
 
       <!-- edges client<->server -->
       <line x1="230" y1="212" x2="343" y2="212" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr)"/>
       <line x1="343" y1="244" x2="230" y2="244" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr)"/>
-      <text x="287" y="203" text-anchor="middle" fill="#9aa7b4" font-size="10">REST</text>
+      <text x="287" y="203" text-anchor="middle" fill="#9aa7b4" font-size="10">REST + /requests</text>
       <text x="287" y="262" text-anchor="middle" fill="#9aa7b4" font-size="10">WS push</text>
 
       <!-- server -> db -->
-      <line x1="567" y1="170" x2="678" y2="110" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr)"/>
-      <!-- requests -> db -->
-      <line x1="760" y1="200" x2="760" y2="136" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr)"/>
-      <text x="640" y="175" fill="#9aa7b4" font-size="10">SQL</text>
-      <text x="770" y="170" fill="#9aa7b4" font-size="10">shared SQL</text>
+      <line x1="567" y1="150" x2="678" y2="115" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="610" y="125" fill="#9aa7b4" font-size="10">one pool</text>
       <!-- server <-> minio -->
-      <line x1="567" y1="300" x2="678" y2="368" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr)"/>
-      <text x="600" y="350" fill="#9aa7b4" font-size="10">presign / PUT</text>
+      <line x1="567" y1="300" x2="678" y2="335" stroke="#8aa0bf" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="600" y="330" fill="#9aa7b4" font-size="10">presign / PUT</text>
     </svg>
     <div class="legend">
       <span><i style="background:var(--cli)"></i>Client</span>
       <span><i style="background:var(--srv)"></i>Server</span>
-      <span><i style="background:var(--infra)"></i>Companion service</span>
+      <span><i style="background:var(--cli)"></i>Folded-in routes</span>
       <span><i style="background:var(--ext)"></i>Data store</span>
     </div>
-    <div class="figcap">Client ↔ Server over REST + <code>/ws/social</code>. Requests shares the DB; attachments use presigned S3.</div>
+    <div class="figcap">Client ↔ Server over REST + <code>/ws/social</code>. The Game Requests board is now <strong>folded into the server</strong> at <code>/requests</code> (no separate process); attachments use presigned S3.</div>
   </div>
 </section>
 
@@ -212,6 +206,7 @@
     <tr><td><code>db.rs</code> · <code>db_setup.rs</code> · <code>models.rs</code></td><td>MariaDB pool, schema setup, row models.</td></tr>
     <tr><td><code>admin_html.rs</code> · <code>admin_extra.rs</code></td><td>Server-rendered admin web UI (<code>:8722</code>).</td></tr>
     <tr><td><code>discord.rs</code></td><td>Discord changelog / announce hooks.</td></tr>
+    <tr><td><code>requests_app.rs</code></td><td><strong>Folded-in Game Requests board.</strong> The one real <code>mod</code> (not <code>include!</code>) — namespaced to avoid crate-root collisions. <code>router()</code> mounted via <code>nest_service("/requests", …)</code>; page in <code>requests_index.html</code>. Reuses the server's DB pool.</td></tr>
   </table>
 
   <h3>What it exposes</h3>
@@ -287,7 +282,7 @@
     <tr><td><code>launch</code> · <code>emulators</code></td><td>Game launch (emulator/PC), playtime tracking, emulator + BIOS config.</td></tr>
     <tr><td><code>presence</code> · <code>hotkey</code> · <code>controller</code></td><td>Discord Rich Presence, global shortcut, gamepad / Big-Picture input.</td></tr>
     <tr><td><code>tray</code> · <code>window</code></td><td>System tray, single-instance guard, fullscreen.</td></tr>
-    <tr><td><code>streaming</code> · <code>retroachievements</code> · <code>requests</code></td><td>Sunshine/Moonlight streaming, RetroAchievements, in-client Game Requests board.</td></tr>
+    <tr><td><code>streaming</code> · <code>retroachievements</code> · <code>requests</code></td><td>Sunshine/Moonlight streaming, RetroAchievements, in-client Game Requests board (talks to the server's folded-in <code>/requests</code> routes).</td></tr>
   </table>
 
   <div class="note"><strong>Install / update model.</strong> Steam-style — per-user install (<code>%LocalAppData%</code> / <code>~/.local</code>), admin needed at most once, updates <em>never elevate</em> (Tauri updater consumes a signed NSIS <code>setup.exe</code>). A single-instance guard surfaces the existing window on a second launch.</div>
@@ -361,7 +356,7 @@
   <table>
     <tr><th>Host</th><th>Address</th><th>Role</th></tr>
     <tr><td>Proxmox PVE</td><td><code>10.0.0.98</code></td><td>Hypervisor (<code>pve3</code>) for the CTs/VMs below.</td></tr>
-    <tr><td>App server CT</td><td><code>10.0.0.210:8721</code></td><td><code>arcadelauncher-server</code>, library root <code>/srv/arcade-library</code>, admin UI <code>:8722</code>, Requests <code>:8723</code>, <code>cloudflared</code>.</td></tr>
+    <tr><td>App server CT</td><td><code>10.0.0.210:8721</code></td><td><code>arcadelauncher-server</code>, library root <code>/srv/arcade-library</code>, admin UI <code>:8722</code>, folded-in Requests at <code>/requests</code>, <code>cloudflared</code>. <span style="color:var(--muted)">(old <code>:8723</code> unit retired)</span></td></tr>
     <tr><td>nginx (public)</td><td><code>10.0.0.203</code></td><td><code>arcade.orlandoaio.net</code> → <code>:8721</code>. WSS scoped to <code>/ws/</code> only.</td></tr>
     <tr><td>nginx2 (internal)</td><td><code>10.0.0.163</code></td><td>Wildcard <code>*.orlandoaio.net</code> LAN vhosts incl. <code>arcade-admin</code>, <code>grafana</code>.</td></tr>
     <tr><td>MinIO CT</td><td><code>10.0.0.220</code></td><td>S3 object store (bucket <code>arcade-attachments</code>).</td></tr>

@@ -17,30 +17,39 @@ platform** for a personal/home game library. It catalogs a collection of games
 (emulated and PC), lets users install/launch/track them, and adds a full social
 layer — friends, chat, voice, presence, profiles, game invites — on top.
 
-It is built as **four cooperating repositories** under the `TheStonedGamer`
-GitHub org, all of which talk through one central server:
+It is built as **three repositories** under the `TheStonedGamer` GitHub org, all
+of which talk through one central server. (A fourth, the Game Requests service,
+was **folded into the server** in 2026-06 — see the note below the table.)
 
 | Component | Repo | Stack | Role |
 |---|---|---|---|
-| **Server** | `ArcadeLauncher-Server` (public) | Rust / axum 0.7 + tokio + MariaDB (`mysql_async`) | The hub. REST API, WebSocket social gateway, catalog/scan, auth, admin UI. Everything talks to it. |
+| **Server** | `ArcadeLauncher-Server` (public) | Rust / axum 0.7 + tokio + MariaDB (`mysql_async`) | The hub. REST API, WebSocket social gateway, catalog/scan, auth, admin UI, **and the Game Requests board** (folded in). Everything talks to it. |
 | **Unified Client** | `ArcadeLauncher-Unified-Client` (public, **this repo**) | Tauri v2 (Rust core) + React + TypeScript | The active cross-platform desktop client (Windows + Linux). |
 | **Legacy Client** | `ArcadeLauncher-Client` | C++17 Win32 / Direct2D | Retired native client; kept only as a parity reference ([`PARITY.md`](PARITY.md)). Superseded by the Unified Client. |
-| **Requests** | `ArcadeLauncher-Requests` (private) | separate Rust binary | "Game Requests" companion service. **Shares the server's MariaDB** (no API between them). |
+
+> **Requests is no longer a separate service.** The former `ArcadeLauncher-Requests`
+> binary (once its own process on `:8723`) was folded into the server as a
+> namespaced module (`mod requests_app`) mounted under `/requests` on the public
+> app (`:8721`). It reuses the server's MariaDB pool and only writes its own
+> `game_requests` / `request_*` tables. The standalone repo is dormant (kept as
+> origin history); the `:8723` systemd unit is retired. Externally the board URL
+> is unchanged (`/requests/…`).
 
 ### How they interconnect
 
 ```
                       ┌─────────────────────────────────────────────┐
-                      │            ArcadeLauncher-Server             │
+                      │            ArcadeLauncher-Server  :8721      │
    Unified Client ───►│  REST  /api/*        (reqwest + Bearer)      │
    (Tauri+React)  ◄──►│  WS    /ws/social    (live social gateway)  │
+                      │  /requests/*         (folded-in Requests)    │
                       │  Admin web UI :8722  (TOTP-gated)            │
-                      └──────┬───────────────────────┬──────────────┘
-                             │ shared MariaDB         │ S3 (MinIO)
-                      ┌──────▼─────────┐      ┌───────▼──────────┐
-                      │   Requests     │      │  Attachments /   │
-                      │   service      │      │  screenshots     │
-                      └────────────────┘      └──────────────────┘
+                      └──────────────┬──────────────────┬───────────┘
+                                     │ MariaDB           │ S3 (MinIO)
+                              ┌──────▼─────────┐  ┌──────▼──────────┐
+                              │  game_requests │  │  Attachments /  │
+                              │  request_* etc │  │  screenshots    │
+                              └────────────────┘  └─────────────────┘
 ```
 
 - **Client ↔ Server:** REST under `/api/*` plus the `/ws/social` WebSocket
@@ -49,8 +58,9 @@ GitHub org, all of which talk through one central server:
   `0.10.x`. Additive REST/WS changes are a **patch** (safe); anything that breaks
   client↔server compatibility is a **minor** bump and the **server deploys first**
   so older clients aren't locked out mid-window.
-- **Server ↔ Requests:** shared MariaDB only. Requests reads/writes the same
-  database; there is no API call between the two binaries.
+- **Requests (folded in):** served by the server process itself under `/requests`
+  on `:8721` (no longer a separate binary). It shares the server's MariaDB pool
+  and writes only its own `game_requests` / `request_*` tables.
 - **Server ↔ object store:** attachments and screenshots use a presign → PUT →
   presigned-GET flow against MinIO (S3-compatible); bytes never transit the
   database.
@@ -84,6 +94,7 @@ catalog, users, social graph, and live session state.
 | `db.rs`, `db_setup.rs`, `models.rs` | MariaDB pool, schema setup, row models. |
 | `admin_html.rs`, `admin_extra.rs` | Server-rendered admin web UI (`:8722`). |
 | `discord.rs` | Discord changelog/announce hooks. |
+| `requests_app.rs` | **Folded-in Game Requests board.** The one `mod` (not `include!`) — namespaced so its same-named helpers don't collide. `router()` is mounted via `nest_service("/requests", …)`; page is `requests_index.html`. |
 
 ### What the server exposes
 
@@ -178,7 +189,7 @@ Rust command → IPC registration → TS api wrapper → React hook → UI, plus
 | `tray`, `window` | System tray (close-to-tray, launch-minimized), single-instance guard, fullscreen. |
 | `streaming` | Remote streaming (Sunshine pair + Moonlight launch). |
 | `retroachievements` | RetroAchievements integration. |
-| `requests` | In-client Game Requests board (talks to the Requests service via the server). |
+| `requests` | In-client Game Requests board (talks to the server's folded-in `/requests` routes). |
 | `stores` | Atomic per-user state files. |
 | `settings` | Settings persistence. |
 
@@ -235,7 +246,7 @@ Cloudflare.
 | Host | Address | Role |
 |---|---|---|
 | Proxmox PVE host | `10.0.0.98` (`pve3`) | Hypervisor for the CTs/VMs below. |
-| App server CT | `10.0.0.210:8721` | `arcadelauncher-server` (systemd), library root `/srv/arcade-library`, admin UI `:8722`. Also hosts the Requests service (`:8723`) and `cloudflared`. |
+| App server CT | `10.0.0.210:8721` | `arcadelauncher-server` (systemd), library root `/srv/arcade-library`, admin UI `:8722`, folded-in Requests board at `/requests`, and `cloudflared`. (The old `:8723` Requests unit is retired.) |
 | nginx (public) | `10.0.0.203` | `arcade.orlandoaio.net` → `10.0.0.210:8721`. WSS for `/ws/` (scoped Upgrade headers — never on `location /`). |
 | nginx2 (internal) | `10.0.0.163` | Wildcard `*.orlandoaio.net` LAN vhosts incl. `arcade-admin`, `grafana`. One file `sites-available/orlandoaio.net`. |
 | MinIO CT | `10.0.0.220` (`:9000/:9001`) | S3 object store for attachments/screenshots (bucket `arcade-attachments`). |

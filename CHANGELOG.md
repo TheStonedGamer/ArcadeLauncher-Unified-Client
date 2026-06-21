@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.17] - 2026-06-21
+
+### Changed
+- **Docs:** refreshed the platform architecture reference (`ARCHITECTURE.md` and
+  `docs/architecture.html`) to reflect the Game Requests service being folded into
+  the server — it now runs in-process under `/requests` on the main server instead
+  of as a separate companion service. No app behaviour changes.
+
 ## [0.10.16] - 2026-06-21
 
 ### Added
