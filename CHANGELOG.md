@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.15] - 2026-06-21
+
+### Changed
+- **Game request status is now managed by admins on the server.** The Requests
+  board no longer shows an inline status dropdown for administrators — request
+  triage (approve / fulfil / decline) moved to the server's admin panel. The
+  status badge on each request still shows where it stands.
+
 ## [0.10.14] - 2026-06-21
 
 ### Added
