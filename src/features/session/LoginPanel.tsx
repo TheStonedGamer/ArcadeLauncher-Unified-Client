@@ -6,10 +6,12 @@
 import { useState, type FormEvent } from "react";
 import { useSession } from "./SessionContext";
 import { RegisterPanel } from "./RegisterPanel";
+import { ForgotPanel } from "./ForgotPanel";
 
 export function LoginPanel({ onClose }: { onClose?: () => void }) {
   const { login, lastHost, lastUsername } = useSession();
   const [registering, setRegistering] = useState(false);
+  const [forgetting, setForgetting] = useState(false);
   const [host, setHost] = useState(lastHost || "arcade.orlandoaio.net");
   const [username, setUsername] = useState(lastUsername);
   const [password, setPassword] = useState("");
@@ -34,6 +36,10 @@ export function LoginPanel({ onClose }: { onClose?: () => void }) {
 
   if (registering) {
     return <RegisterPanel onBack={() => setRegistering(false)} onClose={onClose} />;
+  }
+
+  if (forgetting) {
+    return <ForgotPanel onBack={() => setForgetting(false)} onClose={onClose} />;
   }
 
   return (
@@ -64,6 +70,11 @@ export function LoginPanel({ onClose }: { onClose?: () => void }) {
             autoComplete="current-password"
           />
         </label>
+        <p className="login__forgot">
+          <button type="button" className="login__altbtn" onClick={() => setForgetting(true)}>
+            Forgot password?
+          </button>
+        </p>
         <label className="settings__field">
           <span className="settings__label">2FA code (if enabled)</span>
           <input

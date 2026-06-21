@@ -35,6 +35,20 @@ export function sessionRegister(
   return call<RegisterOutcome>("session_register", { host, username, email, password });
 }
 
+/** Result of a password-reset request (always a generic, non-enumerating message). */
+export interface ForgotOutcome {
+  message: string;
+}
+
+/**
+ * Request a password-reset link for `identifier` (username or email). The server
+ * emails a single-use reset link (valid 1h) and always responds with a generic
+ * message, so this never reveals whether the account exists.
+ */
+export function sessionForgot(host: string, identifier: string): Promise<ForgotOutcome> {
+  return call<ForgotOutcome>("session_forgot", { host, identifier });
+}
+
 /** A session as remembered on disk (the live Session plus expiry bookkeeping). */
 export interface StoredSession extends Session {
   savedUnix: number;

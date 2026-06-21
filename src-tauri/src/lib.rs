@@ -168,6 +168,7 @@ pub fn run() {
             window::commands::is_fullscreen,
             session::commands::session_login,
             session::commands::session_register,
+            session::commands::session_forgot,
             session::store::session_save,
             session::store::session_restore,
             session::store::session_clear,

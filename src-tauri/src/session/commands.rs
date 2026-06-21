@@ -233,6 +233,59 @@ pub async fn session_register(
     })
 }
 
+/// Outcome of a password-reset request. The server always returns a generic
+/// success (anti-enumeration), so this just carries the message to display.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForgotOutcome {
+    pub message: String,
+}
+
+#[derive(Deserialize)]
+struct ForgotResp {
+    #[serde(default)]
+    message: String,
+}
+
+/// Request a password-reset link for `identifier` (username or email) on `host`.
+/// The server emails a single-use reset link and always responds with a generic
+/// message, so this never reveals whether the account exists.
+#[tauri::command]
+pub async fn session_forgot(host: String, identifier: String) -> AppResult<ForgotOutcome> {
+    let host = normalize_host(&host);
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .post(format!("https://{host}/api/auth/forgot"))
+        .form(&[("identifier", identifier.trim())])
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("reset request failed: {e}")))?;
+
+    let status = resp.status();
+    if !status.is_success() {
+        let msg = resp
+            .json::<serde_json::Value>()
+            .await
+            .ok()
+            .and_then(|j| j.get("error").and_then(|e| e.as_str()).map(|s| s.to_string()))
+            .unwrap_or_else(|| format!("password reset failed (HTTP {status})"));
+        return Err(AppError::msg(msg));
+    }
+
+    let r: ForgotResp = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid reset response: {e}")))?;
+    Ok(ForgotOutcome {
+        message: if r.message.is_empty() {
+            "If an account matches, a password reset link has been emailed.".into()
+        } else {
+            r.message
+        },
+    })
+}
+
 /// Prefer the server-confirmed username; fall back to what the user typed.
 fn pick_name(from_server: String, typed: &str) -> String {
     if from_server.is_empty() {
