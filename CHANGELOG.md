@@ -13,6 +13,21 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.14] - 2026-06-21
+
+### Added
+- **Forgot your password?** The sign-in screen now has a **Forgot password?**
+  link. Enter your username or email and we'll email you a single-use link
+  (valid for 1 hour) to choose a new password — no admin needed. For your
+  security, the response is always the same whether or not the account exists.
+
+## [0.10.13] - 2026-06-21
+
+### Added
+- **Create an account from the launcher.** The sign-in screen now has a
+  **Create one** link to request a new account (username, email, password). New
+  accounts require a quick administrator approval before you can sign in.
+
 ## [0.10.12] - 2026-06-20
 
 ### Added
