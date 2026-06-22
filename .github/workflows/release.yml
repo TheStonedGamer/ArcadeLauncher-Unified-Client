@@ -263,6 +263,27 @@ jobs:
           TRIPLE=$(rustc -vV | sed -n 's/host: //p')
           cp "src-tauri/target/release/updater" "src-tauri/binaries/updater-$TRIPLE"
 
+      # Stage the GPL stream-engine sidecar for Linux (bundled via the release-only
+      # overlay tauri.engine-bundle-linux.conf.json, passed with `--config` below —
+      # NOT a platform config, so CI's `cargo check` never requires the engine binary).
+      # Unlike Windows, NO DLLs ride along: the engine links system OpenSSL
+      # (libssl.so.3/libcrypto.so.3), so the bare ELF is enough. Pulled from the engine
+      # repo's public Linux release asset (no token). Bump $ver in lockstep with the
+      # Windows staging step when adopting a newer engine.
+      - name: Stage stream-engine sidecar (Linux)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="0.1.0"
+          url="https://github.com/TheStonedGamer/ArcadeLauncher-StreamEngine/releases/download/v$ver/ArcadeLauncher-StreamEngine-$ver-linux-x64.tar.gz"
+          tmp="$RUNNER_TEMP/arcade-stream-engine"
+          rm -rf "$tmp"; mkdir -p "$tmp"
+          curl -fsSL "$url" -o "$RUNNER_TEMP/ase-linux.tar.gz"
+          tar -xzf "$RUNNER_TEMP/ase-linux.tar.gz" -C "$tmp"
+          mkdir -p src-tauri/binaries
+          TRIPLE=$(rustc -vV | sed -n 's/host: //p')
+          install -m 0755 "$tmp/arcade-stream-engine" "src-tauri/binaries/arcade-stream-engine-$TRIPLE"
+
       - name: Build + upload Linux artifacts
         uses: tauri-apps/tauri-action@v0
         env:
@@ -270,8 +291,11 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          # Upload into the same pre-created draft as the Windows leg.
+          # Upload into the same pre-created draft as the Windows leg. `--config`
+          # overlays the engine sidecar (updater + engine, no DLL resources) for this
+          # build only; default deb/rpm/appimage targets are unchanged (no --bundles).
           releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: --config src-tauri/tauri.engine-bundle-linux.conf.json
 
   # ---- Phase 3: publish the draft once both legs uploaded ----------------
   publish-release:
