@@ -8,13 +8,24 @@
 // clear "hosting unavailable" message rather than throwing.
 
 import { useCallback, useEffect, useState } from "react";
-import { hostEnable, hostStatus, hostSyncApps, type HostGame, type HostStatus, type SyncResult } from "./api";
+import {
+  hostEnable,
+  hostInstall,
+  hostInstallStatus,
+  hostStatus,
+  hostSyncApps,
+  type HostGame,
+  type HostStatus,
+  type SyncResult,
+} from "./api";
 
 export interface Hosting {
   status: HostStatus | null;
   /** The last engine error (e.g. host mode unavailable), or null when healthy. */
   error: string | null;
   busy: boolean;
+  /** True while the Sunshine host sidecar is being downloaded on first enable. */
+  installing: boolean;
   refresh: () => Promise<void>;
   setEnabled: (on: boolean) => Promise<void>;
   /** Publish the given games to the host; resolves to the diff, or null on error. */
@@ -29,6 +40,7 @@ export function useHosting(): Hosting {
   const [status, setStatus] = useState<HostStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [installing, setInstalling] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -48,6 +60,20 @@ export function useHosting(): Hosting {
     async (on: boolean) => {
       setBusy(true);
       try {
+        // The Sunshine host sidecar isn't bundled in the installer (most users
+        // only stream *from* other PCs). Fetch it on first enable, then turn
+        // hosting on; the engine picks it up via ARCADE_SUNSHINE.
+        if (on) {
+          const inst = await hostInstallStatus();
+          if (!inst.installed) {
+            setInstalling(true);
+            try {
+              await hostInstall();
+            } finally {
+              setInstalling(false);
+            }
+          }
+        }
         await hostEnable(on);
         await refresh();
       } catch (e) {
@@ -76,5 +102,5 @@ export function useHosting(): Hosting {
     [refresh],
   );
 
-  return { status, error, busy, refresh, setEnabled, sync };
+  return { status, error, busy, installing, refresh, setEnabled, sync };
 }

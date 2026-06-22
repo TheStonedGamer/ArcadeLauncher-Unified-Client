@@ -169,6 +169,23 @@ export function hostListApps(): Promise<{ apps: HostApp[] }> {
   return call<{ apps: HostApp[] }>("engine_host_list_apps", {});
 }
 
+/** Whether the (unbundled) Sunshine host sidecar has been downloaded on this PC. */
+export interface HostInstallStatus {
+  installed: boolean;
+  version: string;
+  path: string;
+}
+
+/** Is the Sunshine host sidecar present locally? Also wires the engine to it. */
+export function hostInstallStatus(): Promise<HostInstallStatus> {
+  return call<HostInstallStatus>("host_install_status", {});
+}
+
+/** Fetch + unpack the Sunshine host sidecar (no-op if already installed). */
+export function hostInstall(): Promise<HostInstallStatus> {
+  return call<HostInstallStatus>("host_install", {});
+}
+
 // ---- My PCs: account-brokered device discovery (T12k-7 / T12k-9) -----------
 // Every PC signed into the same ArcadeLauncher account auto-appears in My PCs —
 // no IP typing. Mirrors src-tauri/src/streaming/mypcs_commands.rs. Discovery is

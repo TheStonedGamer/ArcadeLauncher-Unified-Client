@@ -14,7 +14,7 @@ import { loadCatalog } from "../catalog/api";
 import { useSession } from "../session/SessionContext";
 
 export function HostingSection() {
-  const { status, error, busy, setEnabled, sync } = useHosting();
+  const { status, error, busy, installing, setEnabled, sync } = useHosting();
   const { session } = useSession();
   const [msg, setMsg] = useState("");
 
@@ -61,7 +61,8 @@ export function HostingSection() {
       <h3 className="emu-group">Stream from this PC</h3>
       <p className="catalog__status">
         Let other devices on your account stream the games installed here, like Steam Remote Play.
-        Hosting runs in the bundled streaming engine — no separate Sunshine setup.
+        The first time you turn this on, the host components download automatically — no separate
+        Sunshine setup.
       </p>
 
       {unavailable ? (
@@ -79,11 +80,16 @@ export function HostingSection() {
             <input
               type="checkbox"
               checked={status.running}
-              disabled={busy || !status.installed || !status.gpuCapable}
+              // Not gated on status.installed: the first enable downloads the host
+              // sidecar. GPU capability is still required.
+              disabled={busy || installing || !status.gpuCapable}
               onChange={(e) => void setEnabled(e.target.checked)}
             />
             Let this PC be streamed
           </label>
+          {installing && (
+            <p className="catalog__status">Downloading host components…</p>
+          )}
           <div className="settings__actions">
             <button className="settings__save" onClick={() => void publish()} disabled={busy}>
               {busy ? "Working…" : "Publish my library"}

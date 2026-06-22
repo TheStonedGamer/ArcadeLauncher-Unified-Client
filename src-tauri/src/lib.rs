@@ -77,6 +77,11 @@ pub fn run() {
                     tray::setup::apply_launch_minimized(handle, cfg.launch_minimized);
                 }
 
+                // If the Sunshine host sidecar was fetched in a prior session,
+                // point the stream engine at it now so host mode works without a
+                // re-download. Best-effort; no-op when it isn't installed yet.
+                streaming::host_fetch_commands::wire_existing(handle);
+
                 // Self-heal server-staged BIOS/firmware into each installed
                 // emulator (PS1 BIOS, OG Xbox firmware, PS3 firmware), mirroring
                 // the native client's on-launch deploy. Best-effort on a
@@ -127,6 +132,8 @@ pub fn run() {
             streaming::engine_conn::engine_host_enable,
             streaming::engine_conn::engine_host_sync_apps,
             streaming::engine_conn::engine_host_list_apps,
+            streaming::host_fetch_commands::host_install_status,
+            streaming::host_fetch_commands::host_install,
             streaming::mesh::conn::mesh_is_available,
             streaming::mesh::conn::mesh_status,
             streaming::mesh::conn::mesh_join,
