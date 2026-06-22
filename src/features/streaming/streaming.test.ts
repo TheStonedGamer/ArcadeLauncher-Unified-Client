@@ -6,9 +6,12 @@ import {
   hostStateLabel,
   hostStatusSummary,
   isHostableGame,
+  isStreamTerminal,
   isValidPin,
   parseStoredSettings,
+  parseStreamState,
   sanitizeSettings,
+  streamPhaseLabel,
   toHostGame,
   type LibraryGameLike,
   type StreamSettings,
@@ -187,5 +190,50 @@ describe("hostStatusSummary", () => {
     expect(hostStatusSummary({ ...base, running: false, appsCount: 3 })).toMatch(
       /not hosting.*3 games published/i,
     );
+  });
+});
+
+describe("parseStreamState", () => {
+  it("reads phase and reason", () => {
+    expect(parseStreamState({ phase: "error", reason: "host_unreachable" })).toEqual({
+      phase: "error",
+      reason: "host_unreachable",
+    });
+  });
+  it("keeps an unknown phase verbatim and defaults a missing reason", () => {
+    expect(parseStreamState({ phase: "buffering" })).toEqual({ phase: "buffering", reason: "" });
+  });
+  it("tolerates garbage and non-objects", () => {
+    expect(parseStreamState(null)).toEqual({ phase: "", reason: "" });
+    expect(parseStreamState("nope")).toEqual({ phase: "", reason: "" });
+    expect(parseStreamState({ phase: 7 })).toEqual({ phase: "", reason: "" });
+  });
+});
+
+describe("isStreamTerminal", () => {
+  it("treats ended/error as terminal and everything else as live", () => {
+    expect(isStreamTerminal("ended")).toBe(true);
+    expect(isStreamTerminal("error")).toBe(true);
+    expect(isStreamTerminal("streaming")).toBe(false);
+    expect(isStreamTerminal("connecting")).toBe(false);
+    expect(isStreamTerminal("window")).toBe(false);
+    // An unmodeled phase must not end the stream early — matches the Rust core.
+    expect(isStreamTerminal("buffering")).toBe(false);
+  });
+});
+
+describe("streamPhaseLabel", () => {
+  it("labels the known phases", () => {
+    expect(streamPhaseLabel({ phase: "connecting", reason: "" })).toMatch(/Connecting/i);
+    expect(streamPhaseLabel({ phase: "streaming", reason: "" })).toMatch(/Streaming/i);
+    expect(streamPhaseLabel({ phase: "ended", reason: "" })).toMatch(/ended/i);
+    expect(streamPhaseLabel({ phase: "", reason: "" })).toMatch(/Starting/i);
+  });
+  it("includes the reason on error and falls back when absent", () => {
+    expect(streamPhaseLabel({ phase: "error", reason: "not_paired" })).toMatch(/not_paired/);
+    expect(streamPhaseLabel({ phase: "error", reason: "" })).toBe("Stream error");
+  });
+  it("surfaces an unknown phase rather than hiding it", () => {
+    expect(streamPhaseLabel({ phase: "buffering", reason: "" })).toMatch(/buffering/);
   });
 });

@@ -1,8 +1,9 @@
 // Typed IPC for remote game streaming. Mirrors the Rust commands in
-// src-tauri/src/streaming/commands.rs. Pairing/discovery run through the stream
-// engine (PIN handshake — no host web credentials); playback shells out to the
-// external Moonlight client. Only the host record + its pinned certificate live
-// on disk (streaming_hosts.json, owned by Rust).
+// src-tauri/src/streaming/commands.rs + engine_session.rs. Pairing/discovery run
+// through the stream engine (PIN handshake — no host web credentials); playback
+// prefers the bundled engine (`client.start`, with live state events) and falls
+// back to the external Moonlight client. Only the host record + its pinned
+// certificate live on disk (streaming_hosts.json, owned by Rust).
 
 import { call } from "../../lib/ipc";
 import type { StreamSettings } from "./streaming";
@@ -49,11 +50,44 @@ export function streamLaunch(
   return call<boolean>("stream_launch", { address, app, settings });
 }
 
+// ---- In-engine playback (engine `client.start`) ---------------------------
+// Preferred over external Moonlight when the bundled engine is present: the
+// engine streams in its own window and reports live progress as Tauri events.
+// Mirrors src-tauri/src/streaming/engine_session.rs.
+
+/** Tauri event carrying a raw engine `stream.state` payload (`{phase, reason?}`). */
+export const STREAM_STATE_EVENT = "stream://state";
+/** Tauri event carrying a raw engine `stream.stats` payload (fps/bitrate/rtt/…). */
+export const STREAM_STATS_EVENT = "stream://stats";
+
+/** Whether the bundled stream engine is installed (so the UI can prefer in-engine
+ *  playback over external Moonlight). */
+export function engineStreamAvailable(): Promise<boolean> {
+  return call<boolean>("engine_stream_available", {});
+}
+
+/** Start streaming `app` from `address` through the engine. Resolves once the
+ *  stream has started; live progress arrives as STREAM_STATE/STATS events. The
+ *  engine's in-band errors (`not_paired`, `host_unreachable`, `app_not_found`, …)
+ *  reject this promise. */
+export function streamStart(
+  address: string,
+  app: string,
+  settings: StreamSettings,
+): Promise<boolean> {
+  return call<boolean>("stream_start", { address, app, settings });
+}
+
+/** Stop the current engine stream (graceful). Idempotent. */
+export function streamStop(): Promise<boolean> {
+  return call<boolean>("stream_stop", {});
+}
+
 // ---- Stream engine (client + host modes) ----------------------------------
 // Thin typed wrappers over the engine IPC (src-tauri/src/streaming/engine_conn.rs).
-// The engine returns raw JSON; these shape it. NOTE: the engine's host.* handlers
-// (and client.start) are stubs until that milestone lands, so callers must
-// tolerate errors (e.g. `not_installed`, `unsupported_method`) and degrade.
+// The engine returns raw JSON; these shape it. NOTE: a host.* call still surfaces
+// honest errors when this PC has no host installed (e.g. `not_installed`), so
+// callers must tolerate them and degrade.
 
 /** A host the engine knows about (engine `client.hosts`). */
 export interface EngineHost {

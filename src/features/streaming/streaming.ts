@@ -81,6 +81,64 @@ export function parseStoredSettings(raw: string | null | undefined): StreamSetti
   });
 }
 
+// ---- In-engine playback state (engine `stream.state` events) ----------------
+// The engine streams in its own window and reports progress as `stream://state`
+// Tauri events carrying a raw `{phase, reason?}` payload. This pure core parses
+// that payload and maps a phase to UI text + the "is the stream over" decision,
+// kept in lockstep with the Rust `play::is_terminal_phase`.
+
+/** A streaming phase the engine reports. Unknown strings are kept verbatim so a
+ *  future engine phase still round-trips (and is treated as non-terminal). */
+export type StreamPhase = string;
+
+/** A parsed `stream.state` payload. */
+export interface StreamState {
+  phase: StreamPhase;
+  /** Optional detail (e.g. an error reason); empty when absent. */
+  reason: string;
+}
+
+/** Parse a raw engine `stream.state` payload (the Tauri event body). Tolerates
+ *  missing/garbage input — a non-object or absent phase yields an empty phase.
+ *  Pure. */
+export function parseStreamState(raw: unknown): StreamState {
+  if (typeof raw !== "object" || raw === null) return { phase: "", reason: "" };
+  const o = raw as Record<string, unknown>;
+  return {
+    phase: typeof o.phase === "string" ? o.phase : "",
+    reason: typeof o.reason === "string" ? o.reason : "",
+  };
+}
+
+/** Whether a phase means the stream is over — the UI returns to idle. Mirrors the
+ *  Rust `play::is_terminal_phase` (`ended`/`error`); unknown phases are NOT
+ *  terminal so an unmodeled intermediate phase can't end the stream early. Pure. */
+export function isStreamTerminal(phase: StreamPhase): boolean {
+  return phase === "ended" || phase === "error";
+}
+
+/** Human-readable status text for a streaming phase, for the detail panel. Pure. */
+export function streamPhaseLabel(state: StreamState): string {
+  switch (state.phase) {
+    case "connecting":
+      return "Connecting to host…";
+    case "window":
+      return "Opening stream…";
+    case "streaming":
+      return "Streaming ✓";
+    case "paused":
+      return "Stream paused";
+    case "ended":
+      return "Stream ended";
+    case "error":
+      return state.reason ? `Stream error: ${state.reason}` : "Stream error";
+    case "":
+      return "Starting stream…";
+    default:
+      return `Stream: ${state.phase}`;
+  }
+}
+
 /** Human-readable host state for the picker. */
 export function hostStateLabel(state: string): string {
   switch (state) {

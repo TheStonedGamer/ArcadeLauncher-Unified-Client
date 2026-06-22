@@ -50,6 +50,8 @@ pub fn run() {
         .manage(download::engine::DownloadManager::default())
         // Discord Rich Presence connection (best-effort, settings-gated).
         .manage(presence::client::PresenceManager::default())
+        // The live engine-driven stream session (one at a time; `client.start`).
+        .manage(streaming::engine_session::StreamSession::default())
         .setup(|app| {
             // Register the global summon/hide hotkey from saved settings.
             // Best-effort: a missing config or bad accelerator is logged, not
@@ -114,6 +116,9 @@ pub fn run() {
             streaming::commands::streaming_forget_host,
             streaming::commands::moonlight_available,
             streaming::commands::stream_launch,
+            streaming::engine_session::engine_stream_available,
+            streaming::engine_session::stream_start,
+            streaming::engine_session::stream_stop,
             streaming::engine_conn::engine_pair,
             streaming::engine_conn::engine_hosts,
             streaming::engine_conn::engine_apps,

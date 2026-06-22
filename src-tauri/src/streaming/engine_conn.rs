@@ -38,14 +38,16 @@ static TOKEN_SEQ: AtomicU64 = AtomicU64::new(0);
 
 /// A process-unique endpoint token. The engine derives the real pipe name /
 /// socket path from it (`arcade-stream-engine-<token>`), so it only has to be
-/// unique among our concurrent calls — pid + a counter suffices.
-fn unique_token() -> String {
+/// unique among our concurrent calls — pid + a counter suffices. Shared with the
+/// persistent-session transport ([`engine_session`](super::engine_session)).
+pub(crate) fn unique_token() -> String {
     format!("{}-{}", std::process::id(), TOKEN_SEQ.fetch_add(1, Ordering::Relaxed))
 }
 
 /// Locate the engine binary: an explicit override first (dev), then next to our
-/// own executable (the bundled-sidecar location in a release install).
-fn engine_path() -> AppResult<PathBuf> {
+/// own executable (the bundled-sidecar location in a release install). Shared
+/// with the persistent-session transport ([`engine_session`](super::engine_session)).
+pub(crate) fn engine_path() -> AppResult<PathBuf> {
     if let Ok(p) = std::env::var("ARCADE_STREAM_ENGINE") {
         let p = PathBuf::from(p);
         if p.is_file() {
