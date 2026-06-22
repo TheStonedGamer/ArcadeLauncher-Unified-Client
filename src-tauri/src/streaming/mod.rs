@@ -15,5 +15,6 @@ pub mod control;
 pub mod engine;
 pub mod engine_conn;
 pub mod host;
+pub mod mesh;
 pub mod moonlight;
 pub mod store;
