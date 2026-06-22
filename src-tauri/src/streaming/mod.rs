@@ -13,6 +13,7 @@
 pub mod commands;
 pub mod control;
 pub mod engine;
+pub mod engine_conn;
 pub mod host;
 pub mod moonlight;
 pub mod store;

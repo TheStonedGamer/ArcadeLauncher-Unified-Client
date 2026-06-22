@@ -28,7 +28,7 @@ thiserror = "2"
 
 # Social live transport (T3b). rustls (not native-tls) so there is no OpenSSL
 # system dependency — keeps the Windows + Linux CI build identical and simple.
-tokio = { version = "1", features = ["sync", "time", "macros"] }
+tokio = { version = "1", features = ["sync", "time", "macros", "net", "io-util", "rt-multi-thread"] }
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
