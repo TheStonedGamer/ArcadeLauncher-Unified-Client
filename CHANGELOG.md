@@ -13,6 +13,24 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-06-22
+
+### Added
+- **A "My PCs" tab.** Your other PCs that you've paired for streaming now live in
+  one place — each one expands to the games it has, with a Play button that streams
+  it to this machine. Your personal remote-play list, Steam-style.
+- **Host this PC for streaming.** A new **Settings → Stream from this PC** section
+  lets this machine be streamed to your other devices and publish your installed
+  library as playable games — powered by a streaming engine bundled right in the
+  installer, so there's no separate Sunshine setup. (Hosting support rolls out as
+  the engine's host mode lands; the section tells you when it's ready on your PC.)
+
+### Changed
+- **Pairing a streaming host is simpler and safer.** Pair with just the host's
+  4-digit PIN — no Sunshine username or password needed anymore. Pairing now runs
+  through the bundled streaming engine (the real GameStream handshake), and the
+  host's certificate is still pinned on first pair so the connection stays secure.
+
 ## [0.10.22] - 2026-06-21
 
 ### Added
