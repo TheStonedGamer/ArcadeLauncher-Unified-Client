@@ -153,7 +153,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          $ver = "0.3.0"
+          $ver = "0.3.1"
           $url = "https://github.com/TheStonedGamer/ArcadeLauncher-StreamEngine/releases/download/v$ver/ArcadeLauncher-StreamEngine-$ver-win-x64.zip"
           $zip = Join-Path $env:RUNNER_TEMP "arcade-stream-engine.zip"
           $tmp = Join-Path $env:RUNNER_TEMP "arcade-stream-engine"
@@ -276,7 +276,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ver="0.3.0"
+          ver="0.3.1"
           url="https://github.com/TheStonedGamer/ArcadeLauncher-StreamEngine/releases/download/v$ver/ArcadeLauncher-StreamEngine-$ver-linux-x64.tar.gz"
           tmp="$RUNNER_TEMP/arcade-stream-engine"
           rm -rf "$tmp"; mkdir -p "$tmp"
