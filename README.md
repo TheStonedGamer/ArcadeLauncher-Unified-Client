@@ -52,6 +52,56 @@ sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
   libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 ```
 
+## Arch Linux — build from source
+
+Arch (and derivatives: Manjaro, EndeavourOS) doesn't get a prebuilt package, so
+build it from source. The steps below take a clean Arch box to a running app.
+
+### 1. System dependencies
+
+```sh
+# Toolchains + Tauri v2 system libraries (one command)
+sudo pacman -S --needed \
+  base-devel \
+  rust \
+  nodejs npm \
+  webkit2gtk-4.1 \
+  curl wget file \
+  openssl \
+  gtk3 \
+  libappindicator-gtk3 \
+  librsvg \
+  xdotool
+```
+
+- `base-devel` — gcc, make, pkg-config (the C toolchain Tauri/`cargo` need).
+- `rust` — the Rust core. (Prefer [`rustup`](https://archlinux.org/packages/extra/x86_64/rustup/)
+  if you want to manage toolchains: `sudo pacman -S rustup && rustup default stable`.)
+- `nodejs npm` — frontend build (React + Vite).
+- `webkit2gtk-4.1` — the webview Tauri v2 renders into (the key dep).
+- `libappindicator-gtk3` — system-tray support; `xdotool` provides `libxdo`
+  (global hotkeys); `librsvg` renders the SVG app icon.
+
+### 2. Clone and build
+
+```sh
+git clone https://github.com/TheStonedGamer/ArcadeLauncher-Unified-Client.git
+cd ArcadeLauncher-Unified-Client
+
+npm install              # JS deps
+npm run tauri dev        # run the app (dev)
+
+# …or produce installable bundles:
+npm run tauri build      # outputs to src-tauri/target/release/bundle/
+```
+
+`npm run tauri build` on Arch yields an **AppImage** and an **RPM** under
+`src-tauri/target/release/bundle/`. For a plain native binary, use
+`src-tauri/target/release/arcade-launcher-unified-client` directly.
+
+> **Tip:** if `cargo`/`rustc` aren't on `PATH` after installing `rustup`, run
+> `source "$HOME/.cargo/env"` (or open a new shell).
+
 ## Updater signing
 
 The updater requires a signing keypair. The **public** key lives in
