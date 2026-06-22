@@ -112,6 +112,27 @@ impl Endpoint {
         format!("https://{}/api/social/prefs", self.host)
     }
 
+    /// REST URL for the caller's account devices ("My PCs"): GET lists every PC
+    /// signed into the account (T12k-7).
+    pub fn hosts_url(&self) -> String {
+        format!("https://{}/api/social/hosts", self.host)
+    }
+
+    /// REST URL to register/upsert the caller's own device (POST).
+    pub fn host_register_url(&self) -> String {
+        format!("https://{}/api/social/hosts/register", self.host)
+    }
+
+    /// REST URL to forget one of the caller's devices (DELETE, by device id).
+    pub fn host_url(&self, device_id: &str) -> String {
+        format!("https://{}/api/social/hosts/{}", self.host, encode_query(device_id))
+    }
+
+    /// REST URL for one device's published library (GET) / publish (PUT) (T12k-9).
+    pub fn host_apps_url(&self, device_id: &str) -> String {
+        format!("https://{}/api/social/hosts/{}/apps", self.host, encode_query(device_id))
+    }
+
     /// The bearer token, for the `Authorization` header on REST calls.
     pub fn token(&self) -> &str {
         &self.token
@@ -173,6 +194,24 @@ mod tests {
         assert_eq!(e.ignores_url(), "https://arcade.example.com/api/social/ignores");
         assert_eq!(e.turn_url(), "https://arcade.example.com/api/social/turn");
         assert_eq!(e.activity_url(), "https://arcade.example.com/api/social/activity");
+    }
+
+    #[test]
+    fn builds_mypcs_host_urls() {
+        let e = Endpoint::new("arcade.example.com", "t");
+        assert_eq!(e.hosts_url(), "https://arcade.example.com/api/social/hosts");
+        assert_eq!(
+            e.host_register_url(),
+            "https://arcade.example.com/api/social/hosts/register"
+        );
+        assert_eq!(
+            e.host_url("dev-abc"),
+            "https://arcade.example.com/api/social/hosts/dev-abc"
+        );
+        assert_eq!(
+            e.host_apps_url("dev-abc"),
+            "https://arcade.example.com/api/social/hosts/dev-abc/apps"
+        );
     }
 
     #[test]

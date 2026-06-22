@@ -9,10 +9,13 @@
 import { useState } from "react";
 import { useHosting } from "./useHosting";
 import { hostGamesFromLibrary, hostStatusSummary } from "./streaming";
+import { publishMyLibrary, type MyPcApp } from "./api";
 import { loadCatalog } from "../catalog/api";
+import { useSession } from "../session/SessionContext";
 
 export function HostingSection() {
   const { status, error, busy, setEnabled, sync } = useHosting();
+  const { session } = useSession();
   const [msg, setMsg] = useState("");
 
   const publish = async () => {
@@ -23,11 +26,27 @@ export function HostingSection() {
         setMsg("No installed games to publish.");
         return;
       }
+      // Publish to the account registry so these games appear (and stay browsable
+      // while this PC sleeps) under "My PCs" on your other devices. This is
+      // independent of the engine host support below — discovery + library work
+      // even before this PC is a fully streamable host. coverPath is a relative
+      // catalog art ref, carried through as coverRef.
+      if (session) {
+        const apps: MyPcApp[] = games.map((g) => ({
+          gameKey: g.id,
+          name: g.name,
+          coverRef: g.coverPath,
+        }));
+        await publishMyLibrary(session.host, session.token, apps);
+      }
+      // Best-effort: also register them with the engine's host mode for actual
+      // streaming (a stub until that milestone lands → may report unavailable).
       const res = await sync(games);
+      const count = `${games.length} game${games.length === 1 ? "" : "s"}`;
       setMsg(
         res
-          ? `Published ${games.length} game${games.length === 1 ? "" : "s"} (+${res.added} / −${res.removed} / ~${res.updated}).`
-          : "Couldn't publish — hosting isn't available on this PC yet.",
+          ? `Published ${count} (+${res.added} / −${res.removed} / ~${res.updated}).`
+          : `Published ${count} to your account. Streaming from this PC isn’t available yet.`,
       );
     } catch (e) {
       setMsg(`Couldn't publish: ${e instanceof Error ? e.message : String(e)}`);

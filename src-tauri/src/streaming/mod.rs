@@ -18,5 +18,7 @@ pub mod engine_session;
 pub mod host;
 pub mod mesh;
 pub mod moonlight;
+pub mod mypcs;
+pub mod mypcs_commands;
 pub mod play;
 pub mod store;

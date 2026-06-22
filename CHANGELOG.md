@@ -13,6 +13,20 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-06-22
+
+### Added
+- **Your PCs now find each other automatically.** Every PC signed into your
+  ArcadeLauncher account shows up under **My PCs** on your other devices — no IP
+  address or PIN to type. Sign in on another machine and it just appears.
+- **Browse a PC's games even when it's asleep.** Each PC publishes the games
+  installed on it, so an offline PC stays listed (greyed out) with its last-known
+  library still browsable. Online PCs show a live status dot and a **Play** button
+  per game.
+- Turning on **Settings → Stream from this PC** now publishes that machine's
+  library to your account, so its games appear under My PCs everywhere you're
+  signed in.
+
 ## [0.12.1] - 2026-06-22
 
 ### Fixed

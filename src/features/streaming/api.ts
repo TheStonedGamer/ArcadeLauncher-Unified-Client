@@ -168,3 +168,78 @@ export function hostSyncApps(games: HostGame[]): Promise<SyncResult> {
 export function hostListApps(): Promise<{ apps: HostApp[] }> {
   return call<{ apps: HostApp[] }>("engine_host_list_apps", {});
 }
+
+// ---- My PCs: account-brokered device discovery (T12k-7 / T12k-9) -----------
+// Every PC signed into the same ArcadeLauncher account auto-appears in My PCs —
+// no IP typing. Mirrors src-tauri/src/streaming/mypcs_commands.rs. Discovery is
+// push-driven by the server's `stream_host_update` social frame (see useMyPcs).
+
+/** A PC signed into the account (Rust `MyPc`). `online` is server-derived from
+ *  last-seen freshness; an offline PC is still listed (greyed) with its
+ *  last-known library browsable. Addresses may be empty. */
+export interface MyPc {
+  deviceId: string;
+  name: string;
+  lanAddr: string;
+  meshAddr: string;
+  certFp: string;
+  online: boolean;
+  lastSeen: number;
+}
+
+/** One game a PC has published (Rust `MyPcApp`). `coverRef` is a relative art ref. */
+export interface MyPcApp {
+  gameKey: string;
+  name: string;
+  coverRef: string;
+}
+
+/** This device's identity + advertised connect paths (Rust `SelfDevice`). */
+export interface SelfDevice {
+  deviceId: string;
+  name: string;
+  lanAddr: string;
+  meshAddr: string;
+  certFp: string;
+}
+
+/** This device's descriptor (id/name/addresses) — for self-exclusion + announce. */
+export function myPcsSelf(): Promise<SelfDevice> {
+  return call<SelfDevice>("mypcs_self", {});
+}
+
+/** A ready-to-send `stream_host_announce` WS frame (JSON string) to push via the
+ *  social socket on a heartbeat, keeping this PC "online" to other devices. */
+export function myPcsAnnounceFrame(): Promise<string> {
+  return call<string>("mypcs_announce_frame", {});
+}
+
+/** Register/upsert this device into the account registry (durable, also notifies
+ *  the account's other devices). Call once on sign-in. */
+export function myPcsRegister(host: string, token: string): Promise<void> {
+  return call<void>("mypcs_register", { host, token });
+}
+
+/** Every *other* PC on the account (this device excluded). */
+export function myPcs(host: string, token: string): Promise<MyPc[]> {
+  return call<MyPc[]>("mypcs_list", { host, token });
+}
+
+/** Forget one of the caller's devices (and its published apps). */
+export function forgetPc(host: string, token: string, deviceId: string): Promise<void> {
+  return call<void>("mypcs_forget", { host, token, deviceId });
+}
+
+/** A PC's last-published library (browsable even while it is offline). */
+export function pcApps(host: string, token: string, deviceId: string): Promise<MyPcApp[]> {
+  return call<MyPcApp[]>("mypcs_apps", { host, token, deviceId });
+}
+
+/** Publish this device's library so its games are browsable from other devices. */
+export function publishMyLibrary(
+  host: string,
+  token: string,
+  apps: MyPcApp[],
+): Promise<void> {
+  return call<void>("mypcs_publish", { host, token, apps });
+}
