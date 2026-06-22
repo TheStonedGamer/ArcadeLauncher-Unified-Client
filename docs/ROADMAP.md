@@ -678,11 +678,12 @@ from scratch.
     library games as Sunshine apps so "let this PC be streamed" is one toggle, not a
     manual Sunshine setup. (Today T12k-2 only controls a *remote* Sunshine; nothing
     runs/installs it locally.) Biggest win toward Steam parity.
-  - [ ] **T12k-7 — Account/gateway-brokered pairing.** Replace IP+PIN typing with
-    account-based discovery: a host registers itself to the ArcadeLauncher server
-    under the signed-in account; clients see "your PCs" and the existing `/ws/social`
-    gateway brokers the pair (exchange PIN/cert automatically). Reuses the server +
-    social gateway + presence we already ship. Server-side work required.
+  - [x] **T12k-7 — Account/gateway-brokered discovery.** _Shipped v0.13.0 / server
+    0.11.0._ Every PC signed into the account auto-appears under My PCs with no IP/PIN:
+    a device registers to the server (`stream_hosts`, online derived from last-seen
+    freshness) and the `/ws/social` gateway pushes `stream_host_update` to the account's
+    own other sockets. REST `/api/social/hosts*`. (Brokered zero-PIN cert exchange for
+    auto-pin is a later layer — `certFp` is plumbed but unused.)
   - [ ] **T12k-8 — Play-from-anywhere (NAT traversal).** Make internet streaming work
     without manual port-forwarding. **DECIDED: self-hosted Headscale + headscale-ui**
     (Tailscale control server on the homelab; devices run official Tailscale clients).
@@ -722,16 +723,13 @@ from scratch.
     separate processes / bundled binaries, **not** statically linked into the
     (proprietary) launcher — keeps the launcher's licensing clean. Revisit if we
     ever embed Moonlight's renderer in-process.
-  - [ ] **T12k-9 — Per-host game library + "My PCs" / Remote Play tab.** Users must
-    see what games are installed on their **other** machines, not just the local/server
-    catalog — a per-machine installed library is different data, so it gets its **own
-    top-level tab**, not a Library filter. Host publishes its registered/streamable
-    games (engine `host.listApps`) on `host_announce`; server stores them in a new
-    `stream_host_apps` table (keyed off `stream_hosts`) so a PC's library shows even
-    while it's asleep (greyed; future Wake-on-LAN). The "My PCs" tab lists your devices
-    (online/offline via presence), each expandable to its games with box art and a Play
-    button → `client.start`. Plumbing rides on T12k-6/7; this is mostly the new tab UI +
-    the table + publish/fetch glue. Cover art stored as a relative `cover_ref`.
+  - [x] **T12k-9 — Per-host game library + "My PCs" tab.** _Shipped v0.13.0 / server
+    0.11.0._ The My PCs tab now lists your account's devices (online/offline dots, offline
+    = greyed) sourced from `useMyPcs()`; each expands to its published games (box art via
+    relative `cover_ref`) and a per-game Play → existing `play(lan||mesh, app)`. A PC's
+    library survives sleep (last-known rows in `stream_host_apps`). Publishing happens from
+    **Settings → Stream from this PC** (independent of engine host support, so games show
+    up even before that PC is a working stream host). Manual pair-by-IP kept as a fallback.
   - [x] **T12k-10 — In-engine playback (client drives `client.start`).** Shipped in
     **launcher v0.12.0** (2026-06-22). Replaced the always-spawn-Moonlight path with
     the bundled engine: **engine v0.2.0** (first streaming-capable release) is
