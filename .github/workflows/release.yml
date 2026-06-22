@@ -83,10 +83,13 @@ jobs:
 
   # ---- Phase 2a: Windows leg — native MSVC build on a Windows host --------
   # Builds the MSVC-ABI binary natively with the host's Rust toolchain + VS Build
-  # Tools and bundles BOTH the NSIS installer and the MSI/WiX installer (tauri
-  # fetches makensis + the WiX toolset itself on Windows — native build, no wine).
-  # The in-app updater still consumes the NSIS setup.exe (its platform_keys prefer
-  # the `-nsis` key); the MSI ships for users/admins who want it. Runs on the
+  # Tools and bundles the NSIS installer (tauri fetches makensis itself on Windows
+  # — native build, no wine). MSI/WiX is intentionally NOT built: the in-app updater
+  # consumes the NSIS setup.exe (its platform_keys prefer the `-nsis` key and
+  # update.rs explicitly avoids the admin-oriented MSI), and the bundled stream-engine
+  # OpenSSL DLLs trip WiX ICE38 under the app's per-user (`currentUser`) install
+  # (file-keypath components in a user-profile dir need an HKCU keypath). NSIS has no
+  # such constraint and ships the engine fine. Runs on the
   # self-hosted Windows runner pinned to the `arcade-win10` label → VM 111
   # (`arcade-win10-runner`); the bare self-hosted/Windows/X64 set also matches other
   # Windows runners, so the unique label keeps this leg deterministic. Runs in
@@ -207,7 +210,7 @@ jobs:
           # only (staged in the step above); the base config stays engine-free so CI
           # doesn't need the engine binary. The path is relative to the repo root
           # (tauri resolves --config from there, not from the tauri dir).
-          args: --bundles nsis,msi --verbose --config src-tauri/tauri.engine-bundle.conf.json
+          args: --bundles nsis --verbose --config src-tauri/tauri.engine-bundle.conf.json  # MSI dropped: ICE38 vs bundled engine DLLs (see job comment)
           # Upload into the pre-created draft; do NOT create or publish a release
           # here (that's what caused the duplicate-draft race).
           releaseId: ${{ needs.create-release.outputs.release_id }}
