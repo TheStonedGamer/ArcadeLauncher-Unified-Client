@@ -2,7 +2,7 @@
 // and the active conversation on the right. State + actions come from useSocial;
 // this component is composition only.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSocialContext } from "./SocialContext";
 import { useProfile } from "./useProfile";
 import { useFriendMeta } from "./useFriendMeta";
@@ -35,7 +35,14 @@ const STATE_LABEL: Record<GatewayState, string> = {
 
 export function SocialView() {
   const { session } = useSession();
-  const auth = session ? { host: session.host, token: session.token } : null;
+  // Stabilise the auth object's identity: a fresh `{host, token}` literal each
+  // render would make every auth-keyed hook (useActivity, useProfile, …) re-run
+  // its fetch effect on every render — the Activity feed visibly flickered as it
+  // refetched in a loop. Re-create it only when host/token actually change.
+  const auth = useMemo(
+    () => (session ? { host: session.host, token: session.token } : null),
+    [session?.host, session?.token],
+  );
   const social = useSocialContext();
   const profile = useProfile(auth, social.selfId);
   const friendMeta = useFriendMeta(auth);

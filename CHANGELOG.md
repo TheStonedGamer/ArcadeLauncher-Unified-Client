@@ -13,6 +13,13 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.21] - 2026-06-21
+
+### Fixed
+- **The Activity feed no longer flickers.** It was refetching in a tight loop on
+  every render, making the list and its spinner flash constantly. It now loads
+  once per sign-in (and on manual refresh) and sits still.
+
 ## [0.10.20] - 2026-06-21
 
 ### Fixed
