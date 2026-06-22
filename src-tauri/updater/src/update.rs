@@ -8,11 +8,34 @@ use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use base64::Engine;
 use serde::Deserialize;
 
 use crate::Status;
+
+/// What a check resolved to. Distinguishes "installed inline, go launch the app"
+/// from "handed off to a staged copy" — in the staged case the original updater
+/// must NOT launch the app or do anything else; it must exit promptly so its own
+/// `$INSTDIR\updater.exe` file unlocks and the staged copy can overwrite it.
+enum Outcome {
+    UpToDate,
+    Installed,
+    // Only the Windows path stages a self-update; on Linux this variant is read in
+    // `run`'s match but never constructed, so silence dead-code there.
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+    Staged,
+}
+
+/// A request, parsed from CLI args, for the second (staged) phase of a Windows
+/// self-update: run the already-downloaded+verified installer, then launch.
+struct StagedJob {
+    setup: PathBuf,
+    /// PID of the original in-`$INSTDIR` updater to wait for before running the
+    /// installer, so `updater.exe` is unlocked when NSIS tries to overwrite it.
+    wait_pid: Option<u32>,
+}
 
 /// The release manifest the app's bundler publishes (Tauri `latest.json`).
 const ENDPOINT: &str =
@@ -56,6 +79,25 @@ fn set(status: &Arc<Mutex<Status>>, msg: impl Into<String>) {
 /// Drive the whole update sequence. Always returns; the caller launches the app
 /// and exits afterwards. Errors are surfaced into the status, never propagated.
 pub fn run(status: &Arc<Mutex<Status>>) {
+    // Staged second phase: a copy of us, running from a temp dir, was handed an
+    // already-downloaded + verified installer. We wait for the original
+    // in-`$INSTDIR` updater (which spawned us) to exit so `updater.exe` unlocks,
+    // then run the installer — which can now replace the updater too — and launch.
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if let Some(job) = parse_staged_args(&args) {
+        if let Some(pid) = job.wait_pid {
+            set(status, "Finishing update…");
+            wait_for_exit(pid);
+        }
+        set(status, "Installing update…");
+        match run_setup(&job.setup) {
+            Ok(()) => set(status, "Update complete — starting ArcadeLauncher…"),
+            Err(e) => set(status, format!("Skipping update ({e}) — starting…")),
+        }
+        launch_app();
+        return;
+    }
+
     // If the launcher is already open, never reinstall over a running app — just
     // surface its window. Spawning the app triggers the launcher's
     // single-instance guard, which brings the existing window to the front; the
@@ -68,22 +110,29 @@ pub fn run(status: &Arc<Mutex<Status>>) {
 
     set(status, "Checking for updates…");
     match check_and_apply(status) {
-        Ok(true) => set(status, "Update complete — starting ArcadeLauncher…"),
-        Ok(false) => set(status, "Up to date — starting ArcadeLauncher…"),
+        // A staged copy is now applying the update and will launch the app once
+        // it finishes. We must NOT launch here — exiting promptly is what unlocks
+        // `$INSTDIR\updater.exe` so the staged copy can overwrite it.
+        Ok(Outcome::Staged) => {
+            set(status, "Updating…");
+            return;
+        }
+        Ok(Outcome::Installed) => set(status, "Update complete — starting ArcadeLauncher…"),
+        Ok(Outcome::UpToDate) => set(status, "Up to date — starting ArcadeLauncher…"),
         Err(e) => set(status, format!("Skipping update ({e}) — starting…")),
     }
     launch_app();
 }
 
-/// Returns Ok(true) when an update was downloaded + installed, Ok(false) when
+/// Resolves to `Installed`/`Staged` when an update was applied, `UpToDate` when
 /// already current, Err on any recoverable problem (offline, bad manifest, …).
-fn check_and_apply(status: &Arc<Mutex<Status>>) -> Result<bool, String> {
+fn check_and_apply(status: &Arc<Mutex<Status>>) -> Result<Outcome, String> {
     let manifest = fetch_manifest()?;
     // Compare against the installed *app* version (embedded by build.rs from
     // tauri.conf.json), not the updater's own CARGO_PKG_VERSION — the latter
     // tracks the bootstrapper separately and would make every launch reinstall.
     if !is_newer(&manifest.version, env!("APP_VERSION")) {
-        return Ok(false);
+        return Ok(Outcome::UpToDate);
     }
     // Prefer the platform's explicit installer variant, falling back to the bare
     // key. On Windows that's the NSIS `setup.exe` (`windows-x86_64-nsis`) — the
@@ -102,8 +151,7 @@ fn check_and_apply(status: &Arc<Mutex<Status>>) -> Result<bool, String> {
     verify(&bytes, &entry.signature)?;
 
     set(status, format!("Installing update {}…", manifest.version));
-    install(&bytes, &entry.url)?;
-    Ok(true)
+    install(&bytes, &entry.url)
 }
 
 fn fetch_manifest() -> Result<Manifest, String> {
@@ -162,11 +210,11 @@ fn verify(data: &[u8], signature_b64: &str) -> Result<(), String> {
 /// the app isn't running so nothing is locked). A legacy zipped form
 /// (`*.nsis.zip`) is still handled for safety. On Linux it's the AppImage (or a
 /// `.tar.gz` of it): drop it in place of the running AppImage.
-fn install(bytes: &[u8], url: &str) -> Result<(), String> {
+fn install(bytes: &[u8], url: &str) -> Result<Outcome, String> {
     if cfg!(target_os = "windows") {
         install_windows(bytes)
     } else {
-        install_linux(bytes, url)
+        install_linux(bytes, url).map(|()| Outcome::Installed)
     }
 }
 
@@ -205,12 +253,12 @@ fn extract_single_from_targz(_bytes: &[u8]) -> Result<Vec<u8>, String> {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn install_windows(_bytes: &[u8]) -> Result<(), String> {
+fn install_windows(_bytes: &[u8]) -> Result<Outcome, String> {
     Err("unsupported platform".into())
 }
 
 #[cfg(target_os = "windows")]
-fn install_windows(bytes: &[u8]) -> Result<(), String> {
+fn install_windows(bytes: &[u8]) -> Result<Outcome, String> {
     let tmp = std::env::temp_dir().join("arcadelauncher-update");
     std::fs::create_dir_all(&tmp).map_err(|e| format!("temp dir: {e}"))?;
 
@@ -240,7 +288,47 @@ fn install_windows(bytes: &[u8]) -> Result<(), String> {
         out
     };
 
-    let status = Command::new(&setup)
+    // The updater is the entry point, so it is *running from* `$INSTDIR\updater.exe`
+    // right now. If we ran the NSIS installer directly, Windows would let it
+    // replace `ArcadeLauncher.exe` (not running) but NOT `updater.exe` (locked as
+    // the running image) — so the bootstrapper would never update itself. Instead
+    // copy ourselves out to the temp dir and re-exec that copy to do the install:
+    // once this in-`$INSTDIR` process exits, the file unlocks and NSIS overwrites
+    // it too. If staging can't be set up for any reason, fall back to an inline
+    // install so at least the app still updates.
+    match stage_and_handoff(&tmp, &setup) {
+        Ok(()) => Ok(Outcome::Staged),
+        Err(_) => {
+            run_setup(&setup)?;
+            Ok(Outcome::Installed)
+        }
+    }
+}
+
+/// Copy the running updater into `tmp` and spawn that copy to apply `setup` once
+/// we (the original) exit. Returns as soon as the staged process is launched.
+#[cfg(target_os = "windows")]
+fn stage_and_handoff(tmp: &Path, setup: &Path) -> Result<(), String> {
+    let me = std::env::current_exe().map_err(|e| format!("locate self: {e}"))?;
+    let staged = tmp.join("updater-stage.exe");
+    // A leftover stage exe from a prior run may linger; overwrite it. If it is
+    // somehow still locked, this fails and we fall back to an inline install.
+    std::fs::copy(&me, &staged).map_err(|e| format!("stage copy: {e}"))?;
+
+    Command::new(&staged)
+        .arg("--apply")
+        .arg(setup)
+        .arg("--wait-pid")
+        .arg(std::process::id().to_string())
+        .spawn()
+        .map_err(|e| format!("spawn staged updater: {e}"))?;
+    Ok(())
+}
+
+/// Run the NSIS installer silently (per-user, no admin — nothing is locked once
+/// the original updater has exited).
+fn run_setup(setup: &Path) -> Result<(), String> {
+    let status = Command::new(setup)
         .arg("/S") // NSIS silent install
         .status()
         .map_err(|e| format!("run setup: {e}"))?;
@@ -248,6 +336,40 @@ fn install_windows(bytes: &[u8]) -> Result<(), String> {
         return Err(format!("setup exited with {status}"));
     }
     Ok(())
+}
+
+/// Parse the staged-apply CLI contract: `--apply <setup> [--wait-pid <pid>]`.
+/// Pure so the handoff contract stays unit-tested; returns None for a normal
+/// (non-staged) launch.
+fn parse_staged_args(args: &[String]) -> Option<StagedJob> {
+    let mut setup: Option<PathBuf> = None;
+    let mut wait_pid: Option<u32> = None;
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--apply" => setup = it.next().map(PathBuf::from),
+            "--wait-pid" => wait_pid = it.next().and_then(|s| s.parse::<u32>().ok()),
+            _ => {}
+        }
+    }
+    setup.map(|setup| StagedJob { setup, wait_pid })
+}
+
+/// Block (bounded) until process `pid` is gone, so the installer can overwrite the
+/// now-unlocked `updater.exe`. Best-effort: caps the wait so a stuck parent can
+/// never hang the update — the installer's own retry/queue still applies.
+fn wait_for_exit(pid: u32) {
+    use sysinfo::{Pid, ProcessesToUpdate, System};
+    let pid = Pid::from_u32(pid);
+    let mut sys = System::new();
+    // ~10s ceiling at 100ms granularity; the parent normally exits within a frame.
+    for _ in 0..100 {
+        sys.refresh_processes(ProcessesToUpdate::Some(&[pid]), true);
+        if sys.process(pid).is_none() {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
 }
 
 /// The directory the updater executable lives in (where the app is installed).
@@ -325,5 +447,34 @@ mod tests {
         assert_eq!(parse("0.9.4"), (0, 9, 4));
         assert_eq!(parse("1.2"), (1, 2, 0));
         assert_eq!(parse("garbage"), (0, 0, 0));
+    }
+
+    #[test]
+    fn staged_args_round_trip() {
+        // A normal launch has no --apply marker → not a staged job.
+        assert!(parse_staged_args(&[]).is_none());
+        assert!(parse_staged_args(&["--wait-pid".into(), "42".into()]).is_none());
+
+        // The handoff form the parent spawns: --apply <setup> --wait-pid <pid>.
+        let job = parse_staged_args(&[
+            "--apply".into(),
+            r"C:\Temp\arcadelauncher-update\ArcadeLauncher-setup.exe".into(),
+            "--wait-pid".into(),
+            "1234".into(),
+        ])
+        .expect("staged job parsed");
+        assert_eq!(
+            job.setup,
+            PathBuf::from(r"C:\Temp\arcadelauncher-update\ArcadeLauncher-setup.exe")
+        );
+        assert_eq!(job.wait_pid, Some(1234));
+
+        // --apply with no pid still applies (pid is optional); bad pid is ignored.
+        let job = parse_staged_args(&["--apply".into(), "setup.exe".into()]).unwrap();
+        assert_eq!(job.wait_pid, None);
+        let job =
+            parse_staged_args(&["--apply".into(), "s.exe".into(), "--wait-pid".into(), "x".into()])
+                .unwrap();
+        assert_eq!(job.wait_pid, None);
     }
 }

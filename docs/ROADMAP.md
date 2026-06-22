@@ -74,6 +74,21 @@ This file lives in **this** repo and is distinct from the C++ repo's
     the Windows `.exe` happens in/after the cross job (e.g. `osslsigncode` on
     Linux), not on a Windows host.
 
+- [x] **BI2 — Updater self-update (Windows in-use-file fix).** The bootstrap
+  `updater.exe` is the shortcut target, so it was the *running* process while it
+  drove the NSIS `setup.exe /S` install — and Windows locks a running image
+  against overwrite, so NSIS replaced `ArcadeLauncher.exe` but never `updater.exe`
+  (the bootstrapper could never update itself). Fixed by self-staging: on a
+  Windows update the running updater copies itself to `%TEMP%\arcadelauncher-update\
+  updater-stage.exe` and re-execs that copy with `--apply <setup> --wait-pid <pid>`;
+  the original exits (unlocking `$INSTDIR\updater.exe`), the staged copy waits for
+  that PID to vanish, then runs the installer — which now overwrites the updater
+  too — and launches the app. Falls back to the old inline install if staging
+  can't be set up. Pure arg-parser unit-tested; Linux AppImage path unchanged.
+  Shipped in v0.10.20. _Note:_ inherent to any updater self-fix, an install whose
+  updater predates this change still can't replace its own `updater.exe` on that
+  one update — a fresh installer download lands the staging-capable updater.
+
 ---
 
 ## Phase T0–T3 — Foundation (DONE)

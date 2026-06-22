@@ -1,6 +1,6 @@
 [package]
 name = "arcade_updater"
-version = "0.9.16"
+version = "0.9.17"
 description = "ArcadeLauncher Steam-style bootstrap updater"
 authors = ["TheStonedGamer"]
 edition = "2021"

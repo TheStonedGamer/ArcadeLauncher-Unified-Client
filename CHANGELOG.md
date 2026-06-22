@@ -13,6 +13,21 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.20] - 2026-06-21
+
+### Fixed
+- **The updater now updates itself.** Because the Steam-style bootstrapper is what
+  your shortcut launches, it was running from `updater.exe` while it installed an
+  update — and Windows won't let an installer overwrite a running program, so the
+  app updated but the updater never did. It now hands the install off to a short-
+  lived copy of itself so the real `updater.exe` gets replaced like everything else.
+- **Friends roster tabs scroll** instead of clipping. Adding the Rooms tab could
+  push the Activity tab off the edge of the row; the tab strip now scrolls
+  sideways so every tab stays reachable.
+- **The Activity feed fails gracefully.** A failed activity load now shows a short
+  message with a one-click **Retry** (full detail on hover) instead of dumping a
+  raw network error.
+
 ## [0.10.19] - 2026-06-21
 
 ### Added
