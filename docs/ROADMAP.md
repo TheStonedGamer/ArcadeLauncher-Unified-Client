@@ -648,10 +648,89 @@ from scratch.
     host, so a TV box and the desktop launcher share one streaming setup.
     _Deferred — lives in the separate `debian-autoinstall` repo, not in this
     client; revisit as a cross-project doc task rather than an in-client change._
+
+  **GOAL (2026-06-21): reach "Steam Remote Play" parity.** T12k-1..5 give a working
+  streaming *client* + *remote* Sunshine admin, but using it still means manually
+  installing/running Sunshine on the host, pairing by IP+PIN, and port-forwarding to
+  play over the internet. The target is Steam's "it just works": any of your PCs can
+  host with no manual setup, your devices appear automatically under your account, and
+  it streams from anywhere. We keep the Sunshine/Moonlight core (it *is* GameStream —
+  right tech, game-grade latency + controller input) and add three orchestration
+  layers on top. Do NOT pivot to the WebRTC/`getDisplayMedia` path (T12e) — that's for
+  casual screen-share, not game streaming.
+
+  **ARCHITECTURE (decided 2026-06-21): GPL streaming-engine sidecar.** Reuse
+  Sunshine/Moonlight code AND keep the launcher proprietary via aggregation: a
+  standalone **open-source GPL-3.0 streaming engine** (separate process, embeds +
+  modifies `moonlight-common-c` / Sunshine, controllers handled inside it) that the
+  proprietary launcher drives over an **arm's-length IPC boundary** (local socket /
+  stdio / defined protocol). Separate programs at arm's length = aggregation → the
+  launcher stays closed-source. **Do NOT link the engine into the launcher process**
+  (static / dynamic / FFI / dlopen = one combined work = the whole app becomes GPL).
+  The engine likely lives in its own GPL repo and ships in the client installer;
+  in-app rendering via a borderless child window reparented into the launcher window
+  (`SetParent` / XEmbed). The three layers below thus become "drive the GPL engine over
+  IPC" rather than "shell out to stock binaries." Full design in
+  [[uc-streaming-remoteplay-plan]].
+
+  - [ ] **T12k-6 — Local host mode (zero-setup hosting).** The launcher manages
+    Sunshine *on this machine*: detect/install/run it, and auto-register the user's
+    library games as Sunshine apps so "let this PC be streamed" is one toggle, not a
+    manual Sunshine setup. (Today T12k-2 only controls a *remote* Sunshine; nothing
+    runs/installs it locally.) Biggest win toward Steam parity.
+  - [ ] **T12k-7 — Account/gateway-brokered pairing.** Replace IP+PIN typing with
+    account-based discovery: a host registers itself to the ArcadeLauncher server
+    under the signed-in account; clients see "your PCs" and the existing `/ws/social`
+    gateway brokers the pair (exchange PIN/cert automatically). Reuses the server +
+    social gateway + presence we already ship. Server-side work required.
+  - [ ] **T12k-8 — Play-from-anywhere (NAT traversal).** Make internet streaming work
+    without manual port-forwarding. **DECIDED: self-hosted Headscale + headscale-ui**
+    (Tailscale control server on the homelab; devices run official Tailscale clients).
+    Host+client join one WireGuard overlay that *looks like LAN* so Sunshine/Moonlight
+    just work; the launcher joins via an ArcadeLauncher-server-minted pre-auth key (no
+    separate IdP). Self-host a DERP relay for fallback. (Chosen over Tailscale-SaaS and
+    Netbird. The existing coturn/TURN is WebRTC-only — Moonlight's ENet/RTSP won't use it.)
+    Deploy Headscale+UI on the homelab: preferred Docker on the Docker host 10.0.0.180,
+    alternative its own Proxmox CT; public via headscale.orlandoaio.net (decision open).
+    - **Decided/built (2026-06-22): bundle Tailscale, no separate install.** The
+      launcher ships `tailscaled`/`tailscale` as sidecar binaries (BSD-3, located
+      next to the exe like the engine) and drives them; no user-facing Tailscale
+      install, no tray. In-process tsnet was rejected — userspace networking can't
+      give the *separate* engine process a route to `100.64.x.x`; a real WinTun/TUN
+      interface is required, so a bundled managed `tailscaled` it is.
+    - **Infra DONE:** Headscale live on CT 136 (10.0.0.222), reachable public (CF)
+      + internal (AD-DNS `headscale → 10.0.0.203`); pre-auth-key + userspace-join
+      validated end-to-end on the LAN.
+    - **Code spine DONE (compiles + unit-tested, branch `feat/t12k-8-mesh`):**
+      `streaming/mesh/control.rs` pure core (CGNAT validation, status parse,
+      LAN-vs-mesh selection; 13 KATs) + `mesh/conn.rs` transport (drive bundled
+      CLI) + Tauri cmds `mesh_is_available/status/join/resolve_host`. Server
+      (branch `feat/t12k-8-mesh-preauth`): `POST /api/social/mesh/preauth` mints a
+      short-lived single-use Headscale key (`HeadscaleConfig`, 5 KATs). `[minor]`.
+    - **GATES before release (NOT done):** (1) **engine real streaming** — engine
+      still pairs-but-can't-stream, so the path is dead-on-arrival end-to-end until
+      `client.start` lands; (2) bundle real `tailscaled`+`wintun.dll` (Win) /
+      `tailscaled` (Linux) in CI + tauri.conf; (3) privileged daemon/service +
+      WinTun bring-up validated on the runner + a two-machine test (`ensure_daemon`
+      is flagged UNVERIFIED); (4) React UI (fetch key → `mesh_join` → resolve →
+      feed existing stream-launch); (5) version lockstep — server VERSION/repo were
+      0.10.17 local vs client 0.11.0; reconcile + matching `[minor]` on both; deploy
+      server first; (6) set `ARCADE_HEADSCALE_API_URL/API_KEY` on the prod server +
+      mint a Headscale `apikeys create` token.
   - _Licensing note:_ Sunshine (GPL-3.0) and Moonlight (GPL-3.0) are invoked as
     separate processes / bundled binaries, **not** statically linked into the
     (proprietary) launcher — keeps the launcher's licensing clean. Revisit if we
     ever embed Moonlight's renderer in-process.
+  - [ ] **T12k-9 — Per-host game library + "My PCs" / Remote Play tab.** Users must
+    see what games are installed on their **other** machines, not just the local/server
+    catalog — a per-machine installed library is different data, so it gets its **own
+    top-level tab**, not a Library filter. Host publishes its registered/streamable
+    games (engine `host.listApps`) on `host_announce`; server stores them in a new
+    `stream_host_apps` table (keyed off `stream_hosts`) so a PC's library shows even
+    while it's asleep (greyed; future Wake-on-LAN). The "My PCs" tab lists your devices
+    (online/offline via presence), each expandable to its games with box art and a Play
+    button → `client.start`. Plumbing rides on T12k-6/7; this is mostly the new tab UI +
+    the table + publish/fetch glue. Cover art stored as a relative `cover_ref`.
 - [ ] **T12l — Mobile companion app.** Remote library browse, "install to my PC",
   chat / presence, and download-queue control from a phone.
 
