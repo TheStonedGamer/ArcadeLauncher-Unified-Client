@@ -13,6 +13,15 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.10.22] - 2026-06-21
+
+### Added
+- **A Chats tab in Social.** It's the first tab and opens by default, listing your
+  active conversations newest-first with the latest message and unread counts — so
+  you land on who's been talking to you instead of scrolling the friends roster.
+- **Sort your friends list.** A new control lets you order friends by Status, Name,
+  or Recent activity. Favorites stay pinned to the top whichever mode you pick.
+
 ## [0.10.21] - 2026-06-21
 
 ### Fixed

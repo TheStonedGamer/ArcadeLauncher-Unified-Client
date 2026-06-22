@@ -646,6 +646,37 @@ body {
 .friendlist__sub { font-size: 11px; color: var(--muted); justify-self: end; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .friendlist__sub--game { color: var(--on); }
 
+/* Friends-tab sort control */
+.social__sortbar { display: flex; align-items: center; gap: 6px; padding: 2px 4px 8px; }
+.social__sortlabel { font-size: 11px; font-weight: 600; color: var(--muted); }
+.social__sortselect {
+  flex: 1; min-width: 0; padding: 4px 8px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--panel); color: var(--text);
+  font-size: 12px; cursor: pointer;
+}
+.social__sortselect:hover { border-color: var(--accent); }
+
+/* Chats tab — active DM threads, newest on top */
+.chatlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.chatlist__row {
+  width: 100%; display: flex; align-items: center; gap: 8px; text-align: left;
+  padding: 8px 10px; border: none; border-radius: 8px;
+  background: transparent; color: var(--text); cursor: pointer;
+}
+.chatlist__row:hover { background: var(--panel-2); }
+.chatlist__row--active { background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
+.chatlist__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.chatlist__top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.chatlist__name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chatlist__time { flex: 0 0 auto; font-size: 11px; color: var(--muted); }
+.chatlist__bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.chatlist__preview { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chatlist__preview--unread { color: var(--text); font-weight: 600; }
+.chatlist__badge {
+  flex: 0 0 auto; min-width: 16px; height: 16px; padding: 0 5px; border-radius: 8px;
+  background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+}
+
 /* Voice call (T9g) */
 .chatpane__call {
   margin-left: auto; border: 1px solid var(--border); background: var(--panel);

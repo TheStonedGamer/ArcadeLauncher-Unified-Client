@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { applyFriendList, applyInbound, initialSocialState, type SocialState } from "./reducer";
-import { displayName, incomingRequests, onlineCount, outgoingRequests, sortedFriends, totalUnread } from "./selectors";
+import {
+  chatSummaries,
+  displayName,
+  incomingRequests,
+  onlineCount,
+  outgoingRequests,
+  sortedFriends,
+  sortFriendsBy,
+  totalUnread,
+} from "./selectors";
 import type { Friend } from "./types";
 
 const NOW = 1_700_000_000_000;
@@ -95,5 +104,44 @@ describe("requests + counts", () => {
     s = applyInbound(s, { type: "chat", messageId: 2, senderId: 3, receiverId: 42, text: "b", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
     s = applyInbound(s, { type: "chat", messageId: 3, senderId: 3, receiverId: 42, text: "c", attachmentId: 0, replyTo: 0, timestamp: 1 }, NOW);
     expect(totalUnread(s)).toBe(3);
+  });
+});
+
+describe("chatSummaries", () => {
+  it("orders threads newest-message-first and carries the last message", () => {
+    let s = withFriends([friend({ accountId: 2, username: "amy" }), friend({ accountId: 3, username: "bob" })]);
+    // amy's thread is older, bob's newer → bob first.
+    s = applyInbound(s, { type: "chat", messageId: 1, senderId: 2, receiverId: 42, text: "hi from amy", attachmentId: 0, replyTo: 0, timestamp: 10 }, NOW);
+    s = applyInbound(s, { type: "chat", messageId: 2, senderId: 3, receiverId: 42, text: "hi from bob", attachmentId: 0, replyTo: 0, timestamp: 20 }, NOW);
+    const rows = chatSummaries(s);
+    expect(rows.map((r) => r.peerId)).toEqual([3, 2]);
+    expect(rows[0].lastMessage.text).toBe("hi from bob");
+    expect(rows[0].friend?.username).toBe("bob");
+  });
+
+  it("omits conversations with no messages", () => {
+    let s = withFriends([friend({ accountId: 2 }), friend({ accountId: 3 })]);
+    s = applyInbound(s, { type: "chat", messageId: 1, senderId: 2, receiverId: 42, text: "a", attachmentId: 0, replyTo: 0, timestamp: 5 }, NOW);
+    expect(chatSummaries(s).map((r) => r.peerId)).toEqual([2]);
+  });
+});
+
+describe("sortFriendsBy", () => {
+  const friends = [
+    friend({ accountId: 1, username: "zoe", presence: "offline", lastInteract: 300 }),
+    friend({ accountId: 2, username: "amy", presence: "online", lastInteract: 100 }),
+    friend({ accountId: 3, username: "fav", presence: "offline", favorite: true, lastInteract: 1 }),
+  ];
+
+  it("name mode is alphabetical with favorites pinned", () => {
+    expect(sortFriendsBy(friends, "name").map((f) => f.accountId)).toEqual([3, 2, 1]);
+  });
+
+  it("recent mode orders by lastInteract desc with favorites pinned", () => {
+    expect(sortFriendsBy(friends, "recent").map((f) => f.accountId)).toEqual([3, 1, 2]);
+  });
+
+  it("status mode orders by presence with favorites pinned", () => {
+    expect(sortFriendsBy(friends, "status").map((f) => f.accountId)).toEqual([3, 2, 1]);
   });
 });

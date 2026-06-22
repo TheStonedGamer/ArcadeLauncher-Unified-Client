@@ -22,7 +22,14 @@ import {
   optimisticEdit,
   type SocialState,
 } from "./reducer";
-import { incomingRequests, outgoingRequests, sortedFriends, totalUnread } from "./selectors";
+import {
+  chatSummaries,
+  incomingRequests,
+  outgoingRequests,
+  sortedFriends,
+  totalUnread,
+  type ChatSummary,
+} from "./selectors";
 import { presenceFrameInput, type SelfStatus } from "./statusMenu";
 import {
   invitesReducer,
@@ -57,6 +64,8 @@ export interface SocialApi {
   selectedPeer: number | null;
   select: (peerId: number | null) => void;
   conversation: Conversation | null;
+  /** Active DM threads (≥1 message), newest-first — drives the Chats tab. */
+  chats: ChatSummary[];
   unreadTotal: number;
   /** Send a message to the selected peer (optimistic echo + gateway send). */
   send: (text: string) => void;
@@ -469,6 +478,7 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
   const gameInvites = useMemo(() => sortedInvites(invites), [invites]);
   const incoming = useMemo(() => incomingRequests(social), [social]);
   const outgoing = useMemo(() => outgoingRequests(social), [social]);
+  const chats = useMemo(() => chatSummaries(social), [social]);
   const unreadTotal = useMemo(() => totalUnread(social), [social]);
   const conversation =
     selectedPeer != null ? social.conversations[selectedPeer] ?? { ...EMPTY_CONV, peerId: selectedPeer } : null;
@@ -484,6 +494,7 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     selectedPeer,
     select,
     conversation,
+    chats,
     unreadTotal,
     send,
     notifyTyping,

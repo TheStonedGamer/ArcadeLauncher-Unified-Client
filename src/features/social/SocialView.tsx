@@ -13,6 +13,8 @@ import { useGroupVoice } from "./useGroupVoice";
 import { GroupCallBar } from "./components/GroupCallBar";
 import { fetchTurnServers } from "./api";
 import { FriendList } from "./components/FriendList";
+import { ChatList } from "./components/ChatList";
+import { sortFriendsBy, FRIEND_SORT_LABELS, type FriendSort } from "./selectors";
 import { RequestsPanel } from "./components/RequestsPanel";
 import { ActivityFeed } from "./components/ActivityFeed";
 import { AddFriend } from "./components/AddFriend";
@@ -62,7 +64,14 @@ export function SocialView() {
       ? async () => (await fetchTurnServers(auth.host, auth.token)).iceServers
       : undefined,
   });
-  const [rosterTab, setRosterTab] = useState<"friends" | "requests" | "activity" | "rooms">("friends");
+  const [rosterTab, setRosterTab] = useState<"chats" | "friends" | "requests" | "activity" | "rooms">(
+    "chats",
+  );
+  const [friendSort, setFriendSort] = useState<FriendSort>("status");
+  const sortedFriendList = useMemo(
+    () => sortFriendsBy(social.friends, friendSort),
+    [social.friends, friendSort],
+  );
   const requestCount = social.incoming.length + social.outgoing.length;
   const peer = social.friends.find((f) => f.accountId === social.selectedPeer) ?? null;
   const activeRoom = social.rooms.find((r) => r.roomId === social.selectedRoom) ?? null;
@@ -115,6 +124,13 @@ export function SocialView() {
           )}
           <div className="social__rostertabs">
             <button
+              className={`social__rostertab${rosterTab === "chats" ? " social__rostertab--active" : ""}`}
+              onClick={() => setRosterTab("chats")}
+            >
+              Chats
+              {social.unreadTotal > 0 && <span className="social__rosterbadge">{social.unreadTotal}</span>}
+            </button>
+            <button
               className={`social__rostertab${rosterTab === "friends" ? " social__rostertab--active" : ""}`}
               onClick={() => setRosterTab("friends")}
             >
@@ -144,14 +160,41 @@ export function SocialView() {
               Activity
             </button>
           </div>
-          {rosterTab === "friends" && (
-            <FriendList
-              friends={social.friends}
+          {rosterTab === "chats" && (
+            <ChatList
+              chats={social.chats}
+              selfId={social.selfId}
               selectedPeer={social.selectedPeer}
               onSelect={selectPeer}
-              meta={auth ? friendMeta : undefined}
-              ignore={auth ? { isIgnored: privacy.isIgnored, toggleIgnore: privacy.toggleIgnore } : undefined}
             />
+          )}
+          {rosterTab === "friends" && (
+            <>
+              <div className="social__sortbar">
+                <label className="social__sortlabel" htmlFor="friend-sort">
+                  Sort
+                </label>
+                <select
+                  id="friend-sort"
+                  className="social__sortselect"
+                  value={friendSort}
+                  onChange={(e) => setFriendSort(e.target.value as FriendSort)}
+                >
+                  {(Object.keys(FRIEND_SORT_LABELS) as FriendSort[]).map((mode) => (
+                    <option key={mode} value={mode}>
+                      {FRIEND_SORT_LABELS[mode]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <FriendList
+                friends={sortedFriendList}
+                selectedPeer={social.selectedPeer}
+                onSelect={selectPeer}
+                meta={auth ? friendMeta : undefined}
+                ignore={auth ? { isIgnored: privacy.isIgnored, toggleIgnore: privacy.toggleIgnore } : undefined}
+              />
+            </>
           )}
           {rosterTab === "rooms" && (
             <RoomsPanel
