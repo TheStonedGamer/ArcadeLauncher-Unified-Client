@@ -202,11 +202,12 @@ jobs:
           # Both installers; the .sig updater artifacts ride along via
           # createUpdaterArtifacts in tauri.conf.json. The updater prefers the
           # NSIS setup.exe (the `-nsis` platform key) — the MSI is just an extra
-          # download for users who want it. `--config tauri.engine-bundle.conf.json`
+          # download for users who want it. `--config src-tauri/tauri.engine-bundle.conf.json`
           # overlays the stream-engine sidecar + its OpenSSL DLLs for this build
           # only (staged in the step above); the base config stays engine-free so CI
-          # doesn't need the engine binary.
-          args: --bundles nsis,msi --verbose --config tauri.engine-bundle.conf.json
+          # doesn't need the engine binary. The path is relative to the repo root
+          # (tauri resolves --config from there, not from the tauri dir).
+          args: --bundles nsis,msi --verbose --config src-tauri/tauri.engine-bundle.conf.json
           # Upload into the pre-created draft; do NOT create or publish a release
           # here (that's what caused the duplicate-draft race).
           releaseId: ${{ needs.create-release.outputs.release_id }}
