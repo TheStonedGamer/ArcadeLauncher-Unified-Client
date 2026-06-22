@@ -144,8 +144,9 @@ jobs:
       # below — NOT a platform config, so CI's `cargo check` never requires the
       # engine binary). The engine ships per-OS assets; the Linux leg has its own
       # staging step below. externalBin wants the file with the host target-triple
-      # suffix; the engine's two OpenSSL DLLs ride along as bundle resources placed
-      # next to the exe (the engine's NvHTTP pairing needs them). Pulled from the
+      # suffix; ALL the engine's runtime DLLs ride along as bundle resources placed
+      # next to the exe — OpenSSL (NvHTTP pairing) PLUS SDL2/FFmpeg/Opus (the
+      # client.start renderer). v0.2.0 ships 7 of them. Pulled from the
       # engine repo's public release, so no token is required. Bump $ver (in lockstep
       # with the Linux staging step) when the client adopts a newer engine.
       - name: Stage stream-engine sidecar (Windows)
@@ -163,8 +164,10 @@ jobs:
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
           Copy-Item (Join-Path $tmp "arcade-stream-engine.exe") `
             (Join-Path $dest "arcade-stream-engine-x86_64-pc-windows-msvc.exe") -Force
-          Copy-Item (Join-Path $tmp "libcrypto-3-x64.dll") (Join-Path $dest "libcrypto-3-x64.dll") -Force
-          Copy-Item (Join-Path $tmp "libssl-3-x64.dll") (Join-Path $dest "libssl-3-x64.dll") -Force
+          # Copy ALL runtime DLLs the engine ships (OpenSSL for pairing + SDL2/FFmpeg/
+          # Opus for the client.start renderer). v0.2.0 ships 7; globbing keeps this in
+          # lockstep with whatever the engine zip carries across future engine bumps.
+          Copy-Item (Join-Path $tmp "*.dll") $dest -Force
 
       # WOW64 redirection fix for makensis under LocalSystem.
       # The runner runs as LocalSystem, so tauri caches its (32-bit) NSIS toolset

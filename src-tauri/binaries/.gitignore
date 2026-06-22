@@ -2,4 +2,8 @@
 # `cargo build --release -p arcade_updater`) and staged here with a target-triple
 # suffix before `tauri build` bundles it. The built binaries are not committed.
 updater-*
+# Stream-engine sidecar + its runtime DLLs are downloaded from the engine's public
+# release and staged here by CI before `tauri build`. Never committed.
+arcade-stream-engine*
+*.dll
 !.gitignore
