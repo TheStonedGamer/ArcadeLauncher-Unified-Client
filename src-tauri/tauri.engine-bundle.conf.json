@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "externalBin": ["binaries/updater", "binaries/arcade-stream-engine"],
+    "resources": {
+      "binaries/libcrypto-3-x64.dll": "libcrypto-3-x64.dll",
+      "binaries/libssl-3-x64.dll": "libssl-3-x64.dll"
+    }
+  }
+}

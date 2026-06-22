@@ -92,3 +92,60 @@ export function hostStateLabel(state: string): string {
       return "Unknown";
   }
 }
+
+// ---- Host mode: publishing the local library to the engine host -------------
+
+/** The minimal library-game shape the host-sync mapping needs (subset of the
+ *  catalog `Game`), so this core stays free of the catalog feature. */
+export interface LibraryGameLike {
+  id: string;
+  title: string;
+  installState: string;
+  coverArtPath: string;
+  exePath: string;
+  launchUri: string;
+}
+
+/** A game is worth publishing to a host only when it's actually present on this
+ *  machine — "installed" or "updateAvailable" (an update-available game still
+ *  runs); "notInstalled" games are skipped. Pure. Mirrors the catalog's
+ *  installed predicate. */
+export function isHostableGame(g: { installState: string }): boolean {
+  return g.installState === "installed" || g.installState === "updateAvailable";
+}
+
+/** Map a library game to the engine `host.syncApps` app shape. The host launch
+ *  command prefers the native exe, falling back to the launch URI; the engine
+ *  resolves the real host-side launch. Pure. */
+export function toHostGame(g: LibraryGameLike): {
+  id: string;
+  name: string;
+  coverPath: string;
+  launchCmd: string;
+} {
+  return {
+    id: g.id,
+    name: g.title,
+    coverPath: g.coverArtPath,
+    launchCmd: (g.exePath || g.launchUri || "").trim(),
+  };
+}
+
+/** The installed games mapped to host apps, ready for `host.syncApps`. Pure. */
+export function hostGamesFromLibrary(games: LibraryGameLike[]): ReturnType<typeof toHostGame>[] {
+  return games.filter(isHostableGame).map(toHostGame);
+}
+
+/** One-line summary of this PC's hosting status for the settings UI. Pure. */
+export function hostStatusSummary(s: {
+  installed: boolean;
+  running: boolean;
+  configured: boolean;
+  gpuCapable: boolean;
+  appsCount: number;
+}): string {
+  if (!s.installed) return "Streaming host not installed on this PC.";
+  if (!s.gpuCapable) return "This PC's GPU can't encode a stream.";
+  const state = s.running ? "Hosting — this PC can be streamed" : "Installed, not hosting";
+  return `${state} · ${s.appsCount} game${s.appsCount === 1 ? "" : "s"} published`;
+}

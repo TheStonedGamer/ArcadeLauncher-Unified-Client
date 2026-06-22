@@ -12,6 +12,7 @@ import { clampDeadZone, useControllerConfig } from "../gamepad/ControllerConfigC
 import { EmulatorControllerEditor } from "../controller/EmulatorControllerEditor";
 import { ThemeSettings } from "../theme/ThemeSettings";
 import { StreamingSection } from "../streaming/StreamingSection";
+import { HostingSection } from "../streaming/HostingSection";
 import { useState } from "react";
 import { fetchRaSummary, type RaSummary } from "../retroachievements/api";
 import { pointsToLevel, summaryHeadline, topUnlocks, unlockLabel } from "../retroachievements/ra";
@@ -147,6 +148,8 @@ export function SettingsView() {
       <EmulatorsSection />
 
       <StreamingSection />
+
+      <HostingSection />
 
       <EmulatorControllerEditor />
     </section>

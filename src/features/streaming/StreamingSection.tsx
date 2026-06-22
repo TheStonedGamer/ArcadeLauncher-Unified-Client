@@ -1,7 +1,8 @@
-// Settings → Streaming (T12k-4): pair with / forget Sunshine hosts and set the
-// stream-quality defaults passed through to Moonlight. Credentials are used only
-// for the pair request and never stored; the host + its pinned cert live on disk
-// (Rust), and the quality defaults persist locally (localStorage).
+// Settings → Streaming (T12k-4): pair with / forget streaming hosts and set the
+// stream-quality defaults passed through to Moonlight. Pairing runs through the
+// stream engine (4-digit GameStream PIN — no host web credentials); the host +
+// its pinned cert live on disk (Rust), and the quality defaults persist locally
+// (localStorage).
 
 import { useState } from "react";
 import { useStreaming } from "./useStreaming";
@@ -10,20 +11,18 @@ import { DISPLAY_MODES, hostStateLabel, isValidPin, type DisplayMode } from "./s
 export function StreamingSection() {
   const { hosts, moonlight, settings, setDefaults, pair, forget } = useStreaming();
   const [address, setAddress] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
-  const canPair = address.trim() !== "" && username.trim() !== "" && isValidPin(pin) && !busy;
+  const canPair = address.trim() !== "" && isValidPin(pin) && !busy;
 
   const doPair = async () => {
     setBusy(true);
     setMsg("");
     try {
-      const ok = await pair(address.trim(), username, password, pin, "ArcadeLauncher");
-      setMsg(ok ? "Paired ✓" : "Sunshine rejected the PIN — check it and try again.");
+      const ok = await pair(address.trim(), pin, "ArcadeLauncher");
+      setMsg(ok ? "Paired ✓" : "The host rejected the PIN — check it and try again.");
       if (ok) setPin("");
     } catch (e) {
       setMsg(`Couldn't pair: ${e instanceof Error ? e.message : String(e)}`);
@@ -45,9 +44,9 @@ export function StreamingSection() {
       <h2 className="settings__heading">Streaming</h2>
       <p className="catalog__status">
         Stream an installed game from a host PC running <strong>Sunshine</strong> to this machine
-        with <strong>Moonlight</strong>. Pair with a host once (4-digit PIN); the host’s certificate
-        is pinned so the connection stays secure. Your Sunshine username/password are used only to
-        pair and are never saved.
+        with <strong>Moonlight</strong>. Pair with a host once using its 4-digit PIN; the host’s
+        certificate is pinned on first pair so the connection stays secure. No host username or
+        password is needed.
       </p>
 
       <p className="catalog__status">
@@ -87,26 +86,6 @@ export function StreamingSection() {
           onChange={(e) => setAddress(e.target.value)}
           placeholder="e.g. 10.0.0.50"
           spellCheck={false}
-          autoComplete="off"
-        />
-      </label>
-      <label className="settings__field">
-        <span className="settings__label">Sunshine username</span>
-        <input
-          className="settings__input"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          spellCheck={false}
-          autoComplete="off"
-        />
-      </label>
-      <label className="settings__field">
-        <span className="settings__label">Sunshine password</span>
-        <input
-          className="settings__input"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
           autoComplete="off"
         />
       </label>

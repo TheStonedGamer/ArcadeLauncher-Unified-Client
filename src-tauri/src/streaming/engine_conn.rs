@@ -239,6 +239,40 @@ pub async fn engine_stop() -> AppResult<Value> {
     engine_call("client.stop", Value::Null).await
 }
 
+// ----- Host mode (engine `host.*`) — let *this* PC be streamed --------------------------------
+// These drive the engine's host side (a forked Sunshine): query/toggle hosting and publish the
+// local library as streamable apps. The engine's host handlers are stubs until that milestone
+// lands, so today these surface honest `not_installed`/`unsupported_method` errors; the launcher
+// UI degrades gracefully on those. Wiring them now keeps the launcher the thin driver the design
+// calls for, ready when the engine fills the handlers in.
+
+/// This machine's hosting status (engine `host.status`):
+/// `{ installed, running, configured, gpuCapable, appsCount }`.
+#[tauri::command]
+pub async fn engine_host_status() -> AppResult<Value> {
+    engine_call("host.status", Value::Null).await
+}
+
+/// Start/stop hosting this PC (engine `host.enable`) → `{ running }`.
+#[tauri::command]
+pub async fn engine_host_enable(on: bool) -> AppResult<Value> {
+    engine_call("host.enable", json!({ "on": on })).await
+}
+
+/// Publish the local library to the host as streamable apps (engine `host.syncApps`):
+/// `{ games: [{ id, name, coverPath, launchCmd }] }` → `{ added, removed, updated }`.
+#[tauri::command]
+pub async fn engine_host_sync_apps(games: Value) -> AppResult<Value> {
+    engine_call("host.syncApps", json!({ "games": games })).await
+}
+
+/// The games this host currently exposes (engine `host.listApps`):
+/// `{ apps: [{ gameKey, name, coverRef }] }`.
+#[tauri::command]
+pub async fn engine_host_list_apps() -> AppResult<Value> {
+    engine_call("host.listApps", Value::Null).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

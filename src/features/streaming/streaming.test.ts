@@ -2,10 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_STREAM_SETTINGS,
   DISPLAY_MODES,
+  hostGamesFromLibrary,
   hostStateLabel,
+  hostStatusSummary,
+  isHostableGame,
   isValidPin,
   parseStoredSettings,
   sanitizeSettings,
+  toHostGame,
+  type LibraryGameLike,
   type StreamSettings,
 } from "./streaming";
 
@@ -125,5 +130,62 @@ describe("parseStoredSettings", () => {
 describe("DISPLAY_MODES", () => {
   it("covers all three modes in order", () => {
     expect(DISPLAY_MODES.map((m) => m.value)).toEqual(["fullscreen", "borderless", "windowed"]);
+  });
+});
+
+describe("host-mode library publishing", () => {
+  const mk = (over: Partial<LibraryGameLike>): LibraryGameLike => ({
+    id: "g1",
+    title: "Game One",
+    installState: "installed",
+    coverArtPath: "C:/covers/g1.png",
+    exePath: "C:/games/g1.exe",
+    launchUri: "",
+    ...over,
+  });
+
+  it("treats installed + updateAvailable as hostable, skips notInstalled", () => {
+    expect(isHostableGame({ installState: "installed" })).toBe(true);
+    expect(isHostableGame({ installState: "updateAvailable" })).toBe(true);
+    expect(isHostableGame({ installState: "notInstalled" })).toBe(false);
+  });
+
+  it("maps a game to the host app shape, preferring exe over launchUri", () => {
+    expect(toHostGame(mk({}))).toEqual({
+      id: "g1",
+      name: "Game One",
+      coverPath: "C:/covers/g1.png",
+      launchCmd: "C:/games/g1.exe",
+    });
+    expect(toHostGame(mk({ exePath: "", launchUri: "steam://run/1" })).launchCmd).toBe(
+      "steam://run/1",
+    );
+  });
+
+  it("publishes only hostable games", () => {
+    const games = [
+      mk({ id: "a", installState: "installed" }),
+      mk({ id: "b", installState: "notInstalled" }),
+      mk({ id: "c", installState: "updateAvailable" }),
+    ];
+    expect(hostGamesFromLibrary(games).map((g) => g.id)).toEqual(["a", "c"]);
+  });
+});
+
+describe("hostStatusSummary", () => {
+  const base = { installed: true, running: false, configured: true, gpuCapable: true, appsCount: 0 };
+  it("flags a missing host install", () => {
+    expect(hostStatusSummary({ ...base, installed: false })).toMatch(/not installed/i);
+  });
+  it("flags a GPU that can't encode", () => {
+    expect(hostStatusSummary({ ...base, gpuCapable: false })).toMatch(/GPU/);
+  });
+  it("reports running state and pluralizes the app count", () => {
+    expect(hostStatusSummary({ ...base, running: true, appsCount: 1 })).toMatch(
+      /Hosting.*1 game published/,
+    );
+    expect(hostStatusSummary({ ...base, running: false, appsCount: 3 })).toMatch(
+      /not hosting.*3 games published/i,
+    );
   });
 });

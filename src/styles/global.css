@@ -146,6 +146,22 @@ body {
 .emu-row__pct { position: relative; font-size: 11px; font-weight: 600; color: var(--text); }
 .emu-row__err { flex-basis: 100%; }
 
+/* ── My PCs (remote-play hosts) ───────────────────────────────────────────── */
+.mypcs { padding: 16px 20px; }
+.mypcs__list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.mypcs__card { border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); overflow: hidden; }
+.mypcs__cardhead {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 12px 14px; background: none; border: none; cursor: pointer;
+  color: var(--text); font-size: 14px; text-align: left;
+}
+.mypcs__cardhead:hover { background: rgba(127, 127, 127, 0.06); }
+.mypcs__name { font-weight: 600; }
+.mypcs__addr { color: var(--muted); font-size: 12px; }
+.mypcs__state { color: var(--muted); font-size: 12px; margin-left: auto; }
+.mypcs__chevron { color: var(--muted); flex: 0 0 auto; }
+.mypcs__apps { padding: 4px 14px 12px; border-top: 1px solid var(--border); }
+
 /* ── Update banner ─────────────────────────────────────────────────────── */
 .update-banner {
   display: flex; align-items: center; gap: 12px;

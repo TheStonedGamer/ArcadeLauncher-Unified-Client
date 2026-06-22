@@ -5,11 +5,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  hostPair,
   moonlightAvailable,
   streamLaunch,
   streamingForgetHost,
   streamingHosts,
-  sunshinePair,
   type StreamHost,
 } from "./api";
 import {
@@ -66,8 +66,8 @@ export function useStreaming() {
   }, []);
 
   const pair = useCallback(
-    async (address: string, username: string, password: string, pin: string, name: string) => {
-      const ok = await sunshinePair(address, username, password, pin, name);
+    async (address: string, pin: string, name: string) => {
+      const ok = await hostPair(address, pin, name);
       await refresh();
       return ok;
     },
