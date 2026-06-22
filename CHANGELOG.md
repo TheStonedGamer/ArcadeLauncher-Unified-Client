@@ -13,6 +13,19 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-06-22
+
+### Added
+- **Stream your PCs without a separate Moonlight install.** "Stream from host" now
+  plays straight through the streaming engine bundled in the app — you get a live
+  status as it connects and a **Stop** button right in the panel. If the engine
+  isn't on your PC (or you prefer it), it still falls back to an external Moonlight
+  client automatically.
+
+### Changed
+- **The bundled streaming engine now actually streams.** Updated to its first
+  streaming-capable build — previously it only handled host pairing.
+
 ## [0.11.0] - 2026-06-22
 
 ### Added
