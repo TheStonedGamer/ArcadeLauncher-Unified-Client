@@ -142,18 +142,17 @@ jobs:
       # Stage the GPL stream-engine sidecar (bundled via the release-only overlay
       # tauri.engine-bundle.conf.json, passed with `--config` in the build step
       # below — NOT a platform config, so CI's `cargo check` never requires the
-      # engine binary). The engine ships ONLY a Windows asset today, so it is
-      # bundled on Windows only (the base tauri.conf.json keeps externalBin =
-      # updater for Linux). externalBin wants the file with the host target-triple
+      # engine binary). The engine ships per-OS assets; the Linux leg has its own
+      # staging step below. externalBin wants the file with the host target-triple
       # suffix; the engine's two OpenSSL DLLs ride along as bundle resources placed
       # next to the exe (the engine's NvHTTP pairing needs them). Pulled from the
-      # engine repo's public release, so no token is required. Bump $ver when the
-      # client adopts a newer engine.
+      # engine repo's public release, so no token is required. Bump $ver (in lockstep
+      # with the Linux staging step) when the client adopts a newer engine.
       - name: Stage stream-engine sidecar (Windows)
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          $ver = "0.1.0"
+          $ver = "0.2.0"
           $url = "https://github.com/TheStonedGamer/ArcadeLauncher-StreamEngine/releases/download/v$ver/ArcadeLauncher-StreamEngine-$ver-win-x64.zip"
           $zip = Join-Path $env:RUNNER_TEMP "arcade-stream-engine.zip"
           $tmp = Join-Path $env:RUNNER_TEMP "arcade-stream-engine"
@@ -274,7 +273,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ver="0.1.0"
+          ver="0.2.0"
           url="https://github.com/TheStonedGamer/ArcadeLauncher-StreamEngine/releases/download/v$ver/ArcadeLauncher-StreamEngine-$ver-linux-x64.tar.gz"
           tmp="$RUNNER_TEMP/arcade-stream-engine"
           rm -rf "$tmp"; mkdir -p "$tmp"
