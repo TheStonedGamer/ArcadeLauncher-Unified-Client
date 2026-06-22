@@ -707,9 +707,10 @@ from scratch.
       CLI) + Tauri cmds `mesh_is_available/status/join/resolve_host`. Server
       (branch `feat/t12k-8-mesh-preauth`): `POST /api/social/mesh/preauth` mints a
       short-lived single-use Headscale key (`HeadscaleConfig`, 5 KATs). `[minor]`.
-    - **GATES before release (NOT done):** (1) **engine real streaming** — engine
-      still pairs-but-can't-stream, so the path is dead-on-arrival end-to-end until
-      `client.start` lands; (2) bundle real `tailscaled`+`wintun.dll` (Win) /
+    - **GATES before release:** (1) ~~**engine real streaming**~~ **DONE** — engine
+      `client.start` landed; engine **v0.2.0** (first streaming-capable build) is
+      released + bundled, and the client drives it (see T12k-10). The mesh path's
+      remaining gates below still stand; (2) bundle real `tailscaled`+`wintun.dll` (Win) /
       `tailscaled` (Linux) in CI + tauri.conf; (3) privileged daemon/service +
       WinTun bring-up validated on the runner + a two-machine test (`ensure_daemon`
       is flagged UNVERIFIED); (4) React UI (fetch key → `mesh_join` → resolve →
@@ -731,6 +732,23 @@ from scratch.
     (online/offline via presence), each expandable to its games with box art and a Play
     button → `client.start`. Plumbing rides on T12k-6/7; this is mostly the new tab UI +
     the table + publish/fetch glue. Cover art stored as a relative `cover_ref`.
+  - [x] **T12k-10 — In-engine playback (client drives `client.start`).** Shipped in
+    **launcher v0.12.0** (2026-06-22). Replaced the always-spawn-Moonlight path with
+    the bundled engine: **engine v0.2.0** (first streaming-capable release) is
+    published and bundled in the installer (`release.yml` stages `0.2.0` both OSes).
+    Launcher side: pure `streaming/play.rs` (`client_start_params` settings schema,
+    `is_terminal_phase`, `stream://state` + `stream://stats` events; 5 KATs) +
+    `streaming/engine_session.rs` persistent-session transport (spawn engine `stream`
+    mode → `client.start` handshake with synchronous in-band engine errors → reader
+    task forwarding `stream.state`/`stream.stats`, `AtomicU64` generation for
+    supersession, stop-channel close = graceful `client.stop`; commands
+    `engine_stream_available`/`stream_start`/`stream_stop`). Frontend `streaming.ts`
+    (`parseStreamState`/`isStreamTerminal`/`streamPhaseLabel`, +11 KATs),
+    `useStreaming.play()` (engine-preferred, returns `"engine"|"moonlight"`) +
+    `stop()`, `StreamFromHost.tsx` (live phase label + in-app **■ Stop**).
+    **External Moonlight kept as automatic fallback.** Green: cargo 293 / vitest 362
+    / tsc / clippy. **Live end-to-end A/V still unvalidated** — no GameStream host +
+    GPU client in CI; needs a real host on the LAN + this PC as client.
 - [ ] **T12l — Mobile companion app.** Remote library browse, "install to my PC",
   chat / presence, and download-queue control from a phone.
 

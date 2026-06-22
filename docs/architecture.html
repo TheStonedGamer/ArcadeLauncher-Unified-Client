@@ -79,7 +79,7 @@
 <body>
 
 <header class="hero">
-  <span class="badge">Platform Architecture · v0.10.x</span>
+  <span class="badge">Platform Architecture · v0.12.0</span>
   <h1>ArcadeLauncher</h1>
   <p class="sub">A self-hosted, Steam-style game launcher and social platform — how the server, client, and infrastructure fit together end to end.</p>
 </header>
@@ -213,8 +213,9 @@
   <div class="cards">
     <div class="card"><h4>Catalog &amp; games</h4><p>Catalog metadata, install manifests (Bearer), cover-art.</p></div>
     <div class="card"><h4>Auth</h4><p>Challenge-response + TOTP. Forgot-password emails identical responses to avoid account enumeration.</p></div>
-    <div class="card"><h4>Social REST + WS</h4><p>Friends, DM/group chat (edit/delete/react/reply/attach), presence, profiles (XP/level), privacy, invites, rooms, voice relay.</p></div>
+    <div class="card"><h4>Social REST + WS</h4><p>Friends (sortable, sectioned), Chats inbox, DM &amp; room/group chat (edit/delete/react/reply/attach), presence, profiles (XP/level), privacy, game invites, rooms, 1:1 + group-mesh voice relay.</p></div>
     <div class="card"><h4>Cloud saves</h4><p>Per-game save files with traversal rejection &amp; a 50 MB/file cap.</p></div>
+    <div class="card"><h4>Remote play</h4><p>Stream an installed game from a paired host. Client plays in-engine via the bundled GPL-separate stream engine (<code>client.start</code>, live status + Stop); external Moonlight as automatic fallback.</p></div>
     <div class="card"><h4>Attachments</h4><p>presign → PUT-to-MinIO → presigned-GET; bytes never touch the DB.</p></div>
     <div class="card"><h4>Streaming</h4><p>TURN credential vending + Sunshine/Moonlight pairing.</p></div>
     <div class="card"><h4>Admin UI</h4><p>TOTP-gated, server-rendered; Cloudflare Tunnel (external) + nginx2 (LAN).</p></div>
@@ -336,7 +337,8 @@
   <h2><span class="dot" style="background:var(--accent4)"></span>Notable subsystems</h2>
 
   <h3>Social / live gateway</h3>
-  <p>Client <code>useSocial</code> ↔ Rust <code>social</code> WS client ↔ server <code>/ws/social</code> (<code>social_api.rs</code> + <code>fanout.rs</code>). Carries chat, presence, reactions, replies, attachments, profiles, game invites, rooms, and voice signaling.</p>
+  <p>Client <code>useSocial</code> ↔ Rust <code>social</code> WS client ↔ server <code>/ws/social</code> (<code>social_api.rs</code> + <code>fanout.rs</code>). Carries chat, presence, reactions, replies, attachments, profiles, game invites, rooms, and voice signaling. The UI opens on a <strong>Chats inbox</strong> (active conversations newest-first with unread counts) and the friends roster is <strong>sortable</strong> (Status / Name / Recent, favorites pinned).</p>
+  <p><strong>Group rooms &amp; mesh voice.</strong> Rooms have their own chat layer (<code>room_chat</code>/<code>room_message</code> frames, per-room log reducer). Group voice runs a <strong>full WebRTC mesh</strong> — one peer connection per participant — reusing the per-peer <code>voice_signal</code> relay tagged <code>group:true</code>+<code>roomId</code>, routed to a separate handler so 1:1 and group calls coexist on one socket. Peer offer/answer order is coordination-free (lower id offers). <em>Live multi-peer relay is client+protocol-complete; server-side room/call fan-out is the remaining gap.</em></p>
   <div class="note"><strong>Heartbeat gotcha.</strong> A WS <em>control</em> ping does not wake the receive loop. The client sends an application <code>{"type":"ping"}</code> every 20 s and the server answers with a <strong>data-frame</strong> <code>{"type":"pong"}</code> that does. Don't remove either side.</div>
 
   <h3>Voice — P2P WebRTC</h3>
@@ -346,7 +348,7 @@
   <p>Pure FSM core (manifest / paths / sha256 / queue) + live HTTP transport (resumable ranged GET) + zip-slip-guarded extract. The Install button GETs the server manifest (Bearer), resolves <code>app_data/games/&lt;id&gt;</code>, and hands off to the engine.</p>
 
   <h3>Cloud saves</h3>
-  <p>Pure <code>plan_sync</code> core decides Upload / Download / InSync / Conflict by mtime; execution does atomic temp+rename and stamps downloads with the server mtime.</p>
+  <p>Pure <code>plan_sync</code> core decides Upload / Download / InSync / Conflict by mtime; execution does atomic temp+rename and stamps downloads with the server mtime. The GameDetail cloud-saves panel also <strong>lists, snapshots, and restores</strong> prior save versions (<code>saves_versions</code> / <code>_snapshot</code> / <code>_restore_version</code>).</p>
 </section>
 
 <!-- INFRA -->
@@ -420,7 +422,7 @@ matching the live server (a minor bump trips version-lockstep).</pre>
 </section>
 
 <footer>
-  ArcadeLauncher platform architecture · generated from project docs &amp; memory · v0.10.x line<br>
+  ArcadeLauncher platform architecture · generated from project docs &amp; memory · v0.12.0<br>
   See <code>ARCHITECTURE.md</code> · <code>CHANGELOG.md</code> · <code>FEATURES.md</code> · <code>ROADMAP.md</code> · <code>HANDOFF.md</code>
 </footer>
 

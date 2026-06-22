@@ -274,6 +274,42 @@ is exercised by exactly this UI when a host is present. **T12k-5 deferred** —
 it's a cross-project doc/wiring task in the separate `debian-autoinstall` repo,
 not this client.
 
+**T12k — dedicated StreamEngine track (separate repo). SHIPPED in launcher
+v0.12.0 (2026-06-22).** The **`ArcadeLauncher-StreamEngine`** sidecar (GPL-3.0,
+own repo) is a Qt-free GameStream engine the client drives over an arm's-length
+JSON IPC boundary (named pipe / unix socket; **never linked**, to keep the GPL
+boundary). Engine path is feature-complete for video + audio + input — GameStream
+pairing (NvHTTP port) → persistent identity/paired-host store → launch/resume →
+`LiStartConnection` → **FFmpeg HW-decode** (`d3d11va`/`vaapi`, software fallback)
+into a borderless **SDL2** window → **Opus audio** → SDL gamepad capture →
+`stream.state`/`stream.stats` events — and **engine v0.2.0** (first streaming-capable
+release) is published and **bundled in the launcher installer** (release.yml stages
+`0.2.0` on both OSes).
+
+**The client now consumes the engine for playback** (was: always spawned external
+Moonlight). New transport on the launcher side:
+- `streaming/play.rs` — pure core: `client_start_params` (pins the `client.start`
+  settings schema), `is_terminal_phase`/`state_phase`, `STREAM_STATE_EVENT`
+  (`stream://state`) / `STREAM_STATS_EVENT` (`stream://stats`). 5 KATs.
+- `streaming/engine_session.rs` — persistent session transport (the one-shot
+  `engine_conn` can't drive a long-lived stream): spawns the engine in `stream`
+  mode, does the `client.start` handshake (engine in-band errors —
+  `not_paired`/`host_unreachable`/`app_not_found` — surface synchronously), then a
+  reader task forwards `stream.state`/`stream.stats` to the webview, with an
+  `AtomicU64` generation counter for supersession and the stop-channel close as a
+  graceful `client.stop`. Commands `engine_stream_available` / `stream_start` /
+  `stream_stop`.
+- Frontend `streaming.ts` (+11 KATs: `parseStreamState`/`isStreamTerminal`/
+  `streamPhaseLabel`), `useStreaming.play()` (engine-preferred, returns
+  `"engine"|"moonlight"`) + `stop()`, and `StreamFromHost.tsx` (live phase label +
+  in-app **■ Stop**). **External Moonlight is retained as automatic fallback** when
+  the engine isn't installed.
+
+Green before release: cargo test 293, vitest 362, tsc + clippy (new files) clean.
+**Still unvalidated:** live end-to-end A/V — no GameStream host + GPU client in CI;
+needs a real host on the homelab LAN + this PC as client. Engine status + next steps
+live in that repo's `docs/STREAMING_PLAN.md`, `docs/BUILD.md`, `docs/IPC.md`.
+
 **In progress: T12i (auto-sync + save version history).** Version-history
 groundwork shipped (CI-only, no UI): pure `saves::versions` — `SaveVersion`,
 sortable `format_version_id`/`parse_version_time`, collision-free

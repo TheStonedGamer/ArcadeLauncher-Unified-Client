@@ -187,7 +187,7 @@ Rust command → IPC registration → TS api wrapper → React hook → UI, plus
 | `hotkey` | Global shortcut (tauri-plugin-global-shortcut). |
 | `controller` | Gamepad / Big-Picture input. |
 | `tray`, `window` | System tray (close-to-tray, launch-minimized), single-instance guard, fullscreen. |
-| `streaming` | Remote streaming (Sunshine pair + Moonlight launch). |
+| `streaming` | Remote streaming: host pair, in-engine playback (`client.start` via `engine_session`), external-Moonlight fallback, Headscale mesh seam (`mesh/`). |
 | `retroachievements` | RetroAchievements integration. |
 | `requests` | In-client Game Requests board (talks to the server's folded-in `/requests` routes). |
 | `stores` | Atomic per-user state files. |
@@ -235,6 +235,15 @@ to front (no reinstall).
 - **Cloud saves** — pure `plan_sync` core decides Upload/Download/InSync/Conflict
   by mtime; execution does atomic temp+rename and stamps downloads with the server
   mtime.
+- **Remote play / streaming** — pure `streaming::play` shapes the engine
+  `client.start` params + terminal-phase logic; `streaming::engine_session` is a
+  persistent-session transport (separate from the one-shot `engine_conn`) that
+  spawns the bundled **GPL-separate stream engine** in `stream` mode, handshakes
+  `client.start`, and forwards `stream.state`/`stream.stats` to the webview as
+  `stream://state` / `stream://stats` events (generation counter for supersession;
+  stop = graceful `client.stop`). The engine decodes/presents in its own window —
+  **never linked** into the launcher, keeping the GPL boundary. Falls back to an
+  external Moonlight client (`stream_launch`) when the engine isn't installed.
 
 ---
 

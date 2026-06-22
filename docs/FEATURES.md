@@ -131,7 +131,20 @@ gateway. See §3 for the full subsystem.
 - **Cloud Saves v1** — per-game save sync between the client and server
   endpoints, so progress follows you across machines.
 
-### 1.9 Launch integration
+### 1.9 Remote play (stream your PCs)
+- **Stream an installed game from a host PC** to a thin client — a personal
+  GeForce-Now, built on GameStream (Sunshine host + Moonlight protocol). Pair a
+  host once by IP + 4-digit PIN; a **▶ Stream from host** button appears on the
+  game's detail panel.
+- **In-engine playback (no separate Moonlight install).** The launcher ships a
+  bundled, GPL-separate **stream engine** sidecar that decodes and presents the
+  stream in its own window, showing **live status** (connecting → streaming) and an
+  in-app **■ Stop**. If the engine isn't present, it **falls back automatically to
+  an external Moonlight client**.
+- **Quality defaults** (resolution / fps / bitrate / window mode / HDR) configured
+  in **Settings → Streaming** and persisted locally.
+
+### 1.10 Launch integration
 - **Pre/post-launch hooks** per game (run a command before/after a game runs).
 - **Process monitoring** — the launcher minimizes on launch (optional) and
   re-shows itself when the game process exits.
@@ -140,7 +153,7 @@ gateway. See §3 for the full subsystem.
   game's own cover art.
 - **Windows Defender exclusion** toggle for PC game folders (elevated, opt-in).
 
-### 1.10 Auto-update
+### 1.11 Auto-update
 - The launcher **updates itself on launch**: after a release is published it
   pulls and applies the new version with no manual MSI step.
 - **Version lockstep** with the server: the client refuses to connect unless the
