@@ -16,6 +16,8 @@ pub mod engine;
 pub mod engine_conn;
 pub mod engine_session;
 pub mod host;
+pub mod host_fetch;
+pub mod host_fetch_commands;
 pub mod mesh;
 pub mod moonlight;
 pub mod mypcs;
