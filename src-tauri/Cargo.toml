@@ -1,6 +1,6 @@
 [package]
 name = "arcade_launcher"
-version = "0.12.0"
+version = "0.12.1"
 description = "ArcadeLauncher Unified Client"
 authors = ["TheStonedGamer"]
 edition = "2021"

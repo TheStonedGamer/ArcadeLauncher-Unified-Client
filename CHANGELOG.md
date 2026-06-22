@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-06-22
+
+### Fixed
+- **Streaming now actually starts.** The bundled streaming engine was missing the
+  video/audio runtime libraries (SDL2, FFmpeg, Opus), so pressing Play connected and
+  then failed instantly. All of the engine's runtime libraries now ship with the app,
+  so in-engine streaming works end to end.
+
 ## [0.12.0] - 2026-06-22
 
 ### Added
