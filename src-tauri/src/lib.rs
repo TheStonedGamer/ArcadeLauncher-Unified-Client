@@ -141,6 +141,7 @@ pub fn run() {
             streaming::mesh::conn::mesh_status,
             streaming::mesh::conn::mesh_join,
             streaming::mesh::conn::mesh_resolve_host,
+            streaming::mesh::preauth::mesh_preauth,
             streaming::mypcs_commands::mypcs_self,
             streaming::mypcs_commands::mypcs_announce_frame,
             streaming::mypcs_commands::mypcs_register,

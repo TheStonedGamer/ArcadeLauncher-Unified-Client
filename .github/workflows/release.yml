@@ -169,6 +169,35 @@ jobs:
           # lockstep with whatever the engine zip carries across future engine bumps.
           Copy-Item (Join-Path $tmp "*.dll") $dest -Force
 
+      # Stage the bundled Tailscale (T12k-8 play-from-anywhere): the launcher ships
+      # `tailscale.exe`/`tailscaled.exe` next to the app (externalBin in
+      # tauri.engine-bundle.conf.json) so a remote host's 100.64.x.x mesh IP is
+      # dialable with no separate user-facing Tailscale install. Pulled from
+      # Tailscale's official static Windows zip. wintun.dll (if present) rides along
+      # via the binaries/*.dll resource glob; tailscaled self-extracts an embedded
+      # copy at runtime otherwise.
+      # NOTE: pin $ver to a known-good release; the version + zip asset layout must
+      # be confirmed on the self-hosted Windows runner (gate-3 validation).
+      - name: Stage Tailscale sidecar (Windows)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $ver = "1.84.3"
+          $url = "https://pkgs.tailscale.com/stable/tailscale_${ver}_windows_amd64.zip"
+          $zip = Join-Path $env:RUNNER_TEMP "tailscale.zip"
+          $tmp = Join-Path $env:RUNNER_TEMP "tailscale"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
+          Expand-Archive -Path $zip -DestinationPath $tmp -Force
+          $dest = "src-tauri/binaries"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          $cli = Get-ChildItem -Recurse -Path $tmp -Filter "tailscale.exe" | Select-Object -First 1
+          $daemon = Get-ChildItem -Recurse -Path $tmp -Filter "tailscaled.exe" | Select-Object -First 1
+          if (-not $cli -or -not $daemon) { throw "tailscale.exe/tailscaled.exe not found in $url" }
+          Copy-Item $cli.FullName (Join-Path $dest "tailscale-x86_64-pc-windows-msvc.exe") -Force
+          Copy-Item $daemon.FullName (Join-Path $dest "tailscaled-x86_64-pc-windows-msvc.exe") -Force
+          Get-ChildItem -Recurse -Path $tmp -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName $dest -Force }
+
       # WOW64 redirection fix for makensis under LocalSystem.
       # The runner runs as LocalSystem, so tauri caches its (32-bit) NSIS toolset
       # under %LOCALAPPDATA% = C:\Windows\System32\config\systemprofile\AppData\
@@ -285,6 +314,29 @@ jobs:
           mkdir -p src-tauri/binaries
           TRIPLE=$(rustc -vV | sed -n 's/host: //p')
           install -m 0755 "$tmp/arcade-stream-engine" "src-tauri/binaries/arcade-stream-engine-$TRIPLE"
+
+      # Stage the bundled Tailscale for Linux (T12k-8) — same role as the Windows
+      # step: ship `tailscale`/`tailscaled` next to the app (externalBin in
+      # tauri.engine-bundle-linux.conf.json). No DLLs: Linux uses /dev/net/tun, not
+      # WinTun. Pulled from Tailscale's official static amd64 tarball. Keep $ver in
+      # lockstep with the Windows staging step.
+      - name: Stage Tailscale sidecar (Linux)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="1.84.3"
+          url="https://pkgs.tailscale.com/stable/tailscale_${ver}_amd64.tgz"
+          tmp="$RUNNER_TEMP/tailscale"
+          rm -rf "$tmp"; mkdir -p "$tmp"
+          curl -fsSL "$url" -o "$RUNNER_TEMP/tailscale.tgz"
+          tar -xzf "$RUNNER_TEMP/tailscale.tgz" -C "$tmp"
+          mkdir -p src-tauri/binaries
+          TRIPLE=$(rustc -vV | sed -n 's/host: //p')
+          cli=$(find "$tmp" -type f -name tailscale | head -n1)
+          daemon=$(find "$tmp" -type f -name tailscaled | head -n1)
+          [ -n "$cli" ] && [ -n "$daemon" ] || { echo "tailscale/tailscaled not found in $url"; exit 1; }
+          install -m 0755 "$cli" "src-tauri/binaries/tailscale-$TRIPLE"
+          install -m 0755 "$daemon" "src-tauri/binaries/tailscaled-$TRIPLE"
 
       - name: Build + upload Linux artifacts
         uses: tauri-apps/tauri-action@v0

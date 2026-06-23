@@ -133,6 +133,12 @@ impl Endpoint {
         format!("https://{}/api/social/hosts/{}/apps", self.host, encode_query(device_id))
     }
 
+    /// REST URL to mint a short-lived Headscale pre-auth key for play-from-anywhere
+    /// (POST; the server is the sole holder of the Headscale API key) (T12k-8).
+    pub fn mesh_preauth_url(&self) -> String {
+        format!("https://{}/api/social/mesh/preauth", self.host)
+    }
+
     /// The bearer token, for the `Authorization` header on REST calls.
     pub fn token(&self) -> &str {
         &self.token
@@ -211,6 +217,10 @@ mod tests {
         assert_eq!(
             e.host_apps_url("dev-abc"),
             "https://arcade.example.com/api/social/hosts/dev-abc/apps"
+        );
+        assert_eq!(
+            e.mesh_preauth_url(),
+            "https://arcade.example.com/api/social/mesh/preauth"
         );
     }
 
