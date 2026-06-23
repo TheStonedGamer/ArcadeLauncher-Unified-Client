@@ -13,6 +13,17 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.5] - 2026-06-23
+
+### Fixed
+- **A PC you stream to no longer shows "offline" while it's sitting ready.**
+  Your PCs now stay shown as online to your other devices the whole time
+  ArcadeLauncher is running — not only while that PC has the *My PCs* tab open —
+  so the machine you want to play from is reachable when you go to start a stream.
+
+### Added
+- The Settings page now shows the Unified Client version at the bottom.
+
 ## [0.13.4] - 2026-06-23
 
 ### Added
