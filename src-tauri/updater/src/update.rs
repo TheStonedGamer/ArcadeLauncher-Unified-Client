@@ -233,16 +233,59 @@ fn ensure_host_engine(status: &Arc<Mutex<Status>>) {
     let Some(data_dir) = app_data_dir() else {
         return;
     };
-    let install_dir = data_dir.join("host-engine").join(version);
+    let root = data_dir.join("host-engine");
+    let install_dir = root.join(version);
     let bin = install_dir.join(sunshine_bin_name());
+    if !bin.is_file() {
+        set(status, format!("Preparing streaming host {version}…"));
+        if let Err(e) = fetch_host_engine(version, &install_dir, &bin) {
+            // Leave a breadcrumb; the app's runtime fetch still covers hosting.
+            set(status, format!("Streaming host prep skipped ({e}) — continuing…"));
+        }
+    }
+    // Reclaim disk from superseded engine versions left under `host-engine/`.
+    // Guarded on the pinned binary actually being present, so a failed fetch can
+    // never delete a working older engine — we only prune once we're certain the
+    // version we keep is in place. Best-effort: a dir locked by a running engine
+    // is simply retried on the next launch.
     if bin.is_file() {
-        return; // already present + version-matched
+        prune_old_host_engines(&root, version, status);
     }
-    set(status, format!("Preparing streaming host {version}…"));
-    if let Err(e) = fetch_host_engine(version, &install_dir, &bin) {
-        // Leave a breadcrumb; the app's runtime fetch still covers hosting.
-        set(status, format!("Streaming host prep skipped ({e}) — continuing…"));
+}
+
+/// Remove every `host-engine/<ver>` subdir except `keep`. Only the directories
+/// this code creates live here (one per engine version), so any other version
+/// dir is a stale prior install. Skips non-directory and non-version-looking
+/// entries defensively, and tolerates per-dir removal failures (e.g. a file
+/// still held by a live engine) by leaving them for a later run.
+fn prune_old_host_engines(root: &Path, keep: &str, status: &Arc<Mutex<Status>>) {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return; // root absent or unreadable → nothing to prune
+    };
+    for entry in entries.flatten() {
+        if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+            continue;
+        }
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue }; // not one of ours
+        if name == keep || !looks_like_version(name) {
+            continue;
+        }
+        if std::fs::remove_dir_all(entry.path()).is_ok() {
+            set(status, format!("Removed old streaming host {name}…"));
+        }
     }
+}
+
+/// A conservative guard so prune only ever touches `host-engine/<semver>` dirs:
+/// the name must start with a digit and contain only digits, dots, and the usual
+/// pre-release/build punctuation. Keeps an unexpected sibling dir from being
+/// deleted if the layout ever changes.
+fn looks_like_version(name: &str) -> bool {
+    name.starts_with(|c: char| c.is_ascii_digit())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+'))
 }
 
 /// Download + unpack the Sunshine host sidecar for `version` into `install_dir`,
@@ -649,6 +692,48 @@ mod tests {
             "hi"
         );
         let _ = std::fs::remove_dir_all(&dest);
+    }
+
+    #[test]
+    fn looks_like_version_guards_prune_target() {
+        // Real engine version dir names prune is allowed to touch.
+        assert!(looks_like_version("0.3.5"));
+        assert!(looks_like_version("0.3.7"));
+        assert!(looks_like_version("1.2.3-rc.1"));
+        assert!(looks_like_version("0.10.0+build7"));
+        // Anything that isn't an obvious version dir is left alone.
+        assert!(!looks_like_version("downloads"));
+        assert!(!looks_like_version(".tmp"));
+        assert!(!looks_like_version(""));
+        assert!(!looks_like_version("v0.3.5")); // dirs are unprefixed; a 'v' name isn't ours
+        assert!(!looks_like_version("0.3.5 copy")); // space → not a version
+    }
+
+    #[test]
+    fn prune_keeps_pinned_and_removes_the_rest() {
+        let root = std::env::temp_dir().join(format!("ualc_prune_test_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        // Two stale engine versions, the pinned one, and an unrelated sibling dir.
+        for v in ["0.3.5", "0.3.7", "0.3.4"] {
+            std::fs::create_dir_all(root.join(v)).unwrap();
+            std::fs::write(root.join(v).join("sunshine.exe"), b"x").unwrap();
+        }
+        std::fs::create_dir_all(root.join("downloads")).unwrap();
+
+        let status = Arc::new(Mutex::new(Status {
+            message: String::new(),
+            done: false,
+        }));
+        prune_old_host_engines(&root, "0.3.7", &status);
+
+        assert!(root.join("0.3.7").is_dir(), "pinned version must survive");
+        assert!(!root.join("0.3.5").exists(), "stale 0.3.5 pruned");
+        assert!(!root.join("0.3.4").exists(), "stale 0.3.4 pruned");
+        assert!(
+            root.join("downloads").is_dir(),
+            "non-version sibling left untouched"
+        );
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

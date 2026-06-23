@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 /// `release.yml` "Sunshine host" job). Until such a release exists the fetch
 /// 404s and host mode degrades to an honest "couldn't download" notice — it
 /// never bundles a half-baked host.
-pub const SUNSHINE_HOST_VERSION: &str = "0.3.7";
+pub const SUNSHINE_HOST_VERSION: &str = "0.3.8";
 
 /// GitHub owner/repo that publishes the engine (and the Sunshine host asset).
 const ENGINE_REPO: &str = "TheStonedGamer/ArcadeLauncher-StreamEngine";
