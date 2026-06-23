@@ -12,11 +12,12 @@
 // signed-in PC stays online for the whole session regardless of the active view.
 // The upsert is idempotent, so registering on a steady cadence is safe.
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import type { Session } from "../session/types";
-import { hostStatus, myPcsRegister } from "./api";
-import { publishOwnClientCert, seedAccountClientCerts } from "./certAuth";
+import { hostEnable, hostStatus, myPcsRegister } from "./api";
+import { publishHostServerCert, publishOwnClientCert, seedAccountClientCerts } from "./certAuth";
+import { hostPreauthAction } from "./streaming";
 
 /** Comfortably under the server's 70s staleness window so this PC never flickers
  *  offline between beats. */
@@ -32,15 +33,63 @@ export function usePresenceHeartbeat(session: Session | null): void {
   const host = session?.host ?? null;
   const token = session?.token ?? null;
 
+  // Host pre-auth progress for THIS session. `seeded` gates the one-time trust-store
+  // seed + Sunshine cycle (so we never re-cycle on every beat); `published` gates the
+  // retry-until-it-lands of our server cert. Reset whenever the session changes.
+  const hostPreauth = useRef({ seeded: false, published: false });
+
   useEffect(() => {
     if (!host || !token) return;
+    hostPreauth.current = { seeded: false, published: false };
+
     // Beat immediately so presence is fresh the moment we sign in, then on cadence.
     void myPcsRegister(host, token).catch(() => {});
     // Publish this device's streaming-client cert once on sign-in so every host on the account can
     // pre-authorize it (best-effort; falls back to PIN pairing if the engine has no identity yet).
     void publishOwnClientCert(host, token);
+
+    // App-wide host-side cert pre-authorization. The v0.13.6 boot auto-restore enables Sunshine in
+    // Rust WITHOUT the cert dance, so an auto-restored host never publishes its server cert (clients
+    // can't pin it → PIN prompt) and never seeds account client certs (host doesn't trust them).
+    // setEnabled only covers a manual toggle; this covers auto-restore and sign-in-after-launch.
+    // Runs on the heartbeat cadence and self-heals the start-up race (Sunshine mints cert.pem a bit
+    // after it starts). Best-effort throughout — any failure just leaves the PIN fallback in place.
+    const ensureHostPreauth = async () => {
+      const st = hostPreauth.current;
+      if (st.published) return;
+      let status: { running: boolean } | null = null;
+      try {
+        status = await hostStatus();
+      } catch {
+        return; // engine unreachable this beat; try again next
+      }
+      if (hostPreauthAction(status, st.published) !== "run") return;
+
+      if (!st.seeded) {
+        st.seeded = true;
+        try {
+          // Seed account client certs into this host's trust store. When the host came up via
+          // auto-restore, Sunshine is already running un-seeded, so the engine reports a restart is
+          // needed to load them into named_devices — cycle hosting once to apply it. Safe here: this
+          // runs at sign-in, before any stream is active (unlike the in-stream client_cert_update
+          // path below, which must never restart and kill a live stream).
+          const restartNeeded = await seedAccountClientCerts(host, token);
+          if (restartNeeded) {
+            await hostEnable(false);
+            await hostEnable(true);
+          }
+        } catch {
+          /* best-effort; seeded devices still load on the next natural Sunshine restart */
+        }
+      }
+
+      if (await publishHostServerCert(host, token)) st.published = true;
+    };
+    void ensureHostPreauth();
+
     const id = window.setInterval(() => {
       void myPcsRegister(host, token).catch(() => {});
+      void ensureHostPreauth();
     }, HEARTBEAT_MS);
     return () => window.clearInterval(id);
   }, [host, token]);

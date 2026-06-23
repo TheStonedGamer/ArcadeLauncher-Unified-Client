@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.9] - 2026-06-23
+
+### Fixed
+- **Zero-PIN streaming now works after a PC restarts.** A PC that came back online
+  with hosting already on wasn't publishing the info other devices need to pair
+  without a PIN, so you'd get asked for a PIN even for an already-known PC. Hosting
+  PCs now re-establish PIN-free pairing automatically once signed in.
+
 ## [0.13.8] - 2026-06-23
 
 ### Fixed

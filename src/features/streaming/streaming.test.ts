@@ -3,6 +3,7 @@ import {
   DEFAULT_STREAM_SETTINGS,
   DISPLAY_MODES,
   hostGamesFromLibrary,
+  hostPreauthAction,
   hostStateLabel,
   hostStatusSummary,
   isHostableGame,
@@ -295,5 +296,21 @@ describe("streamPhaseLabel", () => {
   });
   it("surfaces an unknown phase rather than hiding it", () => {
     expect(streamPhaseLabel({ phase: "buffering", reason: "" })).toMatch(/buffering/);
+  });
+});
+
+describe("hostPreauthAction", () => {
+  it("runs when this PC is hosting and the server cert isn't published yet", () => {
+    expect(hostPreauthAction({ running: true }, false)).toBe("run");
+  });
+  it("skips once the server cert has been published this session", () => {
+    expect(hostPreauthAction({ running: true }, true)).toBe("skip");
+  });
+  it("skips when this PC isn't hosting (nothing to publish)", () => {
+    expect(hostPreauthAction({ running: false }, false)).toBe("skip");
+  });
+  it("skips when host status is unknown (engine unreachable this beat)", () => {
+    expect(hostPreauthAction(null, false)).toBe("skip");
+    expect(hostPreauthAction(undefined, false)).toBe("skip");
   });
 });
