@@ -77,12 +77,13 @@ export function useMyPcs(): MyPcsApi {
     reloadRef.current();
   }, [host, token]);
 
-  // Heartbeat: re-register to refresh this device's last_seen (keeps it online),
-  // and refetch so other devices' online/offline state stays current.
+  // Refetch on a slow timer so other devices' online/offline dots stay current
+  // while this tab is open. This device's own keep-alive (register heartbeat) is
+  // owned app-wide by usePresenceHeartbeat in AppShell, so it stays online even
+  // when this view isn't mounted — don't duplicate the self-register here.
   useEffect(() => {
     if (!host || !token) return;
     const id = window.setInterval(() => {
-      void myPcsRegister(host, token).catch(() => {});
       reloadRef.current();
     }, HEARTBEAT_MS);
     return () => window.clearInterval(id);
