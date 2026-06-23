@@ -260,12 +260,24 @@ pub async fn engine_host_status(
 }
 
 /// Start/stop hosting this PC (engine `host.enable`) → `{ running }`.
+///
+/// On success we also persist the intent (see [`super::host_pref`]) so the app
+/// can auto-restore host mode on the next launch — otherwise the toggle looked
+/// like it "didn't persist" because nothing re-enabled hosting after a restart.
 #[tauri::command]
 pub async fn engine_host_enable(
     on: bool,
+    app: tauri::AppHandle,
     host: tauri::State<'_, super::host_session::HostSession>,
 ) -> AppResult<Value> {
-    host.call("host.enable", json!({ "on": on })).await
+    let res = host.call("host.enable", json!({ "on": on })).await?;
+    // Best-effort: a persist failure must not fail the toggle the user just flipped.
+    if let Ok(dir) = tauri::Manager::path(&app).app_config_dir() {
+        if let Err(e) = super::host_pref::save(&dir, on) {
+            eprintln!("host_pref not persisted: {e}");
+        }
+    }
+    Ok(res)
 }
 
 /// Publish the local library to the host as streamable apps (engine `host.syncApps`):

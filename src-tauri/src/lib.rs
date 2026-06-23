@@ -85,6 +85,32 @@ pub fn run() {
                 // re-download. Best-effort; no-op when it isn't installed yet.
                 streaming::host_fetch_commands::wire_existing(handle);
 
+                // Auto-restore "Let this PC be streamed": if the user had hosting
+                // on when they last quit, re-enable it now so the toggle truly
+                // persists across restarts (host mode otherwise lives only for the
+                // launcher process). `wire_existing` set `ARCADE_SUNSHINE` iff the
+                // sidecar is installed, so we gate on that — no point spawning an
+                // engine that can't host. Done off the boot path so a slow Sunshine
+                // start never blocks launch; the toggle reflects it via `host.status`
+                // once it's up.
+                if let Ok(dir) = handle.path().app_config_dir() {
+                    if streaming::host_pref::load(&dir)
+                        && std::env::var_os("ARCADE_SUNSHINE").is_some()
+                    {
+                        let host_handle = handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let session =
+                                host_handle.state::<streaming::host_session::HostSession>();
+                            if let Err(e) = session
+                                .call("host.enable", serde_json::json!({ "on": true }))
+                                .await
+                            {
+                                eprintln!("host autostart failed: {e}");
+                            }
+                        });
+                    }
+                }
+
                 // Self-heal server-staged BIOS/firmware into each installed
                 // emulator (PS1 BIOS, OG Xbox firmware, PS3 firmware), mirroring
                 // the native client's on-launch deploy. Best-effort on a
