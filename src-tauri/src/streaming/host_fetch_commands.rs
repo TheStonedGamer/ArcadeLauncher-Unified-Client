@@ -158,5 +158,16 @@ pub async fn host_install(app: tauri::AppHandle) -> AppResult<HostInstallStatus>
     }
     make_executable(&bin)?;
     point_engine_at(&bin);
+
+    // A persistent host engine may already be running (spawned by an earlier
+    // `host.status` poll) from *before* this download, so it didn't inherit the
+    // `ARCADE_SUNSHINE` we just set and still believes Sunshine isn't installed.
+    // Reap it so the next host.* call re-spawns an engine that sees the sidecar.
+    // Only on this genuine fresh-install path — never on a status poll, which
+    // would needlessly kill an engine that's actively hosting.
+    app.state::<crate::streaming::host_session::HostSession>()
+        .restart()
+        .await;
+
     host_install_status(app).await
 }

@@ -52,6 +52,9 @@ pub fn run() {
         .manage(presence::client::PresenceManager::default())
         // The live engine-driven stream session (one at a time; `client.start`).
         .manage(streaming::engine_session::StreamSession::default())
+        // The persistent host engine (one `engine host` process owning the
+        // Sunshine child across all `host.*` calls — see `host_session`).
+        .manage(streaming::host_session::HostSession::default())
         .setup(|app| {
             // Register the global summon/hide hotkey from saved settings.
             // Best-effort: a missing config or bad accelerator is logged, not
@@ -216,6 +219,22 @@ pub fn run() {
             controller::commands::controller_save_profile,
             controller::commands::controller_apply,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app_handle, event| {
+            // On shutdown, gracefully stop hosting so the bundled Sunshine (a
+            // child of the persistent host engine) doesn't leak past the launcher.
+            // `Exit` is the terminal event — fired for tray Quit / `app.exit()`,
+            // not the hide-to-tray window close.
+            #[cfg(desktop)]
+            if let tauri::RunEvent::Exit = &event {
+                use tauri::Manager;
+                let session = app_handle.state::<streaming::host_session::HostSession>();
+                tauri::async_runtime::block_on(session.shutdown());
+            }
+            #[cfg(not(desktop))]
+            {
+                let _ = (app_handle, event);
+            }
+        });
 }
