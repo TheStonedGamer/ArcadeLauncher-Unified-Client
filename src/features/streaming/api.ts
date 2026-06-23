@@ -105,8 +105,14 @@ export interface EngineApp {
 
 /** This machine's hosting status (engine `host.status`). */
 export interface HostStatus {
+  /** A Sunshine is available to host (bundled/system install, or one already running) — so the
+   *  launcher needn't download its sidecar. */
   installed: boolean;
+  /** A Sunshine host is active — our own child OR an adopted instance the user already had up. */
   running: boolean;
+  /** True only when the engine itself started the running host (so it may stop it). `running &&
+   *  !managed` ⇒ the user's own Sunshine, which we adopt but never stop. */
+  managed: boolean;
   configured: boolean;
   gpuCapable: boolean;
   appsCount: number;

@@ -3,15 +3,13 @@
 // are hostable, the host-app shape, the status summary) lives in streaming.ts;
 // this hook only orchestrates the IPC.
 //
-// The engine's host handlers are stubs until that milestone lands, so a failed
-// call is expected — it's surfaced as `error` and the section degrades to a
-// clear "hosting unavailable" message rather than throwing.
+// A failed call (engine missing/unreachable) is surfaced as `error` and the
+// section degrades to a clear "hosting unavailable" message rather than throwing.
 
 import { useCallback, useEffect, useState } from "react";
 import {
   hostEnable,
   hostInstall,
-  hostInstallStatus,
   hostStatus,
   hostSyncApps,
   type HostGame,
@@ -61,11 +59,19 @@ export function useHosting(): Hosting {
       setBusy(true);
       try {
         // The Sunshine host sidecar isn't bundled in the installer (most users
-        // only stream *from* other PCs). Fetch it on first enable, then turn
-        // hosting on; the engine picks it up via ARCADE_SUNSHINE.
+        // only stream *from* other PCs). Only download it if the engine can't
+        // already host: `installed` is true when it finds a system-installed
+        // Sunshine, or one already running — in which case we adopt that and
+        // skip the fetch. Otherwise fetch the sidecar (the engine picks it up
+        // via ARCADE_SUNSHINE), then turn hosting on.
         if (on) {
-          const inst = await hostInstallStatus();
-          if (!inst.installed) {
+          let canHost = false;
+          try {
+            canHost = (await hostStatus()).installed;
+          } catch {
+            canHost = false; // engine unreachable → try installing the sidecar
+          }
+          if (!canHost) {
             setInstalling(true);
             try {
               await hostInstall();

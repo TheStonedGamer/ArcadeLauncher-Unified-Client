@@ -2,15 +2,15 @@
 // this machine can be streamed. Shows hosting status, a one-toggle enable, and a
 // "publish my library" action that registers installed games as streamable apps.
 //
-// The engine's host.* handlers are stubs until that milestone lands, so when the
-// engine reports it can't host (or the call errors) this section degrades to a
-// clear notice instead of pretending it works.
+// When the engine reports it can't host (or the call errors) this section
+// degrades to a clear notice instead of pretending it works.
 
 import { useState } from "react";
 import { useHosting } from "./useHosting";
-import { hostGamesFromLibrary, hostStatusSummary } from "./streaming";
+import { hostGamesFromLibrary, hostStatusSummary, storeGamesToHostGames } from "./streaming";
 import { publishMyLibrary, type MyPcApp } from "./api";
 import { loadCatalog } from "../catalog/api";
+import { scanStore } from "../stores/api";
 import { useSession } from "../session/SessionContext";
 
 export function HostingSection() {
@@ -21,7 +21,18 @@ export function HostingSection() {
   const publish = async () => {
     setMsg("Publishing your library…");
     try {
-      const games = hostGamesFromLibrary(await loadCatalog());
+      // Publish both the ArcadeLauncher catalog and the auto-detected storefront games (Steam/Epic)
+      // so installed store titles are streamable too. A storefront that isn't installed just scans
+      // empty; a scan failure shouldn't sink the whole publish.
+      const [catalog, steam, epic] = await Promise.all([
+        loadCatalog(),
+        scanStore("steam").catch(() => []),
+        scanStore("epic").catch(() => []),
+      ]);
+      const games = [
+        ...hostGamesFromLibrary(catalog),
+        ...storeGamesToHostGames([...steam, ...epic]),
+      ];
       if (games.length === 0) {
         setMsg("No installed games to publish.");
         return;
@@ -55,6 +66,9 @@ export function HostingSection() {
 
   // No status + an error = the engine couldn't answer (host mode unavailable).
   const unavailable = status === null;
+  // We adopted a Sunshine the user already had running. We never started it, so we never stop it
+  // (their choice) — the toggle is locked on and we just explain the situation.
+  const adopted = status !== null && status.running && status.managed === false;
 
   return (
     <>
@@ -81,12 +95,19 @@ export function HostingSection() {
               type="checkbox"
               checked={status.running}
               // Not gated on status.installed: the first enable downloads the host
-              // sidecar. GPU capability is still required.
-              disabled={busy || installing || !status.gpuCapable}
+              // sidecar. GPU capability is still required. Locked on when we've
+              // adopted a Sunshine the user runs themselves — we don't stop theirs.
+              disabled={busy || installing || !status.gpuCapable || adopted}
               onChange={(e) => void setEnabled(e.target.checked)}
             />
             Let this PC be streamed
           </label>
+          {adopted && (
+            <p className="catalog__status">
+              Using the Sunshine already running on this PC. Since you started it, the launcher
+              leaves it running — stop it from Sunshine itself.
+            </p>
+          )}
           {installing && (
             <p className="catalog__status">Downloading host components…</p>
           )}

@@ -194,6 +194,39 @@ export function hostGamesFromLibrary(games: LibraryGameLike[]): ReturnType<typeo
   return games.filter(isHostableGame).map(toHostGame);
 }
 
+/** The minimal scanned-storefront game shape the host-sync mapping needs (subset
+ *  of the stores feature's `StoreGame`), so this core stays feature-free. */
+export interface StoreGameLike {
+  id: string;
+  name: string;
+  /** Protocol URI that launches via the storefront (steam:// , com.epicgames.launcher:// ). */
+  launchUri: string;
+  coverUrl: string;
+  /** "steam" | "epic" — namespaces the id so it can't collide with a catalog game. */
+  source: string;
+}
+
+/** Map an auto-detected Steam/Epic game to the engine `host.syncApps` app shape. The launch command
+ *  is the storefront URI; the engine wraps it in the host OS opener so Sunshine can run it (a bare
+ *  URI isn't executable). The id is namespaced by source so it stays distinct from catalog games.
+ *  Pure. */
+export function storeGameToHostGame(g: StoreGameLike): ReturnType<typeof toHostGame> {
+  return {
+    id: `${g.source}:${g.id}`,
+    name: g.name,
+    coverPath: g.coverUrl,
+    launchCmd: g.launchUri.trim(),
+  };
+}
+
+/** Detected storefront games (already filtered to installed by the scan) mapped to host apps.
+ *  Drops any with no launch URI. Pure. */
+export function storeGamesToHostGames(
+  games: StoreGameLike[],
+): ReturnType<typeof toHostGame>[] {
+  return games.filter((g) => g.launchUri.trim() !== "").map(storeGameToHostGame);
+}
+
 /** One-line summary of this PC's hosting status for the settings UI. Pure. */
 export function hostStatusSummary(s: {
   installed: boolean;
@@ -201,9 +234,17 @@ export function hostStatusSummary(s: {
   configured: boolean;
   gpuCapable: boolean;
   appsCount: number;
+  /** True only when the launcher itself started the host. `running && !managed` ⇒ we adopted a
+   *  Sunshine the user already had running, which we report but never stop. */
+  managed?: boolean;
 }): string {
   if (!s.installed) return "Streaming host not installed on this PC.";
   if (!s.gpuCapable) return "This PC's GPU can't encode a stream.";
-  const state = s.running ? "Hosting — this PC can be streamed" : "Installed, not hosting";
+  const adopted = s.running && s.managed === false;
+  const state = adopted
+    ? "Hosting — using the Sunshine already running on this PC"
+    : s.running
+      ? "Hosting — this PC can be streamed"
+      : "Installed, not hosting";
   return `${state} · ${s.appsCount} game${s.appsCount === 1 ? "" : "s"} published`;
 }

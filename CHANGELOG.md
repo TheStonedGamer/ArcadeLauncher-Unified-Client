@@ -13,6 +13,21 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.3] - 2026-06-23
+
+### Added
+- **Stream your Steam and Epic games from this PC.** Auto-detected Steam and Epic
+  titles now publish alongside your ArcadeLauncher library when you use
+  **Settings → Stream from this PC → Publish my library**, so you can launch and
+  play them from your other devices.
+
+### Changed
+- **Hosting uses the Sunshine you already have.** When you turn on "Let this PC be
+  streamed", the launcher now uses a Sunshine that's already installed — or already
+  running — instead of downloading its own copy. If you started Sunshine yourself,
+  the launcher leaves it running when you turn hosting off or quit; it only stops a
+  Sunshine it started.
+
 ## [0.13.2] - 2026-06-23
 
 ### Fixed

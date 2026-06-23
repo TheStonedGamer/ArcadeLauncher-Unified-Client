@@ -11,9 +11,12 @@ import {
   parseStoredSettings,
   parseStreamState,
   sanitizeSettings,
+  storeGamesToHostGames,
+  storeGameToHostGame,
   streamPhaseLabel,
   toHostGame,
   type LibraryGameLike,
+  type StoreGameLike,
   type StreamSettings,
 } from "./streaming";
 
@@ -173,6 +176,37 @@ describe("host-mode library publishing", () => {
     ];
     expect(hostGamesFromLibrary(games).map((g) => g.id)).toEqual(["a", "c"]);
   });
+
+  it("maps an auto-detected store game, namespacing the id and keeping the storefront URI", () => {
+    const steam: StoreGameLike = {
+      id: "220",
+      name: "Half-Life 2",
+      launchUri: "steam://rungameid/220",
+      coverUrl: "https://cdn/hl2.jpg",
+      source: "steam",
+    };
+    expect(storeGameToHostGame(steam)).toEqual({
+      id: "steam:220",
+      name: "Half-Life 2",
+      coverPath: "https://cdn/hl2.jpg",
+      launchCmd: "steam://rungameid/220",
+    });
+  });
+
+  it("maps store games and drops any without a launch URI", () => {
+    const games: StoreGameLike[] = [
+      { id: "1", name: "A", launchUri: "steam://rungameid/1", coverUrl: "", source: "steam" },
+      { id: "x", name: "Broken", launchUri: "   ", coverUrl: "", source: "epic" },
+      {
+        id: "y",
+        name: "EpicGame",
+        launchUri: "com.epicgames.launcher://apps/y?action=launch",
+        coverUrl: "",
+        source: "epic",
+      },
+    ];
+    expect(storeGamesToHostGames(games).map((g) => g.id)).toEqual(["steam:1", "epic:y"]);
+  });
 });
 
 describe("hostStatusSummary", () => {
@@ -189,6 +223,14 @@ describe("hostStatusSummary", () => {
     );
     expect(hostStatusSummary({ ...base, running: false, appsCount: 3 })).toMatch(
       /not hosting.*3 games published/i,
+    );
+  });
+  it("distinguishes an adopted (externally-started) Sunshine from one we manage", () => {
+    expect(hostStatusSummary({ ...base, running: true, managed: false })).toMatch(
+      /using the Sunshine already running/i,
+    );
+    expect(hostStatusSummary({ ...base, running: true, managed: true })).toMatch(
+      /this PC can be streamed/i,
     );
   });
 });
