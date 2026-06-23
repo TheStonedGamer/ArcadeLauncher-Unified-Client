@@ -172,28 +172,32 @@ jobs:
       # Stage the bundled Tailscale (T12k-8 play-from-anywhere): the launcher ships
       # `tailscale.exe`/`tailscaled.exe` next to the app (externalBin in
       # tauri.engine-bundle.conf.json) so a remote host's 100.64.x.x mesh IP is
-      # dialable with no separate user-facing Tailscale install. Pulled from
-      # Tailscale's official static Windows zip. wintun.dll (if present) rides along
-      # via the binaries/*.dll resource glob; tailscaled self-extracts an embedded
-      # copy at runtime otherwise.
-      # NOTE: pin $ver to a known-good release; the version + zip asset layout must
-      # be confirmed on the self-hosted Windows runner (gate-3 validation).
+      # dialable with no separate user-facing Tailscale install. Tailscale ships NO
+      # standalone Windows zip — only the .msi installer — so we do an administrative
+      # extract (`msiexec /a`, which unpacks the payload WITHOUT installing or
+      # registering the service) and lift the binaries out. wintun.dll, if the MSI
+      # carries it, rides along via the binaries/*.dll resource glob; modern
+      # tailscaled self-extracts an embedded copy at runtime otherwise.
+      # Keep $ver in lockstep with the Linux staging step.
       - name: Stage Tailscale sidecar (Windows)
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          $ver = "1.84.3"
-          $url = "https://pkgs.tailscale.com/stable/tailscale_${ver}_windows_amd64.zip"
-          $zip = Join-Path $env:RUNNER_TEMP "tailscale.zip"
+          $ver = "1.98.4"
+          $url = "https://pkgs.tailscale.com/stable/tailscale-setup-${ver}-amd64.msi"
+          $msi = Join-Path $env:RUNNER_TEMP "tailscale.msi"
           $tmp = Join-Path $env:RUNNER_TEMP "tailscale"
-          Invoke-WebRequest -Uri $url -OutFile $zip
+          Invoke-WebRequest -Uri $url -OutFile $msi
           if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
-          Expand-Archive -Path $zip -DestinationPath $tmp -Force
+          New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+          # Administrative install = unpack only (no service, no system change).
+          $p = Start-Process msiexec -ArgumentList "/a", "`"$msi`"", "/qn", "TARGETDIR=`"$tmp`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "msiexec admin-extract failed ($($p.ExitCode))" }
           $dest = "src-tauri/binaries"
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
           $cli = Get-ChildItem -Recurse -Path $tmp -Filter "tailscale.exe" | Select-Object -First 1
           $daemon = Get-ChildItem -Recurse -Path $tmp -Filter "tailscaled.exe" | Select-Object -First 1
-          if (-not $cli -or -not $daemon) { throw "tailscale.exe/tailscaled.exe not found in $url" }
+          if (-not $cli -or -not $daemon) { throw "tailscale.exe/tailscaled.exe not found in MSI payload" }
           Copy-Item $cli.FullName (Join-Path $dest "tailscale-x86_64-pc-windows-msvc.exe") -Force
           Copy-Item $daemon.FullName (Join-Path $dest "tailscaled-x86_64-pc-windows-msvc.exe") -Force
           Get-ChildItem -Recurse -Path $tmp -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName $dest -Force }
@@ -324,7 +328,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ver="1.84.3"
+          ver="1.98.4"
           url="https://pkgs.tailscale.com/stable/tailscale_${ver}_amd64.tgz"
           tmp="$RUNNER_TEMP/tailscale"
           rm -rf "$tmp"; mkdir -p "$tmp"
