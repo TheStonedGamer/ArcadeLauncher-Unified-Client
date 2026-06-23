@@ -114,6 +114,13 @@ pub fn run(status: &Arc<Mutex<Status>>) {
         return;
     }
 
+    // The host engine (Sunshine sidecar) is delivered by the bootstrapper, not
+    // lazily fetched when the user first enables hosting — that runtime fetch was
+    // fragile (a separate network call that could lag or fail, leaving the engine
+    // out of lockstep with the app). Ensure the pinned version is unpacked before
+    // the app starts. Idempotent (skips when present) and best-effort.
+    ensure_host_engine(status);
+
     set(status, "Checking for updates…");
     match check_and_apply(status) {
         // A staged copy is now applying the update and will launch the app once
@@ -160,6 +167,135 @@ fn check_and_apply(status: &Arc<Mutex<Status>>) -> Result<Outcome, String> {
 
     set(status, format!("Installing update {}…", manifest.version));
     install(&bytes, &entry.url)
+}
+
+/// GitHub owner/repo that publishes the engine + the Sunshine host asset (same
+/// as the app's `host_fetch.rs`).
+const ENGINE_REPO: &str = "TheStonedGamer/ArcadeLauncher-StreamEngine";
+
+/// The app's bundle identifier — the leaf of its data dir. Must match
+/// `tauri.conf.json`'s `identifier`, since the host engine is unpacked under the
+/// same `app_data_dir()` the app's `host_fetch` reads.
+const APP_IDENTIFIER: &str = "com.thestonedgamer.arcadelauncher";
+
+/// The app's data dir, matching Tauri's `app_data_dir()`: `%APPDATA%\<id>` on
+/// Windows, `$XDG_DATA_HOME` (or `~/.local/share`) `/<id>` elsewhere. The host
+/// engine lands in `host-engine/<ver>` here — exactly where `host_fetch` looks.
+fn app_data_dir() -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        std::env::var_os("APPDATA").map(|p| PathBuf::from(p).join(APP_IDENTIFIER))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
+            .map(|p| p.join(APP_IDENTIFIER))
+    }
+}
+
+/// OS slug in the published Sunshine asset filename (mirrors `host_fetch.rs`).
+fn host_engine_os_slug() -> &'static str {
+    if cfg!(windows) {
+        "win"
+    } else {
+        "linux"
+    }
+}
+
+/// The Sunshine host binary's filename for this platform (mirrors `host_fetch.rs`).
+fn sunshine_bin_name() -> &'static str {
+    if cfg!(windows) {
+        "sunshine.exe"
+    } else {
+        "sunshine"
+    }
+}
+
+/// The engine release download URL for the Sunshine host asset (mirrors
+/// `host_fetch::host_asset_url`).
+fn host_asset_url(version: &str) -> String {
+    format!(
+        "https://github.com/{ENGINE_REPO}/releases/download/v{version}/ArcadeLauncher-Sunshine-{version}-{}-x64.zip",
+        host_engine_os_slug()
+    )
+}
+
+/// Ensure the host Sunshine sidecar for the pinned engine version is unpacked in
+/// the app data dir, downloading it from the engine release if missing.
+/// Idempotent — returns immediately when the binary is already present — and
+/// best-effort: any failure is surfaced into the status and otherwise swallowed.
+/// A missing host engine must never block app startup, and the app still carries
+/// its own runtime fetch (`host_fetch_commands`) as a fallback.
+fn ensure_host_engine(status: &Arc<Mutex<Status>>) {
+    let version = env!("SUNSHINE_HOST_VERSION");
+    let Some(data_dir) = app_data_dir() else {
+        return;
+    };
+    let install_dir = data_dir.join("host-engine").join(version);
+    let bin = install_dir.join(sunshine_bin_name());
+    if bin.is_file() {
+        return; // already present + version-matched
+    }
+    set(status, format!("Preparing streaming host {version}…"));
+    if let Err(e) = fetch_host_engine(version, &install_dir, &bin) {
+        // Leave a breadcrumb; the app's runtime fetch still covers hosting.
+        set(status, format!("Streaming host prep skipped ({e}) — continuing…"));
+    }
+}
+
+/// Download + unpack the Sunshine host sidecar for `version` into `install_dir`,
+/// verifying the expected binary materialized at `bin`.
+fn fetch_host_engine(version: &str, install_dir: &Path, bin: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(install_dir).map_err(|e| format!("create host dir: {e}"))?;
+    let bytes = download(&host_asset_url(version))?;
+    extract_zip_into(&bytes, install_dir)?;
+    if !bin.is_file() {
+        return Err("archive missing sunshine binary".into());
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(bin)
+            .map_err(|e| format!("stat sunshine: {e}"))?
+            .permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(bin, perms).map_err(|e| format!("chmod sunshine: {e}"))?;
+    }
+    Ok(())
+}
+
+/// Extract every entry of an in-memory zip under `dest`, rejecting zip-slip
+/// (entries that would escape `dest` via `..`/absolute paths). Mirrors the
+/// zip-slip-safe extractor the app uses for the same asset.
+fn extract_zip_into(bytes: &[u8], dest: &Path) -> Result<(), String> {
+    let mut zip =
+        zip::ZipArchive::new(Cursor::new(bytes)).map_err(|e| format!("open host zip: {e}"))?;
+    for i in 0..zip.len() {
+        let mut entry = zip.by_index(i).map_err(|e| format!("zip entry: {e}"))?;
+        let rel = entry
+            .enclosed_name()
+            .ok_or_else(|| format!("unsafe zip entry: {}", entry.name()))?;
+        let out = dest.join(&rel);
+        if !out.starts_with(dest) {
+            return Err(format!("zip slip rejected: {}", entry.name()));
+        }
+        if entry.is_dir() {
+            std::fs::create_dir_all(&out).map_err(|e| format!("mkdir {}: {e}", out.display()))?;
+            continue;
+        }
+        if let Some(parent) = out.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
+        }
+        let mut buf = Vec::with_capacity(entry.size() as usize);
+        entry
+            .read_to_end(&mut buf)
+            .map_err(|e| format!("read {}: {e}", entry.name()))?;
+        std::fs::write(&out, &buf).map_err(|e| format!("write {}: {e}", out.display()))?;
+    }
+    Ok(())
 }
 
 fn fetch_manifest() -> Result<Manifest, String> {
@@ -467,6 +603,52 @@ mod tests {
         assert_eq!(parse("0.9.4"), (0, 9, 4));
         assert_eq!(parse("1.2"), (1, 2, 0));
         assert_eq!(parse("garbage"), (0, 0, 0));
+    }
+
+    #[test]
+    fn host_engine_version_embedded() {
+        // build.rs must parse SUNSHINE_HOST_VERSION out of host_fetch.rs and embed
+        // it; an empty or non-numeric value means the parse broke and the
+        // bootstrapper would build a bogus asset URL.
+        let v = env!("SUNSHINE_HOST_VERSION");
+        assert!(!v.is_empty(), "SUNSHINE_HOST_VERSION not embedded");
+        assert!(
+            v.split('.').all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit())),
+            "version not dotted-numeric: {v}"
+        );
+    }
+
+    #[test]
+    fn host_asset_url_targets_engine_release() {
+        let url = host_asset_url("0.3.7");
+        assert!(url.starts_with(
+            "https://github.com/TheStonedGamer/ArcadeLauncher-StreamEngine/releases/download/v0.3.7/"
+        ));
+        assert!(url.ends_with("-x64.zip"));
+        assert!(url.contains(if cfg!(windows) { "-win-" } else { "-linux-" }));
+        assert!(url.contains("ArcadeLauncher-Sunshine-0.3.7-"));
+    }
+
+    #[test]
+    fn extract_zip_into_writes_files_and_blocks_slip() {
+        use std::io::Write;
+        // Build a tiny in-memory zip with one nested file.
+        let mut buf = Vec::new();
+        {
+            let mut w = zip::ZipWriter::new(Cursor::new(&mut buf));
+            let opts: zip::write::FileOptions<()> = zip::write::FileOptions::default();
+            w.start_file("dir/hello.txt", opts).unwrap();
+            w.write_all(b"hi").unwrap();
+            w.finish().unwrap();
+        }
+        let dest = std::env::temp_dir().join(format!("ualc_extract_test_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dest);
+        extract_zip_into(&buf, &dest).expect("extract ok");
+        assert_eq!(
+            std::fs::read_to_string(dest.join("dir/hello.txt")).unwrap(),
+            "hi"
+        );
+        let _ = std::fs::remove_dir_all(&dest);
     }
 
     #[test]

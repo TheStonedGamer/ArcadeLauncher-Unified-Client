@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.10] - 2026-06-23
+
+### Changed
+- **Streaming host setup is now bundled with updates instead of downloaded on
+  first use.** The host streaming component is fetched and kept in lockstep by the
+  updater when the app starts, so "Stream from this PC" works reliably the first
+  time — no separate download that could lag behind or fail when you enable it.
+
 ## [0.13.9] - 2026-06-23
 
 ### Fixed

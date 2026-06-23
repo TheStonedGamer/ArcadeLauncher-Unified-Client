@@ -27,6 +27,21 @@ fn main() {
         .expect("find top-level \"version\" in tauri.conf.json");
     println!("cargo:rustc-env=APP_VERSION={app_version}");
 
+    // Embed the host engine (Sunshine sidecar) version as SUNSHINE_HOST_VERSION.
+    // The bootstrapper pulls the host engine itself (see update.rs), so it needs
+    // to know which engine release to fetch. Parse it straight out of the app
+    // crate's host_fetch.rs so that const stays the single source of truth — the
+    // in-app runtime fetch and the bootstrapper can never drift out of lockstep.
+    println!("cargo:rerun-if-changed=../src/streaming/host_fetch.rs");
+    let host_fetch = std::fs::read_to_string("../src/streaming/host_fetch.rs")
+        .expect("read ../src/streaming/host_fetch.rs for SUNSHINE_HOST_VERSION");
+    let engine_version = host_fetch
+        .lines()
+        .find(|l| l.contains("SUNSHINE_HOST_VERSION") && l.contains('='))
+        .and_then(|l| l.split('"').nth(1))
+        .expect("parse SUNSHINE_HOST_VERSION from host_fetch.rs");
+    println!("cargo:rustc-env=SUNSHINE_HOST_VERSION={engine_version}");
+
     if std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc") {
         // Same icon the launcher ships (src-tauri/icons/icon.ico). Compiled into a
         // .res and linked into updater.exe. We leave the manifest unset here so the
