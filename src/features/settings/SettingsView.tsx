@@ -1,7 +1,8 @@
 // General settings form bound to useSettings. Edits are kept in a draft and
 // persisted to config.json on Save.
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { useSettings } from "./useSettings";
 import { useSession } from "../session/SessionContext";
 import { useEmulators } from "../emulators/useEmulators";
@@ -21,6 +22,15 @@ import { clampKeep, type AutoSyncSettings } from "../saves/saves";
 export function SettingsView() {
   const { draft, loading, saved, error, set, save } = useSettings();
   const { refresh: refreshController } = useControllerConfig();
+
+  // Unified Client version, read from tauri.conf.json (the single source of truth)
+  // so the footer can never drift from the actual build.
+  const [version, setVersion] = useState("");
+  useEffect(() => {
+    void getVersion()
+      .then(setVersion)
+      .catch(() => setVersion(""));
+  }, []);
 
   // Re-read controller prefs into the live context after a save so an
   // enable/dead-zone change applies without restarting the app.
@@ -152,6 +162,10 @@ export function SettingsView() {
       <HostingSection />
 
       <EmulatorControllerEditor />
+
+      <footer className="settings__version">
+        ArcadeLauncher Unified Client{version ? ` v${version}` : ""}
+      </footer>
     </section>
   );
 }
