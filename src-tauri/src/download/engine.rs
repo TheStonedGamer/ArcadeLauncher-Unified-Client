@@ -187,7 +187,14 @@ pub struct InstallContext {
     pub verify: bool,
 }
 
+// NB: `rename_all = "camelCase"` is load-bearing — the webview reads `gameId`
+// (see download/types.ts). Without it the field ships as `game_id`, so every
+// event arrives with `gameId === undefined`: the queue keys every item under
+// `undefined` and pause/cancel call the backend with `gameId: undefined`, which
+// fails to deserialize and is silently swallowed (dead buttons). The flattened
+// `Progress` is already camelCase; these wrappers must match it.
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct ProgressEvent<'a> {
     game_id: &'a str,
     #[serde(flatten)]
@@ -195,6 +202,7 @@ struct ProgressEvent<'a> {
 }
 
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct StatusEvent<'a> {
     game_id: &'a str,
     status: DownloadStatus,

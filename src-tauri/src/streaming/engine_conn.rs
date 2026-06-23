@@ -75,17 +75,21 @@ fn engine_mode(method: &str) -> &'static str {
     }
 }
 
-/// Spawn the engine, told to connect to our endpoint `token`, stdio quieted.
+/// Spawn the engine, told to connect to our endpoint `token`. Output is teed to a
+/// per-mode log file and the console window suppressed (see `crate::proc`).
 fn spawn_engine(method: &str, token: &str) -> AppResult<Child> {
     let exe = engine_path()?;
-    Command::new(&exe)
-        .arg(engine_mode(method))
+    let mode = engine_mode(method);
+    let log = if mode == "host" { "sunshine-host.log" } else { "moonlight.log" };
+    let mut cmd = Command::new(&exe);
+    cmd.arg(mode)
         .arg("--ipc")
         .arg(token)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
+        .stdout(crate::proc::log_stdio(log))
+        .stderr(crate::proc::log_stdio(log));
+    crate::proc::hide_console(&mut cmd);
+    cmd.spawn()
         .map_err(|e| AppError::msg(format!("failed to spawn stream engine: {e}")))
 }
 
@@ -241,6 +245,29 @@ pub async fn engine_stop() -> AppResult<Value> {
     engine_call("client.stop", Value::Null).await
 }
 
+/// This client's stable identity (engine `client.identity`) → `{ clientCertPem, uniqueId }`.
+/// The launcher publishes `clientCertPem` to the account so hosts can pre-authorize this PC for
+/// zero-PIN auto-pair.
+#[tauri::command]
+pub async fn engine_identity() -> AppResult<Value> {
+    engine_call("client.identity", Value::Null).await
+}
+
+/// Pin a host's server cert without the PIN handshake (engine `client.trustHost`). Called before
+/// `client.start` with the host's published `serverCertPem` so streaming a My PCs game needs no PIN.
+#[tauri::command]
+pub async fn engine_trust_host(
+    host: String,
+    name: String,
+    server_cert_pem: String,
+) -> AppResult<Value> {
+    engine_call(
+        "client.trustHost",
+        json!({ "host": host, "name": name, "serverCertPem": server_cert_pem }),
+    )
+    .await
+}
+
 // ----- Host mode (engine `host.*`) — let *this* PC be streamed --------------------------------
 // These drive the engine's host side (the bundled Sunshine): query/toggle hosting and publish the
 // local library as streamable apps. Unlike the one-shot client calls above, host mode is STATEFUL:
@@ -297,6 +324,30 @@ pub async fn engine_host_list_apps(
     host: tauri::State<'_, super::host_session::HostSession>,
 ) -> AppResult<Value> {
     host.call("host.listApps", Value::Null).await
+}
+
+/// This host's identity incl. its Sunshine server cert (engine `host.deviceInfo`) →
+/// `{ deviceId, lanAddr, meshAddr, certFingerprint, serverCertPem }`. The launcher publishes
+/// `serverCertPem` to the account so clients can pin it (zero-PIN auto-pair). Routed through the
+/// persistent HostSession so it reads the cert of the Sunshine *this* engine manages.
+#[tauri::command]
+pub async fn engine_host_device_info(
+    host: tauri::State<'_, super::host_session::HostSession>,
+) -> AppResult<Value> {
+    host.call("host.deviceInfo", Value::Null).await
+}
+
+/// Authorize a streaming client without a PIN (engine `host.trustClient`) by seeding its cert into
+/// Sunshine's trust store → `{ trusted, alreadyTrusted, restartRequired }`. The launcher seeds the
+/// account's registered client certs before/while hosting so account PCs stream with no PIN.
+/// `restartRequired` is true when a newly-seeded cert needs a Sunshine restart to take effect.
+#[tauri::command]
+pub async fn engine_host_trust_client(
+    name: String,
+    cert_pem: String,
+    host: tauri::State<'_, super::host_session::HostSession>,
+) -> AppResult<Value> {
+    host.call("host.trustClient", json!({ "name": name, "certPem": cert_pem })).await
 }
 
 #[cfg(test)]

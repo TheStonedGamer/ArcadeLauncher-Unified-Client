@@ -55,6 +55,16 @@ export function isValidPin(pin: string): boolean {
   return /^\d{4}$/.test(pin);
 }
 
+/** Whether a failed Play / stream-start was rejected because the engine has no
+ *  pairing for the host. The engine surfaces the code in the error string as
+ *  `"… (not_paired)"` (Rust `IpcError` Display is `"{message} ({code})"`); we also
+ *  tolerate the plain "not paired" phrasing. Lets the My PCs Play turn a dead,
+ *  window-flashing failure into an actionable "pair this PC first" prompt. Pure. */
+export function isNotPairedError(message: string): boolean {
+  const m = message.toLowerCase();
+  return m.includes("(not_paired)") || m.includes("not paired");
+}
+
 /** Parse stored stream-quality defaults (e.g. from localStorage). Tolerates
  *  missing/garbage input by falling back to defaults, and always clamps the
  *  result so a tampered store can't yield a broken config. Pure. */

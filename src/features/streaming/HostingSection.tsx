@@ -98,7 +98,7 @@ export function HostingSection() {
               // sidecar. GPU capability is still required. Locked on when we've
               // adopted a Sunshine the user runs themselves — we don't stop theirs.
               disabled={busy || installing || !status.gpuCapable || adopted}
-              onChange={(e) => void setEnabled(e.target.checked)}
+              onChange={(e) => void setEnabled(e.target.checked, session)}
             />
             Let this PC be streamed
           </label>

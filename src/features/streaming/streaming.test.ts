@@ -6,6 +6,7 @@ import {
   hostStateLabel,
   hostStatusSummary,
   isHostableGame,
+  isNotPairedError,
   isStreamTerminal,
   isValidPin,
   parseStoredSettings,
@@ -87,6 +88,23 @@ describe("isValidPin", () => {
     expect(isValidPin("12345")).toBe(false);
     expect(isValidPin("12a4")).toBe(false);
     expect(isValidPin(" 1234")).toBe(false);
+  });
+});
+
+describe("isNotPairedError", () => {
+  it("detects the engine's not_paired rejection", () => {
+    // The exact shape the engine surfaces (IpcError Display = "{message} ({code})").
+    expect(
+      isNotPairedError("host '10.0.0.127' is not paired; run client.pair first (not_paired)"),
+    ).toBe(true);
+    expect(isNotPairedError("pair first (not_paired)")).toBe(true);
+    expect(isNotPairedError("Host Is Not Paired")).toBe(true);
+  });
+
+  it("ignores unrelated stream failures", () => {
+    expect(isNotPairedError("host '10.0.0.5' is unreachable (host_unreachable)")).toBe(false);
+    expect(isNotPairedError("engine framing error")).toBe(false);
+    expect(isNotPairedError("")).toBe(false);
   });
 });
 

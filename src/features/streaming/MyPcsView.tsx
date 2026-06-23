@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useStreaming } from "./useStreaming";
 import { useMyPcs } from "./useMyPcs";
+import { isNotPairedError, isValidPin } from "./streaming";
 import {
   meshIsAvailable,
   meshJoin,
@@ -24,6 +25,7 @@ import {
   type MyPc,
   type MyPcApp,
 } from "./api";
+import { pinHostBeforePlay } from "./certAuth";
 import { useSession } from "../session/SessionContext";
 import type { Session } from "../session/types";
 
@@ -161,12 +163,21 @@ function PcCard({
 
 export function MyPcsView() {
   const { session } = useSession();
-  const { moonlight, engine, play } = useStreaming();
+  const { moonlight, engine, play, pair } = useStreaming();
   const { pcs, loading, error } = useMyPcs();
   const [banner, setBanner] = useState("");
   // Whether the bundled Tailscale is present (gate 2). False keeps the mesh path
   // inert — LAN-less PCs simply aren't playable rather than offering a dead Play.
   const [meshReady, setMeshReady] = useState(false);
+  // Set when a Play was rejected `not_paired`: the PC needs a one-time GameStream
+  // pairing first. We capture the resolved address so the inline PIN prompt pairs
+  // against the same host the stream would use, then auto-retries Play. (UX guard
+  // until brokered zero-PIN auto-pairing lands — see uc_my_pcs_account_discovery.)
+  const [pairPrompt, setPairPrompt] = useState<{ pc: MyPc; app: string; address: string } | null>(
+    null,
+  );
+  const [pin, setPin] = useState("");
+  const [pairing, setPairing] = useState(false);
 
   // Play is possible via the bundled engine OR an external Moonlight install.
   const canStream = engine === true || moonlight === true;
@@ -180,22 +191,62 @@ export function MyPcsView() {
   const onPlay = useCallback(
     async (pc: MyPc, app: string) => {
       setBanner("");
+      setPairPrompt(null);
+      // Resolve outside the try so the catch can offer to pair the same address.
+      let address = streamAddress(pc);
       try {
         // Prefer the LAN address; otherwise join the overlay and dial the mesh IP.
-        let address = streamAddress(pc);
         if (address === "") {
           if (!session) throw new Error("sign in to stream over the internet");
           setBanner(`Connecting to ${pc.name} over the internet…`);
           address = await resolveMeshAddress(session, pc);
         }
+        // Zero-PIN auto-pair: pin this host's published server cert before streaming so the
+        // GameStream handshake doesn't fail `not_paired`. No-op (and harmless) if the host hasn't
+        // published a cert yet — Play then falls through to the inline PIN prompt below (fix B).
+        await pinHostBeforePlay(address, pc);
         const via = await play(address, app);
         setBanner(`Streaming ${app}${via === "moonlight" ? " in Moonlight" : ""} ✓`);
       } catch (e) {
-        setBanner(`Couldn’t start stream: ${e instanceof Error ? e.message : String(e)}`);
+        const msg = e instanceof Error ? e.message : String(e);
+        // A `not_paired` rejection isn't a failure to report — it means this PC
+        // has never been paired. Offer the one-time PIN pairing inline instead of
+        // a dead Play that just flashed a window.
+        if (isNotPairedError(msg) && address !== "") {
+          setBanner("");
+          setPin("");
+          setPairPrompt({ pc, app, address });
+        } else {
+          setBanner(`Couldn’t start stream: ${msg}`);
+        }
       }
     },
     [play, session],
   );
+
+  // Pair the not-yet-paired PC with the entered PIN, then auto-retry Play. The
+  // user must type the same PIN into that PC's Sunshine (its tray → PIN) — the
+  // GameStream handshake needs both sides to agree on the PIN.
+  const submitPair = useCallback(async () => {
+    if (!pairPrompt || !isValidPin(pin)) return;
+    const { pc, app, address } = pairPrompt;
+    setPairing(true);
+    try {
+      const ok = await pair(address, pin, pc.name);
+      if (!ok) {
+        setBanner("Pairing failed — check the PIN on both PCs and try again.");
+        return;
+      }
+      setPairPrompt(null);
+      setPin("");
+      const via = await play(address, app);
+      setBanner(`Streaming ${app}${via === "moonlight" ? " in Moonlight" : ""} ✓`);
+    } catch (e) {
+      setBanner(`Pairing failed — ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setPairing(false);
+    }
+  }, [pairPrompt, pin, pair, play]);
 
   return (
     <section className="mypcs">
@@ -213,6 +264,48 @@ export function MyPcsView() {
       )}
       {error && <p className="catalog__status">Couldn’t load your PCs — {error}.</p>}
       {banner && <p className="catalog__status">{banner}</p>}
+
+      {pairPrompt && (
+        <div className="mypcs__pair">
+          <p className="catalog__status">
+            <strong>{pairPrompt.pc.name}</strong> needs a one-time pairing before you can stream
+            from it. Enter a 4-digit PIN below, then go to that PC and type the <em>same</em> PIN
+            into Sunshine (its tray icon → <strong>PIN</strong>, or{" "}
+            <code>https://localhost:47990</code> → <strong>PIN</strong>).
+          </p>
+          <div className="mypcs__pairrow">
+            <input
+              className="settings__input"
+              inputMode="numeric"
+              maxLength={4}
+              placeholder="4-digit PIN"
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void submitPair();
+              }}
+              disabled={pairing}
+            />
+            <button
+              className="emu-row__btn"
+              onClick={() => void submitPair()}
+              disabled={!isValidPin(pin) || pairing}
+            >
+              {pairing ? "Pairing…" : "Pair & Play"}
+            </button>
+            <button
+              className="emu-row__btn"
+              onClick={() => {
+                setPairPrompt(null);
+                setPin("");
+              }}
+              disabled={pairing}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {pcs.length === 0 ? (
         <p className="catalog__status">

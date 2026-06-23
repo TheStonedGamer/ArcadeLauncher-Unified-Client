@@ -26,6 +26,11 @@ pub struct MyPc {
     pub mesh_addr: String,
     #[serde(default)]
     pub cert_fp: String,
+    /// The host's Sunshine server cert PEM, for zero-PIN auto-pair: the client pins this
+    /// (engine `client.trustHost`) before `client.start` so streaming needs no PIN handshake.
+    /// Empty until the host has published it (after its first host-enable).
+    #[serde(default)]
+    pub server_cert_pem: String,
     #[serde(default)]
     pub online: bool,
     #[serde(default)]
@@ -78,6 +83,7 @@ mod tests {
             lan_addr: lan.into(),
             mesh_addr: mesh.into(),
             cert_fp: String::new(),
+            server_cert_pem: String::new(),
             online,
             last_seen: 0,
         }

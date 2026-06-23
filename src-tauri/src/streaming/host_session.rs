@@ -73,14 +73,15 @@ pub struct HostSession {
 /// fetched sidecar (see [`host_fetch_commands`](super::host_fetch_commands)).
 fn spawn_host_engine(token: &str) -> AppResult<Child> {
     let exe = engine_path()?;
-    Command::new(&exe)
-        .arg("host")
+    let mut cmd = Command::new(&exe);
+    cmd.arg("host")
         .arg("--ipc")
         .arg(token)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
+        .stdout(crate::proc::log_stdio("sunshine-host.log"))
+        .stderr(crate::proc::log_stdio("sunshine-host.log"));
+    crate::proc::hide_console(&mut cmd);
+    cmd.spawn()
         .map_err(|e| AppError::msg(format!("failed to spawn stream engine (host): {e}")))
 }
 

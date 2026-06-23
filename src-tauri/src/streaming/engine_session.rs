@@ -82,16 +82,18 @@ impl StreamSession {
 }
 
 /// Spawn the engine in `stream` mode, connected back to our endpoint `token`.
+/// Output is teed to the Moonlight log and the console window suppressed.
 fn spawn_stream_engine(token: &str) -> AppResult<Child> {
     let exe = engine_path()?;
-    Command::new(&exe)
-        .arg("stream")
+    let mut cmd = Command::new(&exe);
+    cmd.arg("stream")
         .arg("--ipc")
         .arg(token)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
+        .stdout(crate::proc::log_stdio("moonlight.log"))
+        .stderr(crate::proc::log_stdio("moonlight.log"));
+    crate::proc::hide_console(&mut cmd);
+    cmd.spawn()
         .map_err(|e| AppError::msg(format!("failed to spawn stream engine: {e}")))
 }
 

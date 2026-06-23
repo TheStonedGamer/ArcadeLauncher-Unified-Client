@@ -16,6 +16,8 @@ import {
   type HostStatus,
   type SyncResult,
 } from "./api";
+import { publishHostServerCert, seedAccountClientCerts } from "./certAuth";
+import type { Session } from "../session/types";
 
 export interface Hosting {
   status: HostStatus | null;
@@ -25,7 +27,10 @@ export interface Hosting {
   /** True while the Sunshine host sidecar is being downloaded on first enable. */
   installing: boolean;
   refresh: () => Promise<void>;
-  setEnabled: (on: boolean) => Promise<void>;
+  /** Turn hosting on/off. When `session` is given and turning on, this also runs the cert
+   *  pre-authorization dance (seed account client certs before enable, publish this PC's server
+   *  cert after) so account devices stream with no PIN. */
+  setEnabled: (on: boolean, session?: Session | null) => Promise<void>;
   /** Publish the given games to the host; resolves to the diff, or null on error. */
   sync: (games: HostGame[]) => Promise<SyncResult | null>;
 }
@@ -55,7 +60,7 @@ export function useHosting(): Hosting {
   }, [refresh]);
 
   const setEnabled = useCallback(
-    async (on: boolean) => {
+    async (on: boolean, session?: Session | null) => {
       setBusy(true);
       try {
         // The Sunshine host sidecar isn't bundled in the installer (most users
@@ -80,7 +85,17 @@ export function useHosting(): Hosting {
             }
           }
         }
+        // Cert pre-authorization (zero-PIN auto-pair): seed the account's client certs into
+        // Sunshine BEFORE it starts, so they load into named_devices at launch. Best-effort —
+        // any device we can't pre-trust just falls back to PIN pairing.
+        if (on && session) {
+          await seedAccountClientCerts(session.host, session.token);
+        }
         await hostEnable(on);
+        // After Sunshine is up it has minted its server cert: publish it so clients can pin it.
+        if (on && session) {
+          await publishHostServerCert(session.host, session.token);
+        }
         await refresh();
       } catch (e) {
         setError(message(e));

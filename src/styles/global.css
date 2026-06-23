@@ -166,6 +166,15 @@ body {
 .mypcs__chevron { color: var(--muted); flex: 0 0 auto; }
 .mypcs__apps { padding: 4px 14px 12px; border-top: 1px solid var(--border); }
 
+/* Inline "pair this PC first" prompt shown when Play is rejected not_paired. */
+.mypcs__pair {
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--panel-2); padding: 12px 14px; margin: 10px 0 0;
+}
+.mypcs__pair code { font-size: 12px; }
+.mypcs__pairrow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.mypcs__pairrow .settings__input { max-width: 140px; }
+
 /* ── Update banner ─────────────────────────────────────────────────────── */
 .update-banner {
   display: flex; align-items: center; gap: 12px;

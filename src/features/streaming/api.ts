@@ -155,6 +155,64 @@ export function engineStop(): Promise<unknown> {
   return call("engine_stop", {});
 }
 
+// ---- Cert pre-authorization (brokered zero-PIN auto-pair, fix A) -----------
+// The host trusts a client by seeding its cert into Sunshine; the client pins the
+// host's server cert. Both halves are brokered through the account registry so a
+// PC signed into the same account streams a My PCs game with no PIN handshake.
+
+/** This client's stable identity (engine `client.identity`). `clientCertPem` is published to the
+ *  account so hosts can pre-authorize this PC. */
+export function engineIdentity(): Promise<{ clientCertPem: string; uniqueId: string }> {
+  return call<{ clientCertPem: string; uniqueId: string }>("engine_identity", {});
+}
+
+/** Pin a host's server cert without the PIN handshake (engine `client.trustHost`). Call before
+ *  playing a My PCs game so `client.start` no longer fails `not_paired`. */
+export function engineTrustHost(
+  host: string,
+  name: string,
+  serverCertPem: string,
+): Promise<unknown> {
+  return call("engine_trust_host", { host, name, serverCertPem });
+}
+
+/** This host's identity incl. its Sunshine server cert (engine `host.deviceInfo`). */
+export function engineHostDeviceInfo(): Promise<{
+  deviceId: string;
+  lanAddr: string;
+  meshAddr: string;
+  certFingerprint: string;
+  serverCertPem: string;
+}> {
+  return call("engine_host_device_info", {});
+}
+
+/** Authorize a streaming client without a PIN (engine `host.trustClient`) by seeding its cert into
+ *  Sunshine's trust store. `restartRequired` ⇒ a newly-seeded cert needs a Sunshine restart. */
+export function engineHostTrustClient(
+  name: string,
+  certPem: string,
+): Promise<{ trusted: boolean; alreadyTrusted: boolean; restartRequired: boolean }> {
+  return call("engine_host_trust_client", { name, certPem });
+}
+
+/** One account-registered streaming-client cert. */
+export interface ClientCert {
+  deviceId: string;
+  name: string;
+  certPem: string;
+}
+
+/** Publish this device's client cert to the account registry so hosts can pre-authorize it. */
+export function clientCertRegister(host: string, token: string, certPem: string): Promise<void> {
+  return call<void>("client_cert_register", { host, token, certPem });
+}
+
+/** Every client cert registered to the account — hosts seed these into Sunshine when hosting. */
+export function clientCertList(host: string, token: string): Promise<ClientCert[]> {
+  return call<ClientCert[]>("client_cert_list", { host, token });
+}
+
 /** This PC's hosting status (engine `host.status`). */
 export function hostStatus(): Promise<HostStatus> {
   return call<HostStatus>("engine_host_status", {});
@@ -206,6 +264,9 @@ export interface MyPc {
   lanAddr: string;
   meshAddr: string;
   certFp: string;
+  /** The host's Sunshine server cert PEM — pinned (engine `client.trustHost`) before play for
+   *  zero-PIN auto-pair. Empty until the host has published it (after its first host-enable). */
+  serverCertPem: string;
   online: boolean;
   lastSeen: number;
 }
@@ -238,9 +299,15 @@ export function myPcsAnnounceFrame(): Promise<string> {
 }
 
 /** Register/upsert this device into the account registry (durable, also notifies
- *  the account's other devices). Call once on sign-in. */
-export function myPcsRegister(host: string, token: string): Promise<void> {
-  return call<void>("mypcs_register", { host, token });
+ *  the account's other devices). Call once on sign-in. Pass `serverCertPem` (from the host engine)
+ *  only when host mode is on, to publish this PC's Sunshine cert for zero-PIN auto-pair; the server
+ *  preserves any stored cert when it is omitted. */
+export function myPcsRegister(
+  host: string,
+  token: string,
+  serverCertPem?: string,
+): Promise<void> {
+  return call<void>("mypcs_register", { host, token, serverCertPem });
 }
 
 /** Every *other* PC on the account (this device excluded). */

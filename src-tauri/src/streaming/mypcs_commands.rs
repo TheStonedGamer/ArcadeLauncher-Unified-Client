@@ -167,14 +167,30 @@ pub async fn mypcs_announce_frame(app: tauri::AppHandle) -> AppResult<String> {
 /// Durable upsert of this device into the account registry (`POST /hosts/register`).
 /// Called once on sign-in so the row exists even before the WS pump warms up; the
 /// server also notifies the account's other devices.
+/// `server_cert_pem` (optional) is this PC's Sunshine server cert, published only when host mode is
+/// on so clients can pin it for zero-PIN auto-pair; the server preserves any stored cert when it's
+/// omitted (the sign-in / heartbeat register passes none).
 #[tauri::command]
-pub async fn mypcs_register(app: tauri::AppHandle, host: String, token: String) -> AppResult<()> {
+pub async fn mypcs_register(
+    app: tauri::AppHandle,
+    host: String,
+    token: String,
+    server_cert_pem: Option<String>,
+) -> AppResult<()> {
     let me = gather_self(&app).await?;
+    let body = serde_json::json!({
+        "deviceId": me.device_id,
+        "name": me.name,
+        "lanAddr": me.lan_addr,
+        "meshAddr": me.mesh_addr,
+        "certFp": me.cert_fp,
+        "serverCertPem": server_cert_pem.unwrap_or_default(),
+    });
     let endpoint = Endpoint::new(host, token);
     let resp = http_client()
         .post(endpoint.host_register_url())
         .bearer_auth(endpoint.token())
-        .json(&me)
+        .json(&body)
         .send()
         .await
         .map_err(|e| AppError::msg(format!("device register failed: {e}")))?;
@@ -182,6 +198,69 @@ pub async fn mypcs_register(app: tauri::AppHandle, host: String, token: String) 
         return Err(AppError::msg(format!("device register failed (HTTP {})", resp.status())));
     }
     Ok(())
+}
+
+/// One account-registered streaming-client cert (`GET /api/social/client-certs`). Hosts seed each
+/// into Sunshine's trust store so the owning PC streams with no PIN.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientCert {
+    pub device_id: String,
+    #[serde(default)]
+    pub name: String,
+    pub cert_pem: String,
+}
+
+/// Publish this device's streaming-client cert to the account registry
+/// (`POST /api/social/client-certs`) so every host on the account can pre-authorize it. Idempotent
+/// per device. `cert_pem` comes from the engine (`client.identity`).
+#[tauri::command]
+pub async fn client_cert_register(
+    app: tauri::AppHandle,
+    host: String,
+    token: String,
+    cert_pem: String,
+) -> AppResult<()> {
+    let self_id = device_id(&app)?;
+    let body = serde_json::json!({ "deviceId": self_id, "name": device_name(), "certPem": cert_pem });
+    let endpoint = Endpoint::new(host, token);
+    let resp = http_client()
+        .post(endpoint.client_certs_url())
+        .bearer_auth(endpoint.token())
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("client cert publish failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("client cert publish failed (HTTP {})", resp.status())));
+    }
+    Ok(())
+}
+
+/// Every client cert registered to the account (`GET /api/social/client-certs`). The host seeds
+/// these into Sunshine (`host.trustClient`) when hosting so account PCs auto-pair with no PIN.
+#[tauri::command]
+pub async fn client_cert_list(host: String, token: String) -> AppResult<Vec<ClientCert>> {
+    #[derive(Deserialize)]
+    struct Resp {
+        #[serde(default)]
+        certs: Vec<ClientCert>,
+    }
+    let endpoint = Endpoint::new(host, token);
+    let resp = http_client()
+        .get(endpoint.client_certs_url())
+        .bearer_auth(endpoint.token())
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("client cert list failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("client cert list failed (HTTP {})", resp.status())));
+    }
+    let body: Resp = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid client cert response: {e}")))?;
+    Ok(body.certs)
 }
 
 /// Every PC signed into the account (`GET /hosts`), with this device removed —

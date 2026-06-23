@@ -12,6 +12,8 @@ pub fn run(cmd: &str) {
         return;
     }
     let mut shell = shell();
+    // The launcher is a GUI app; `cmd /C` would otherwise flash a console window.
+    crate::proc::hide_console(&mut shell);
     let _ = shell.arg(cmd).status();
 }
 

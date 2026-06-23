@@ -10,6 +10,7 @@ mod error;
 mod hotkey;
 mod launch;
 mod presence;
+mod proc;
 mod requests;
 mod retroachievements;
 mod saves;
@@ -56,6 +57,18 @@ pub fn run() {
         // Sunshine child across all `host.*` calls — see `host_session`).
         .manage(streaming::host_session::HostSession::default())
         .setup(|app| {
+            // Resolve the app log dir once so spawn helpers can tee the engine's
+            // stdout/stderr to per-component log files (Moonlight = `stream`, the
+            // Sunshine host driver = `host`) without an AppHandle threaded down to
+            // the handle-free engine spawn sites. Best-effort; falls back to the
+            // null device if it can't be resolved.
+            {
+                use tauri::Manager;
+                if let Ok(dir) = app.handle().path().app_log_dir() {
+                    proc::set_log_dir(dir);
+                }
+            }
+
             // Register the global summon/hide hotkey from saved settings.
             // Best-effort: a missing config or bad accelerator is logged, not
             // fatal — the launcher must always boot.
@@ -157,10 +170,14 @@ pub fn run() {
             streaming::engine_conn::engine_hosts,
             streaming::engine_conn::engine_apps,
             streaming::engine_conn::engine_stop,
+            streaming::engine_conn::engine_identity,
+            streaming::engine_conn::engine_trust_host,
             streaming::engine_conn::engine_host_status,
             streaming::engine_conn::engine_host_enable,
             streaming::engine_conn::engine_host_sync_apps,
             streaming::engine_conn::engine_host_list_apps,
+            streaming::engine_conn::engine_host_device_info,
+            streaming::engine_conn::engine_host_trust_client,
             streaming::host_fetch_commands::host_install_status,
             streaming::host_fetch_commands::host_install,
             streaming::mesh::conn::mesh_is_available,
@@ -175,6 +192,8 @@ pub fn run() {
             streaming::mypcs_commands::mypcs_forget,
             streaming::mypcs_commands::mypcs_apps,
             streaming::mypcs_commands::mypcs_publish,
+            streaming::mypcs_commands::client_cert_register,
+            streaming::mypcs_commands::client_cert_list,
             requests::commands::requests_board,
             requests::commands::requests_me,
             requests::commands::requests_search,

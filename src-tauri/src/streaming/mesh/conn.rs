@@ -69,9 +69,10 @@ fn mesh_state_dir() -> AppResult<PathBuf> {
 /// Run the bundled `tailscale` CLI with `args`, returning stdout on success.
 fn run_cli(args: &[String]) -> AppResult<String> {
     let exe = mesh_bin(CLI_BIN)?;
-    let out = Command::new(&exe)
-        .args(args)
-        .stdin(Stdio::null())
+    let mut cmd = Command::new(&exe);
+    cmd.args(args).stdin(Stdio::null());
+    crate::proc::hide_console(&mut cmd);
+    let out = cmd
         .output()
         .map_err(|e| AppError::msg(format!("tailscale invoke failed: {e}")))?;
     if out.status.success() {
@@ -102,13 +103,14 @@ fn ensure_daemon() -> AppResult<()> {
     let daemon = mesh_bin(DAEMON_BIN)?;
     let state_dir = mesh_state_dir()?;
     let _ = std::fs::create_dir_all(&state_dir);
-    Command::new(&daemon)
-        .arg("--statedir")
+    let mut cmd = Command::new(&daemon);
+    cmd.arg("--statedir")
         .arg(&state_dir)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
+        .stdout(crate::proc::log_stdio("tailscaled.log"))
+        .stderr(crate::proc::log_stdio("tailscaled.log"));
+    crate::proc::hide_console(&mut cmd);
+    cmd.spawn()
         .map_err(|e| AppError::msg(format!("failed to start tailscaled: {e}")))?;
     Ok(())
 }

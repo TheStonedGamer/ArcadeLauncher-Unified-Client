@@ -13,6 +13,27 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.7] - 2026-06-23
+
+### Added
+- **Stream a "My PCs" game with no PIN.** PCs signed into the same account now
+  pair automatically the first time you hit Play — no more typing a PIN into
+  Sunshine on the other machine. (If a host hasn't been set up for auto-pair
+  yet, the one-time PIN prompt below still appears as a fallback.)
+
+### Changed
+- When a remote PC needs pairing, Play now shows an inline **PIN prompt** and
+  retries automatically once you enter it — instead of a window that flashed
+  open and closed with a misleading "Streaming ✓" message.
+- Bundles stream engine **v0.3.7** (cert pre-authorization for zero-PIN pairing).
+
+### Fixed
+- **The Pause and Cancel buttons on downloads work again.**
+- Remote-play host (Sunshine) and client (Moonlight) now write **log files**,
+  making streaming problems diagnosable.
+- The streaming engine no longer **flashes a console window** into the
+  foreground when you start or host a stream.
+
 ## [0.13.6] - 2026-06-23
 
 ### Fixed

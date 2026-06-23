@@ -139,6 +139,12 @@ impl Endpoint {
         format!("https://{}/api/social/mesh/preauth", self.host)
     }
 
+    /// REST URL for the account's streaming-client cert registry: GET lists every device's
+    /// client cert (hosts seed these for zero-PIN auto-pair); POST publishes this device's cert.
+    pub fn client_certs_url(&self) -> String {
+        format!("https://{}/api/social/client-certs", self.host)
+    }
+
     /// The bearer token, for the `Authorization` header on REST calls.
     pub fn token(&self) -> &str {
         &self.token
@@ -221,6 +227,10 @@ mod tests {
         assert_eq!(
             e.mesh_preauth_url(),
             "https://arcade.example.com/api/social/mesh/preauth"
+        );
+        assert_eq!(
+            e.client_certs_url(),
+            "https://arcade.example.com/api/social/client-certs"
         );
     }
 
