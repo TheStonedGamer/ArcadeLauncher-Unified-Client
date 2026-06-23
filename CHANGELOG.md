@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.2] - 2026-06-23
+
+### Fixed
+- **"Let this PC be streamed" now stays on.** The toggle in Settings used to flip
+  straight back off — turning it on never actually kept this PC hosting. It now
+  latches on and keeps hosting until you turn it off, and stops cleanly when you
+  quit the launcher.
+
 ## [0.13.0] - 2026-06-22
 
 ### Added
