@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.6] - 2026-06-23
+
+### Fixed
+- **The "Let this PC be streamed" switch now stays on after you restart
+  ArcadeLauncher.** If you turn hosting on, this PC starts hosting again
+  automatically the next time the app launches — so it's ready to stream to
+  without re-flipping the switch every session.
+
 ## [0.13.5] - 2026-06-23
 
 ### Fixed
