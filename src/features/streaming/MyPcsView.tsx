@@ -6,32 +6,61 @@
 // The device list + discovery come from useMyPcs (account-brokered, push-refreshed
 // by the server's stream_host_update). A PC's library is fetched on expand
 // (pcApps). Play rides the existing useStreaming().play(address, app) path,
-// preferring LAN and falling back to the mesh address. Manual pair-by-IP remains
-// available under Settings → Streaming as a fallback.
+// preferring a LAN address and, when there is none, joining the Headscale overlay
+// (T12k-8 play-from-anywhere) to dial the PC's mesh IP. The mesh path is only
+// offered when the bundled Tailscale is present (meshIsAvailable). Manual
+// pair-by-IP remains available under Settings → Streaming as a fallback.
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useStreaming } from "./useStreaming";
 import { useMyPcs } from "./useMyPcs";
-import { pcApps, type MyPc, type MyPcApp } from "./api";
+import {
+  meshIsAvailable,
+  meshJoin,
+  meshPreauth,
+  meshResolveHost,
+  myPcsSelf,
+  pcApps,
+  type MyPc,
+  type MyPcApp,
+} from "./api";
 import { useSession } from "../session/SessionContext";
+import type { Session } from "../session/types";
 
-/** The address to dial for a PC: prefer LAN, fall back to the mesh address.
- *  Empty when the PC advertises no usable path. */
+/** The LAN address to dial for a PC, or "" when it advertises none. The mesh path
+ *  (joining the overlay + resolving the PC's 100.64.x.x IP at Play time) is taken
+ *  only when there is no LAN address, so it isn't reflected here. */
 function streamAddress(pc: MyPc): string {
-  return pc.lanAddr || pc.meshAddr || "";
+  return pc.lanAddr || "";
+}
+
+/** Join the overlay (server-minted single-use pre-auth key → bundled tailscaled)
+ *  and resolve `pc`'s current mesh IP by its node hostname. Throws a user-facing
+ *  message when the PC isn't reachable on the mesh. The client joins as an
+ *  ephemeral node so Headscale reaps it after the session. */
+async function resolveMeshAddress(session: Session, pc: MyPc): Promise<string> {
+  const me = await myPcsSelf();
+  const pre = await meshPreauth(session.host, session.token, me.name, true);
+  await meshJoin(pre.key, me.name, true);
+  const ip = await meshResolveHost(pc.name);
+  if (!ip) throw new Error(`${pc.name} isn’t reachable over the internet right now`);
+  return ip;
 }
 
 /** One PC row: an online/offline dot, name + status, and (on expand) its
  *  published library. Offline PCs are greyed but still expandable; Play is
- *  offered only when the PC is online and has a reachable address. */
+ *  offered when the PC is online and is reachable — either on the LAN or, when
+ *  the bundled mesh is available, over the internet via Headscale. */
 function PcCard({
   pc,
   canStream,
+  meshReady,
   onPlay,
 }: {
   pc: MyPc;
   canStream: boolean;
-  onPlay: (address: string, app: string) => Promise<void>;
+  meshReady: boolean;
+  onPlay: (pc: MyPc, app: string) => Promise<void>;
 }) {
   const { session } = useSession();
   const [open, setOpen] = useState(false);
@@ -40,8 +69,10 @@ function PcCard({
   const [err, setErr] = useState("");
   const [playing, setPlaying] = useState("");
 
-  const address = streamAddress(pc);
-  const playable = pc.online && address !== "" && canStream;
+  const lanAddr = streamAddress(pc);
+  // Reachable if it has a LAN address, or the bundled mesh can dial it remotely.
+  const reachable = lanAddr !== "" || meshReady;
+  const playable = pc.online && reachable && canStream;
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -66,7 +97,7 @@ function PcCard({
   const play = async (app: string) => {
     setPlaying(app);
     try {
-      await onPlay(address, app);
+      await onPlay(pc, app);
     } finally {
       setPlaying("");
     }
@@ -74,18 +105,21 @@ function PcCard({
 
   const playTitle = !pc.online
     ? "This PC is offline"
-    : address === ""
+    : !reachable
       ? "This PC has no reachable address"
       : !canStream
         ? "Install Moonlight or the stream engine to play"
         : "";
+
+  // Address column: the LAN IP, or note that play will go over the mesh.
+  const addrLabel = lanAddr || (meshReady ? "over the internet" : "no address");
 
   return (
     <li className={`mypcs__card${pc.online ? "" : " mypcs__card--offline"}`}>
       <button className="mypcs__cardhead" onClick={toggle} aria-expanded={open}>
         <span className={`emu-row__dot emu-row__dot--${pc.online ? "on" : "off"}`} aria-hidden />
         <span className="mypcs__name">{pc.name}</span>
-        <span className="mypcs__addr">{address || "no address"}</span>
+        <span className="mypcs__addr">{addrLabel}</span>
         <span className="mypcs__state">{pc.online ? "Online" : "Offline"}</span>
         <span className="mypcs__chevron" aria-hidden>{open ? "▾" : "▸"}</span>
       </button>
@@ -126,24 +160,41 @@ function PcCard({
 }
 
 export function MyPcsView() {
+  const { session } = useSession();
   const { moonlight, engine, play } = useStreaming();
   const { pcs, loading, error } = useMyPcs();
   const [banner, setBanner] = useState("");
+  // Whether the bundled Tailscale is present (gate 2). False keeps the mesh path
+  // inert — LAN-less PCs simply aren't playable rather than offering a dead Play.
+  const [meshReady, setMeshReady] = useState(false);
 
   // Play is possible via the bundled engine OR an external Moonlight install.
   const canStream = engine === true || moonlight === true;
 
+  useEffect(() => {
+    meshIsAvailable()
+      .then(setMeshReady)
+      .catch(() => setMeshReady(false));
+  }, []);
+
   const onPlay = useCallback(
-    async (address: string, app: string) => {
+    async (pc: MyPc, app: string) => {
       setBanner("");
       try {
+        // Prefer the LAN address; otherwise join the overlay and dial the mesh IP.
+        let address = streamAddress(pc);
+        if (address === "") {
+          if (!session) throw new Error("sign in to stream over the internet");
+          setBanner(`Connecting to ${pc.name} over the internet…`);
+          address = await resolveMeshAddress(session, pc);
+        }
         const via = await play(address, app);
         setBanner(`Streaming ${app}${via === "moonlight" ? " in Moonlight" : ""} ✓`);
       } catch (e) {
         setBanner(`Couldn’t start stream: ${e instanceof Error ? e.message : String(e)}`);
       }
     },
-    [play],
+    [play, session],
   );
 
   return (
@@ -172,7 +223,13 @@ export function MyPcsView() {
       ) : (
         <ul className="mypcs__list">
           {pcs.map((pc) => (
-            <PcCard key={pc.deviceId} pc={pc} canStream={canStream} onPlay={onPlay} />
+            <PcCard
+              key={pc.deviceId}
+              pc={pc}
+              canStream={canStream}
+              meshReady={meshReady}
+              onPlay={onPlay}
+            />
           ))}
         </ul>
       )}

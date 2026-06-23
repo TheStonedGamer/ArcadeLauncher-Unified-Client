@@ -266,3 +266,62 @@ export function publishMyLibrary(
 ): Promise<void> {
   return call<void>("mypcs_publish", { host, token, apps });
 }
+
+// ---- Play-from-anywhere mesh (T12k-8) -------------------------------------
+// When a host PC isn't reachable on the LAN, the launcher's bundled Tailscale
+// joins the self-hosted Headscale overlay (a server-minted, single-use pre-auth
+// key — no interactive login) so the host's 100.64.x.x mesh IP becomes dialable
+// by the existing stream path. Mesh-join cmds mirror the Rust in
+// src-tauri/src/streaming/mesh/conn.rs; the pre-auth key comes from the server
+// (POST /api/social/mesh/preauth) using the existing session.
+
+/** Local mesh membership (Rust `MeshState`). `phase`: "down"|"connecting"|"up". */
+export interface MeshState {
+  phase: string;
+  selfIp: string | null;
+  lastError: string | null;
+}
+
+/** Server-minted pre-auth key + the overlay coordinates to join with. Mirrors the
+ *  `/api/social/mesh/preauth` JSON. `loginServer` is the Headscale control URL the
+ *  bundled tailscaled joins; `user` is informational. */
+export interface MeshPreauth {
+  key: string;
+  loginServer: string;
+  user: string;
+  ephemeral: boolean;
+  expiresAt: string;
+}
+
+/** Are the bundled Tailscale binaries present? (False until the installer bundles
+ *  them — gate 2 — so the UI keeps remote-play-over-internet inert, not broken.) */
+export function meshIsAvailable(): Promise<boolean> {
+  return call<boolean>("mesh_is_available", {});
+}
+
+/** This node's current mesh state (phase + our mesh IP). */
+export function meshStatus(): Promise<MeshState> {
+  return call<MeshState>("mesh_status", {});
+}
+
+/** Join the overlay with a server-minted pre-auth key. `ephemeral` true for a
+ *  stream client (auto-reaped), false for a persistent host. */
+export function meshJoin(authKey: string, hostname: string, ephemeral: boolean): Promise<MeshState> {
+  return call<MeshState>("mesh_join", { authKey, hostname, ephemeral });
+}
+
+/** Resolve a paired host's mesh IP by its node hostname (null if offline/absent). */
+export function meshResolveHost(hostname: string): Promise<string | null> {
+  return call<string | null>("mesh_resolve_host", { hostname });
+}
+
+/** Mint a single-use Headscale pre-auth key for this device via the server
+ *  (account-gated by the session token). `ephemeral` true for a stream client. */
+export function meshPreauth(
+  host: string,
+  token: string,
+  hostname: string,
+  ephemeral: boolean,
+): Promise<MeshPreauth> {
+  return call<MeshPreauth>("mesh_preauth", { host, token, hostname, ephemeral });
+}

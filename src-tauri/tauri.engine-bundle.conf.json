@@ -1,7 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
-    "externalBin": ["binaries/updater", "binaries/arcade-stream-engine"],
+    "externalBin": [
+      "binaries/updater",
+      "binaries/arcade-stream-engine",
+      "binaries/tailscale",
+      "binaries/tailscaled"
+    ],
     "resources": {
       "binaries/*.dll": "./"
     }
