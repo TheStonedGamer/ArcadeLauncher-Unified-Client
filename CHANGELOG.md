@@ -13,6 +13,16 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.4] - 2026-06-23
+
+### Added
+- **Play your PCs from anywhere.** When a PC in *My PCs* has no address on your
+  local network, ArcadeLauncher now reaches it over the internet through a private
+  encrypted mesh — no port forwarding, no VPN to install, nothing to type. The
+  needed networking ships inside the installer, and each play session joins the
+  mesh on its own and leaves when you're done. PCs on your LAN keep streaming
+  directly as before.
+
 ## [0.13.3] - 2026-06-23
 
 ### Added
