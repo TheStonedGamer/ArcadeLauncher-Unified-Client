@@ -13,6 +13,13 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.8] - 2026-06-23
+
+### Fixed
+- **ArcadeLauncher now reopens itself after a Windows update.** A self-update
+  finished installing but left the app closed; you had to start it manually.
+  It now relaunches automatically once the update is applied.
+
 ## [0.13.7] - 2026-06-23
 
 ### Added

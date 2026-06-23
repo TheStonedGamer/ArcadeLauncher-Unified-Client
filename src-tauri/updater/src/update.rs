@@ -35,6 +35,10 @@ struct StagedJob {
     /// PID of the original in-`$INSTDIR` updater to wait for before running the
     /// installer, so `updater.exe` is unlocked when NSIS tries to overwrite it.
     wait_pid: Option<u32>,
+    /// The install directory (`$INSTDIR`) of the original updater. The staged copy
+    /// runs from a temp dir, so its own `exe_dir()` is NOT the install dir — it must
+    /// be told where the app lives to relaunch it after installing.
+    install_dir: Option<PathBuf>,
 }
 
 /// The release manifest the app's bundler publishes (Tauri `latest.json`).
@@ -94,7 +98,9 @@ pub fn run(status: &Arc<Mutex<Status>>) {
             Ok(()) => set(status, "Update complete — starting ArcadeLauncher…"),
             Err(e) => set(status, format!("Skipping update ({e}) — starting…")),
         }
-        launch_app();
+        // We're running from the temp staging dir, so launch the app from the
+        // original install dir the parent handed us — not our own exe_dir().
+        launch_app(job.install_dir.as_deref());
         return;
     }
 
@@ -104,7 +110,7 @@ pub fn run(status: &Arc<Mutex<Status>>) {
     // duplicate we spawned then exits on its own.
     if crate::instance::launcher_is_running() {
         set(status, "ArcadeLauncher is already running — bringing it to the front…");
-        launch_app();
+        launch_app(None);
         return;
     }
 
@@ -121,7 +127,9 @@ pub fn run(status: &Arc<Mutex<Status>>) {
         Ok(Outcome::UpToDate) => set(status, "Up to date — starting ArcadeLauncher…"),
         Err(e) => set(status, format!("Skipping update ({e}) — starting…")),
     }
-    launch_app();
+    // Inline install / up-to-date: we're still running from `$INSTDIR`, so the
+    // default exe_dir() resolution is correct here.
+    launch_app(None);
 }
 
 /// Resolves to `Installed`/`Staged` when an update was applied, `UpToDate` when
@@ -320,6 +328,10 @@ fn stage_and_handoff(tmp: &Path, setup: &Path) -> Result<(), String> {
         .arg(setup)
         .arg("--wait-pid")
         .arg(std::process::id().to_string())
+        // The staged copy runs from `tmp`, so it can't recover `$INSTDIR` from its
+        // own path. Hand it our install dir so it can relaunch the app post-install.
+        .arg("--install-dir")
+        .arg(exe_dir())
         .spawn()
         .map_err(|e| format!("spawn staged updater: {e}"))?;
     Ok(())
@@ -344,15 +356,21 @@ fn run_setup(setup: &Path) -> Result<(), String> {
 fn parse_staged_args(args: &[String]) -> Option<StagedJob> {
     let mut setup: Option<PathBuf> = None;
     let mut wait_pid: Option<u32> = None;
+    let mut install_dir: Option<PathBuf> = None;
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--apply" => setup = it.next().map(PathBuf::from),
             "--wait-pid" => wait_pid = it.next().and_then(|s| s.parse::<u32>().ok()),
+            "--install-dir" => install_dir = it.next().map(PathBuf::from),
             _ => {}
         }
     }
-    setup.map(|setup| StagedJob { setup, wait_pid })
+    setup.map(|setup| StagedJob {
+        setup,
+        wait_pid,
+        install_dir,
+    })
 }
 
 /// Block (bounded) until process `pid` is gone, so the installer can overwrite the
@@ -380,10 +398,12 @@ fn exe_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-/// Launch the installed main app sitting beside the updater, then return so the
-/// caller can exit. Best-effort: a missing launcher just leaves nothing running.
-fn launch_app() {
-    let dir = exe_dir();
+/// Launch the installed main app, then return so the caller can exit. Looks in
+/// `install_dir` when given (the staged self-update runs from a temp dir, so its
+/// own `exe_dir()` is NOT where the app lives), otherwise beside the updater.
+/// Best-effort: a missing launcher just leaves nothing running.
+fn launch_app(install_dir: Option<&Path>) {
+    let dir = install_dir.map(Path::to_path_buf).unwrap_or_else(exe_dir);
     let me = std::env::current_exe().ok();
     let candidates: &[&str] = if cfg!(target_os = "windows") {
         &["ArcadeLauncher.exe", "arcade_launcher.exe"]
@@ -455,12 +475,15 @@ mod tests {
         assert!(parse_staged_args(&[]).is_none());
         assert!(parse_staged_args(&["--wait-pid".into(), "42".into()]).is_none());
 
-        // The handoff form the parent spawns: --apply <setup> --wait-pid <pid>.
+        // The handoff form the parent spawns: --apply <setup> --wait-pid <pid>
+        // --install-dir <dir>.
         let job = parse_staged_args(&[
             "--apply".into(),
             r"C:\Temp\arcadelauncher-update\ArcadeLauncher-setup.exe".into(),
             "--wait-pid".into(),
             "1234".into(),
+            "--install-dir".into(),
+            r"C:\Program Files\ArcadeLauncher".into(),
         ])
         .expect("staged job parsed");
         assert_eq!(
@@ -468,10 +491,15 @@ mod tests {
             PathBuf::from(r"C:\Temp\arcadelauncher-update\ArcadeLauncher-setup.exe")
         );
         assert_eq!(job.wait_pid, Some(1234));
+        assert_eq!(
+            job.install_dir,
+            Some(PathBuf::from(r"C:\Program Files\ArcadeLauncher"))
+        );
 
         // --apply with no pid still applies (pid is optional); bad pid is ignored.
         let job = parse_staged_args(&["--apply".into(), "setup.exe".into()]).unwrap();
         assert_eq!(job.wait_pid, None);
+        assert_eq!(job.install_dir, None);
         let job =
             parse_staged_args(&["--apply".into(), "s.exe".into(), "--wait-pid".into(), "x".into()])
                 .unwrap();
