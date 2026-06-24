@@ -1,8 +1,8 @@
 //! Pure core for engine-driven playback (`client.start` over the stream-engine IPC).
 //!
 //! IO-free, KAT-tested half of the live-stream path, mirroring the rest of the
-//! streaming subsystem (`engine` owns the wire protocol; `moonlight` owns the
-//! external-client argv). This module owns two small, drift-prone decisions:
+//! streaming subsystem (`engine` owns the wire protocol; `settings` owns the
+//! stream-quality shape). This module owns two small, drift-prone decisions:
 //!
 //!   * **the `client.start` params shape** — the engine's settings object
 //!     (`{width,height,fps,bitrateKbps,displayMode,hdr}`) must match the engine's
@@ -14,7 +14,7 @@
 //! The thin transport that spawns the engine, holds the live connection, and
 //! forwards events to the webview lives in [`engine_session`](super::engine_session).
 
-use crate::streaming::moonlight::StreamSettings;
+use crate::streaming::settings::StreamSettings;
 use serde_json::{json, Value};
 
 /// Tauri event carrying one raw `stream.state` payload (`{phase, reason?,
@@ -26,7 +26,7 @@ pub const STREAM_STATS_EVENT: &str = "stream://stats";
 
 /// Build the engine `client.start` params for `app` on `host` with `settings`.
 ///
-/// `settings` is sanitized first (same clamp the external-Moonlight path uses) so
+/// `settings` is sanitized first (clamped to the engine's accepted bounds) so
 /// an out-of-range config can't trip the engine's `bad_params` validation. The
 /// serialized [`StreamSettings`] already matches the engine's settings schema
 /// field-for-field (camelCase: `width,height,fps,bitrateKbps,displayMode,hdr`),
@@ -57,7 +57,7 @@ pub fn state_phase(data: &Value) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::streaming::moonlight::DisplayMode;
+    use crate::streaming::settings::DisplayMode;
 
     #[test]
     fn start_params_match_engine_settings_schema() {

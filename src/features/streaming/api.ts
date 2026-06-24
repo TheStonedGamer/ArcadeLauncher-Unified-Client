@@ -1,9 +1,9 @@
 // Typed IPC for remote game streaming. Mirrors the Rust commands in
 // src-tauri/src/streaming/commands.rs + engine_session.rs. Pairing/discovery run
 // through the stream engine (PIN handshake — no host web credentials); playback
-// prefers the bundled engine (`client.start`, with live state events) and falls
-// back to the external Moonlight client. Only the host record + its pinned
-// certificate live on disk (streaming_hosts.json, owned by Rust).
+// runs through the bundled engine (`client.start`, with live state events). Only
+// the host record + its pinned certificate live on disk (streaming_hosts.json,
+// owned by Rust).
 
 import { call } from "../../lib/ipc";
 import type { StreamSettings } from "./streaming";
@@ -36,24 +36,9 @@ export function streamingForgetHost(address: string): Promise<boolean> {
   return call<boolean>("streaming_forget_host", { address });
 }
 
-/** Whether a Moonlight client is installed and launchable on this machine. */
-export function moonlightAvailable(): Promise<boolean> {
-  return call<boolean>("moonlight_available", {});
-}
-
-/** Launch Moonlight to stream `app` from `address` with `settings`. */
-export function streamLaunch(
-  address: string,
-  app: string,
-  settings: StreamSettings,
-): Promise<boolean> {
-  return call<boolean>("stream_launch", { address, app, settings });
-}
-
 // ---- In-engine playback (engine `client.start`) ---------------------------
-// Preferred over external Moonlight when the bundled engine is present: the
-// engine streams in its own window and reports live progress as Tauri events.
-// Mirrors src-tauri/src/streaming/engine_session.rs.
+// The bundled engine streams in its own window and reports live progress as
+// Tauri events. Mirrors src-tauri/src/streaming/engine_session.rs.
 
 /** Tauri event carrying a raw engine `stream.state` payload (`{phase, reason?}`). */
 export const STREAM_STATE_EVENT = "stream://state";
@@ -245,9 +230,10 @@ export function hostInstallStatus(): Promise<HostInstallStatus> {
   return call<HostInstallStatus>("host_install_status", {});
 }
 
-/** Fetch + unpack the Sunshine host sidecar (no-op if already installed). */
-export function hostInstall(): Promise<HostInstallStatus> {
-  return call<HostInstallStatus>("host_install", {});
+/** Fetch + unpack the Sunshine host sidecar. No-op if already installed unless
+ *  `force` is set, which wipes and re-downloads it (reinstall / repair / update). */
+export function hostInstall(force = false): Promise<HostInstallStatus> {
+  return call<HostInstallStatus>("host_install", { force });
 }
 
 // ---- My PCs: account-brokered device discovery (T12k-7 / T12k-9) -----------

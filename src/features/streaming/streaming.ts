@@ -1,7 +1,7 @@
 // Pure, IO-free streaming-settings core. Mirrors the Rust `StreamSettings`
-// (src-tauri/src/streaming/moonlight.rs) — same fields, same clamp bounds — so
-// the UI validates locally and hands Moonlight a well-formed config. Keep the
-// bounds in lockstep with the Rust `sanitized()`.
+// (src-tauri/src/streaming/settings.rs) — same fields, same clamp bounds — so
+// the UI validates locally and hands the stream engine a well-formed config. Keep
+// the bounds in lockstep with the Rust `sanitized()`.
 
 export type DisplayMode = "fullscreen" | "borderless" | "windowed";
 

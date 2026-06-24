@@ -1,7 +1,7 @@
 // Settings → Streaming (T12k-4): pair with / forget streaming hosts and set the
-// stream-quality defaults passed through to Moonlight. Pairing runs through the
-// stream engine (4-digit GameStream PIN — no host web credentials); the host +
-// its pinned cert live on disk (Rust), and the quality defaults persist locally
+// stream-quality defaults passed through to the stream engine. Pairing runs
+// through the engine (4-digit GameStream PIN — no host web credentials); the host
+// + its pinned cert live on disk (Rust), and the quality defaults persist locally
 // (localStorage).
 
 import { useState } from "react";
@@ -9,7 +9,7 @@ import { useStreaming } from "./useStreaming";
 import { DISPLAY_MODES, hostStateLabel, isValidPin, type DisplayMode } from "./streaming";
 
 export function StreamingSection() {
-  const { hosts, moonlight, settings, setDefaults, pair, forget } = useStreaming();
+  const { hosts, settings, setDefaults, pair, forget } = useStreaming();
   const [address, setAddress] = useState("");
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,17 +44,9 @@ export function StreamingSection() {
       <h2 className="settings__heading">Streaming</h2>
       <p className="catalog__status">
         Stream an installed game from a host PC running <strong>Sunshine</strong> to this machine
-        with <strong>Moonlight</strong>. Pair with a host once using its 4-digit PIN; the host’s
-        certificate is pinned on first pair so the connection stays secure. No host username or
-        password is needed.
-      </p>
-
-      <p className="catalog__status">
-        Moonlight client:{" "}
-        <strong>
-          {moonlight === null ? "checking…" : moonlight ? "installed ✓" : "not found on PATH"}
-        </strong>
-        {moonlight === false && " — install Moonlight to start streams from the library."}
+        using the built-in <strong>stream engine</strong>. Pair with a host once using its 4-digit
+        PIN; the host’s certificate is pinned on first pair so the connection stays secure. No host
+        username or password is needed.
       </p>
 
       <h3 className="emu-group">Paired hosts</h3>

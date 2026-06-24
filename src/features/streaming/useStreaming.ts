@@ -1,16 +1,14 @@
 // React glue for remote streaming: the host registry (pair / forget / refresh),
-// Moonlight availability, launching a stream, and the locally-persisted
-// stream-quality defaults. Pure logic (clamping, parsing, PIN validation) lives
-// in streaming.ts; this hook only orchestrates the IPC + localStorage seams.
+// engine availability, playing a stream, and the locally-persisted stream-quality
+// defaults. Pure logic (clamping, parsing, PIN validation) lives in streaming.ts;
+// this hook only orchestrates the IPC + localStorage seams.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
   engineStreamAvailable,
   hostPair,
-  moonlightAvailable,
   STREAM_STATE_EVENT,
-  streamLaunch,
   streamStart,
   streamStop,
   streamingForgetHost,
@@ -49,7 +47,6 @@ function saveStreamSettings(s: StreamSettings): void {
 
 export function useStreaming() {
   const [hosts, setHosts] = useState<StreamHost[]>([]);
-  const [moonlight, setMoonlight] = useState<boolean | null>(null);
   const [engine, setEngine] = useState<boolean | null>(null);
   const [settings, setSettings] = useState<StreamSettings>(loadStreamSettings);
   // The current engine stream's live phase, or null when nothing is streaming.
@@ -68,9 +65,6 @@ export function useStreaming() {
 
   useEffect(() => {
     refresh();
-    moonlightAvailable()
-      .then(setMoonlight)
-      .catch(() => setMoonlight(false));
     engineStreamAvailable()
       .then(setEngine)
       .catch(() => setEngine(false));
@@ -112,35 +106,23 @@ export function useStreaming() {
     [refresh],
   );
 
-  // External-Moonlight launch (fallback / explicit). Fire-and-forget: Moonlight
-  // owns its own window and we get no live state back.
-  const launch = useCallback(
-    (address: string, app: string) => streamLaunch(address, app, settings),
+  // Playback streams in-engine (live state via STREAM_STATE_EVENT). The engine is
+  // bundled with the launcher, so this is the only path; if it isn't available the
+  // start rejects and the caller surfaces the error.
+  const play = useCallback(
+    async (address: string, app: string): Promise<void> => {
+      stateRef.current({ phase: "", reason: "" }); // show "starting" immediately
+      try {
+        await streamStart(address, app, settings);
+      } catch (e) {
+        stateRef.current(null); // start failed — back to idle, surface to caller
+        throw e;
+      }
+    },
     [settings],
   );
 
-  // Preferred playback: stream in-engine when the bundled engine is present
-  // (live state via STREAM_STATE_EVENT), else fall back to external Moonlight.
-  // Returns "engine" | "moonlight" so the UI can tailor its message.
-  const play = useCallback(
-    async (address: string, app: string): Promise<"engine" | "moonlight"> => {
-      if (engine) {
-        stateRef.current({ phase: "", reason: "" }); // show "starting" immediately
-        try {
-          await streamStart(address, app, settings);
-          return "engine";
-        } catch (e) {
-          stateRef.current(null); // start failed — back to idle, surface to caller
-          throw e;
-        }
-      }
-      await streamLaunch(address, app, settings);
-      return "moonlight";
-    },
-    [engine, settings],
-  );
-
-  // Stop the current engine stream (no-op for the Moonlight path).
+  // Stop the current engine stream.
   const stop = useCallback(async () => {
     try {
       await streamStop();
@@ -151,7 +133,6 @@ export function useStreaming() {
 
   return {
     hosts,
-    moonlight,
     engine,
     settings,
     streamState,
@@ -159,7 +140,6 @@ export function useStreaming() {
     refresh,
     pair,
     forget,
-    launch,
     play,
     stop,
   };

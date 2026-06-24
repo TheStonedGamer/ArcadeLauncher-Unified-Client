@@ -110,7 +110,7 @@ function PcCard({
     : !reachable
       ? "This PC has no reachable address"
       : !canStream
-        ? "Install Moonlight or the stream engine to play"
+        ? "The stream engine isn’t available — reinstall to play"
         : "";
 
   // Address column: the LAN IP, or note that play will go over the mesh.
@@ -163,7 +163,7 @@ function PcCard({
 
 export function MyPcsView() {
   const { session } = useSession();
-  const { moonlight, engine, play, pair } = useStreaming();
+  const { engine, play, pair } = useStreaming();
   const { pcs, loading, error } = useMyPcs();
   const [banner, setBanner] = useState("");
   // Whether the bundled Tailscale is present (gate 2). False keeps the mesh path
@@ -179,8 +179,8 @@ export function MyPcsView() {
   const [pin, setPin] = useState("");
   const [pairing, setPairing] = useState(false);
 
-  // Play is possible via the bundled engine OR an external Moonlight install.
-  const canStream = engine === true || moonlight === true;
+  // Play runs through the bundled stream engine.
+  const canStream = engine === true;
 
   useEffect(() => {
     meshIsAvailable()
@@ -205,8 +205,8 @@ export function MyPcsView() {
         // GameStream handshake doesn't fail `not_paired`. No-op (and harmless) if the host hasn't
         // published a cert yet — Play then falls through to the inline PIN prompt below (fix B).
         await pinHostBeforePlay(address, pc);
-        const via = await play(address, app);
-        setBanner(`Streaming ${app}${via === "moonlight" ? " in Moonlight" : ""} ✓`);
+        await play(address, app);
+        setBanner(`Streaming ${app} ✓`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         // A `not_paired` rejection isn't a failure to report — it means this PC
@@ -239,8 +239,8 @@ export function MyPcsView() {
       }
       setPairPrompt(null);
       setPin("");
-      const via = await play(address, app);
-      setBanner(`Streaming ${app}${via === "moonlight" ? " in Moonlight" : ""} ✓`);
+      await play(address, app);
+      setBanner(`Streaming ${app} ✓`);
     } catch (e) {
       setBanner(`Pairing failed — ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -256,10 +256,10 @@ export function MyPcsView() {
         stay listed so you can still browse their games. Turn a PC into a host under{" "}
         <strong>Settings → Stream from this PC</strong>.
       </p>
-      {engine !== true && moonlight === false && (
+      {engine === false && (
         <p className="catalog__status">
-          Neither the stream engine nor Moonlight is available on this PC — install one to play
-          remote games.
+          The stream engine isn’t available on this PC — reinstall the launcher to play remote
+          games.
         </p>
       )}
       {error && <p className="catalog__status">Couldn’t load your PCs — {error}.</p>}

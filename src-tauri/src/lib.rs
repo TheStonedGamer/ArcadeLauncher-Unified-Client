@@ -161,8 +161,6 @@ pub fn run() {
             streaming::commands::host_pair,
             streaming::commands::streaming_hosts,
             streaming::commands::streaming_forget_host,
-            streaming::commands::moonlight_available,
-            streaming::commands::stream_launch,
             streaming::engine_session::engine_stream_available,
             streaming::engine_session::stream_start,
             streaming::engine_session::stream_stop,

@@ -30,7 +30,7 @@ use crate::streaming::engine::{
     check_handshake, hello_frame, parse_message, request_frame, try_decode, Incoming,
 };
 use crate::streaming::engine_conn::{engine_path, unique_token};
-use crate::streaming::moonlight::StreamSettings;
+use crate::streaming::settings::StreamSettings;
 use crate::streaming::play::{
     client_start_params, is_terminal_phase, state_phase, STREAM_STATE_EVENT, STREAM_STATS_EVENT,
 };
