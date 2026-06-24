@@ -139,8 +139,12 @@ gateway. See §3 for the full subsystem.
 - **In-engine playback (no separate Moonlight install).** The launcher ships a
   bundled, GPL-separate **stream engine** sidecar that decodes and presents the
   stream in its own window, showing **live status** (connecting → streaming) and an
-  in-app **■ Stop**. If the engine isn't present, it **falls back automatically to
-  an external Moonlight client**.
+  in-app **■ Stop**. As of **v0.13.12** every stream runs through this engine — the
+  old external-Moonlight fallback was removed (the engine links the renderer).
+- **Host engine install/update/repair** (Settings → Stream from this PC): shows
+  whether the host components are installed and which version, with **Download**,
+  **Reinstall / repair**, and **Refresh** controls. They still download
+  automatically the first time you enable hosting — this is the manual fix-it path.
 - **Quality defaults** (resolution / fps / bitrate / window mode / HDR) configured
   in **Settings → Streaming** and persisted locally.
 

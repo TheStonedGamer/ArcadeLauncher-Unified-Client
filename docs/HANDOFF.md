@@ -6,8 +6,27 @@ left* is [`ROADMAP.md`](ROADMAP.md); this file captures *current state*, the
 Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit via
 `npm run memory -- set …`, never by hand).
 
-Last updated: 2026-06-21. Client + server share a `0.10` `major.minor` lockstep
+Last updated: 2026-06-23. Client + server share a `0.10` `major.minor` lockstep
 line. PS2 BIOS hosted on prod and wired end-to-end.
+
+**RELEASED: v0.13.12 — streaming is engine-only + manual host-engine install (2026-06-23).**
+Tagged from `main` after engine **v0.3.9** published. Two streaming changes, both green locally
+(371 vitest, `tsc` clean, `cargo check` clean):
+- **Removed the external/system-Moonlight playback fallback.** The release engine links the
+  renderer, so `client.start` does real in-app A/V — every stream (library, host, My PCs) now
+  plays through the bundled engine. `streaming/moonlight.rs` → `settings.rs`; dropped the
+  `moonlight_available`/`stream_launch` commands + JS bindings; UI gates on `engine` only.
+- **Added a "Host engine" install/update/repair surface** in Settings → Stream from this PC
+  (`HostEngineInstall.tsx` + `host_install`/`host_install_status`): status + version readout and
+  Download / Reinstall(force) / Refresh buttons; the on-demand recovery path when a host won't
+  come up. Rides engine v0.3.9 which no longer adopts a system Sunshine (always runs its own
+  bundled child — the `not_paired` Bug 2 fix).
+- **CAVEAT:** end-to-end live A/V from a real host with these fixes installed is **not yet
+  validated** (host root-cause only fixed today). Next: install v0.13.12, host from the RTX 3060
+  PC, Play from a second PC, confirm `cert.pem` mints + stream renders.
+- _CHANGELOG note:_ the `[0.13.12]` section was added to `CHANGELOG.md` on `main` **after** the
+  tag, so the auto Discord announce (checks out the tag) will fall back to a link — re-send via
+  `discord-changelog.yml` `workflow_dispatch` (checks out `main`) to post the real section.
 
 **v0.10.19 — half-built T12 items finished (2026-06-21).** Three client-only
 increments, all green locally (344 vitest, 263 cargo, tsc + vite build + cargo

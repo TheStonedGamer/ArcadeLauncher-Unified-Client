@@ -747,6 +747,17 @@ from scratch.
     **External Moonlight kept as automatic fallback.** Green: cargo 293 / vitest 362
     / tsc / clippy. **Live end-to-end A/V still unvalidated** — no GameStream host +
     GPU client in CI; needs a real host on the LAN + this PC as client.
+  - [x] **T12k-11 — Engine-only streaming + manual host-engine install.** Shipped in
+    **launcher v0.13.12 / engine v0.3.9** (2026-06-23). The release engine links the
+    renderer, so the external-Moonlight fallback from T12k-10 was **removed**:
+    `streaming/moonlight.rs` → `settings.rs` (kept only `DisplayMode`/`StreamSettings`);
+    dropped the `moonlight_available`/`stream_launch` commands + JS bindings; UI gates on
+    `engine` only and `play()` returns `Promise<void>`. Added a **Host engine** section in
+    Settings → Stream from this PC (`HostEngineInstall.tsx` + `host_install`/
+    `host_install_status`) — status/version readout + Download / Reinstall(force) / Refresh.
+    Engine v0.3.9 also **stops adopting a system Sunshine** (deleted `sunshine_detect`;
+    `start()` always spawns its own bundled child — the `not_paired` Bug 2 fix). Green:
+    371 vitest / `tsc` / `cargo check`. **Live end-to-end A/V still unvalidated.**
 - [ ] **T12l — Mobile companion app.** Remote library browse, "install to my PC",
   chat / presence, and download-queue control from a phone.
 

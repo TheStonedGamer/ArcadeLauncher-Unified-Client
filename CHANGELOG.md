@@ -13,6 +13,28 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.12] - 2026-06-23
+
+### Added
+- **Host engine controls in Settings → Stream from this PC.** A new "Host engine"
+  section shows whether the streaming host components are installed and which
+  version, with buttons to **Download**, **Reinstall / repair** (re-pull a stale
+  or partial copy), and **Refresh status**. The components still download
+  automatically the first time you enable hosting — this is the manual fix-it
+  surface when a host won't come up.
+
+### Changed
+- **Streaming always runs through the built-in stream engine.** The old external
+  Moonlight fallback path was removed; every stream (from the library, from a
+  host, or from "My PCs") now plays in-app with live status and an in-app Stop.
+- Bundles stream engine **v0.3.9**.
+
+### Fixed
+- **Hosting no longer silently uses a leftover Sunshine.** The host now always
+  runs its own bundled Sunshine instead of adopting an unrelated Sunshine service
+  already running on the PC — which previously left "Stream from this PC" unable
+  to pair (`not_paired`) because the wrong certificate was published.
+
 ## [0.13.10] - 2026-06-23
 
 ### Changed
