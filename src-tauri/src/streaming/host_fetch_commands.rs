@@ -128,18 +128,26 @@ fn make_executable(_path: &Path) -> AppResult<()> {
     Ok(())
 }
 
-/// Fetch + unpack the Sunshine host sidecar (no-op if already installed), then
-/// point the engine at it. Returns the resulting install status.
+/// Fetch + unpack the Sunshine host sidecar, then point the engine at it.
+/// Returns the resulting install status. No-op if already installed, **unless**
+/// `force` is set — then the existing copy of this version is wiped and
+/// re-downloaded, which is how the Settings "reinstall / repair" button recovers
+/// a corrupt or partial sidecar (or re-pulls on demand).
 #[tauri::command]
-pub async fn host_install(app: tauri::AppHandle) -> AppResult<HostInstallStatus> {
+pub async fn host_install(app: tauri::AppHandle, force: bool) -> AppResult<HostInstallStatus> {
     let data = data_dir(&app)?;
     let bin = sunshine_bin_path(&data, SUNSHINE_HOST_VERSION);
-    if is_installed(&bin) {
+    let install_dir = host_install_dir(&data, SUNSHINE_HOST_VERSION);
+    if is_installed(&bin) && !force {
         point_engine_at(&bin);
         return host_install_status(app).await;
     }
+    // Forced re-download: clear any existing install of this version so the fetch
+    // below lands a clean copy rather than extracting over a half-broken one.
+    if force {
+        let _ = std::fs::remove_dir_all(&install_dir);
+    }
 
-    let install_dir = host_install_dir(&data, SUNSHINE_HOST_VERSION);
     std::fs::create_dir_all(&install_dir)
         .map_err(|e| AppError::msg(format!("create install dir: {e}")))?;
 

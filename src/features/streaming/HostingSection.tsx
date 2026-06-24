@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { useHosting } from "./useHosting";
+import { HostEngineInstall } from "./HostEngineInstall";
 import { hostGamesFromLibrary, hostStatusSummary, storeGamesToHostGames } from "./streaming";
 import { publishMyLibrary, type MyPcApp } from "./api";
 import { loadCatalog } from "../catalog/api";
@@ -78,6 +79,11 @@ export function HostingSection() {
         The first time you turn this on, the host components download automatically — no separate
         Sunshine setup.
       </p>
+
+      {/* Explicit install/update/repair + version readout for the host engine components.
+          Outside the `unavailable` branch on purpose: if the engine can't host because the
+          sidecar is missing or stale, this is exactly where you fix it. */}
+      <HostEngineInstall />
 
       {unavailable ? (
         <p className="catalog__status">
