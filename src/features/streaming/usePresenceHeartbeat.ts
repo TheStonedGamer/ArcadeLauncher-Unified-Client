@@ -34,13 +34,15 @@ export function usePresenceHeartbeat(session: Session | null): void {
   const token = session?.token ?? null;
 
   // Host pre-auth progress for THIS session. `seeded` gates the one-time trust-store
-  // seed + Sunshine cycle (so we never re-cycle on every beat); `published` gates the
-  // retry-until-it-lands of our server cert. Reset whenever the session changes.
-  const hostPreauth = useRef({ seeded: false, published: false });
+  // seed + Sunshine cycle (so we never re-cycle on every beat). `publishedCert` holds the
+  // server cert PEM we last pushed to the registry; we re-publish whenever the host's current
+  // cert differs from it, so a mid-session cert.pem regeneration propagates instead of leaving
+  // clients pinned to a stale cert. Reset whenever the session changes.
+  const hostPreauth = useRef({ seeded: false, publishedCert: "" });
 
   useEffect(() => {
     if (!host || !token) return;
-    hostPreauth.current = { seeded: false, published: false };
+    hostPreauth.current = { seeded: false, publishedCert: "" };
 
     // Beat immediately so presence is fresh the moment we sign in, then on cadence.
     void myPcsRegister(host, token).catch(() => {});
@@ -56,14 +58,13 @@ export function usePresenceHeartbeat(session: Session | null): void {
     // after it starts). Best-effort throughout — any failure just leaves the PIN fallback in place.
     const ensureHostPreauth = async () => {
       const st = hostPreauth.current;
-      if (st.published) return;
       let status: { running: boolean } | null = null;
       try {
         status = await hostStatus();
       } catch {
         return; // engine unreachable this beat; try again next
       }
-      if (hostPreauthAction(status, st.published) !== "run") return;
+      if (hostPreauthAction(status) !== "run") return;
 
       if (!st.seeded) {
         st.seeded = true;
@@ -83,7 +84,11 @@ export function usePresenceHeartbeat(session: Session | null): void {
         }
       }
 
-      if (await publishHostServerCert(host, token)) st.published = true;
+      // Re-publish whenever the current cert differs from what we last pushed (deduped inside the
+      // helper). This self-heals a mid-session cert.pem regeneration — without it the registry
+      // keeps the old cert and every client fails HTTPS serverinfo with a stale pin.
+      const cert = await publishHostServerCert(host, token, st.publishedCert);
+      if (cert) st.publishedCert = cert;
     };
     void ensureHostPreauth();
 

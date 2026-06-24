@@ -262,16 +262,13 @@ export function hostStatusSummary(s: {
 /** Whether the app-root cert pre-authorization upkeep should act for THIS PC this beat.
  *  Pure so the guard is unit-tested apart from the IPC it drives.
  *
- *  The host whose server cert we must publish is the one that's *hosting* (`running`). It needs
- *  publishing precisely when hosting came up WITHOUT the cert dance — i.e. the v0.13.6 boot
- *  auto-restore path, which enables Sunshine in Rust and never runs `publishHostServerCert`. We
- *  retry every heartbeat until it lands (Sunshine mints its cert.pem a little after start), then
- *  stop once `alreadyPublished`. Not hosting ⇒ nothing to publish. */
+ *  The host whose server cert we must publish is the one that's *hosting* (`running`). We act on
+ *  every beat while hosting — not just once — so a mid-session cert.pem regeneration (Sunshine
+ *  re-mints its cert) re-publishes to the registry instead of leaving every client pinned to a
+ *  stale cert. The publish itself is deduped by cert fingerprint (see `publishHostServerCert`), so
+ *  steady-state beats are cheap no-ops. Not hosting ⇒ nothing to publish. */
 export function hostPreauthAction(
   status: { running: boolean } | null | undefined,
-  alreadyPublished: boolean,
 ): "skip" | "run" {
-  if (alreadyPublished) return "skip";
-  if (!status?.running) return "skip";
-  return "run";
+  return status?.running ? "run" : "skip";
 }

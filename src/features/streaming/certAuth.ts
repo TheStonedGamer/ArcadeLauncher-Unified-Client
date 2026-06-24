@@ -54,18 +54,28 @@ export async function seedAccountClientCerts(host: string, token: string): Promi
 }
 
 /** Publish this PC's Sunshine server cert to the account so clients can pin it (zero-PIN auto-pair).
- *  Call AFTER host.enable, once Sunshine has created its cert.pem. Returns true once the cert was
- *  actually published; false if it isn't readable yet (Sunshine still starting) or the push failed —
- *  the caller can retry on a cadence and stop once this returns true. Clients fall back to PIN
- *  pairing until it lands. */
-export async function publishHostServerCert(host: string, token: string): Promise<boolean> {
+ *  Call AFTER host.enable, once Sunshine has created its cert.pem. Returns the published cert PEM on
+ *  success (so the caller can remember it), or null if it isn't readable yet (Sunshine still
+ *  starting) or the push failed. Clients fall back to PIN pairing until it lands.
+ *
+ *  `lastPublished` lets the heartbeat call this every beat cheaply: when the current cert still
+ *  matches what we last pushed, we skip the POST and just echo it back. Crucially this means a
+ *  mid-session cert.pem **regeneration** (Sunshine re-mints its cert) propagates to the registry on
+ *  the next beat instead of being latched forever — the stale-pin cause of "serverinfo over HTTPS
+ *  failed — the pairing may be stale" on every client. */
+export async function publishHostServerCert(
+  host: string,
+  token: string,
+  lastPublished = "",
+): Promise<string | null> {
   try {
     const info = await engineHostDeviceInfo();
-    if (!info.serverCertPem) return false; // Sunshine hasn't minted its cert yet — retry next beat
+    if (!info.serverCertPem) return null; // Sunshine hasn't minted its cert yet — retry next beat
+    if (info.serverCertPem === lastPublished) return lastPublished; // unchanged → no redundant POST
     await myPcsRegister(host, token, info.serverCertPem);
-    return true;
+    return info.serverCertPem;
   } catch {
-    return false; // best-effort; the host is still reachable via PIN pairing
+    return null; // best-effort; the host is still reachable via PIN pairing
   }
 }
 

@@ -114,6 +114,27 @@ pub fn run(status: &Arc<Mutex<Status>>) {
         return;
     }
 
+    // Phase 1 — update the app itself. Shown to the user as
+    // "Updating Arcade Launcher <version>…" (set inside check_and_apply, which
+    // knows the target version).
+    set(status, "Checking for updates…");
+    match check_and_apply(status) {
+        // A staged copy is now applying the update and will launch the app once
+        // it finishes. We must NOT launch here — exiting promptly is what unlocks
+        // `$INSTDIR\updater.exe` so the staged copy can overwrite it. The engine
+        // phase is skipped on this run: the freshly installed app carries its own
+        // runtime engine fetch as a fallback, and the next launch's (now updated)
+        // bootstrapper ensures the new pinned engine eagerly. Leave the
+        // "Updating Arcade Launcher <version>…" message in place as we exit.
+        Ok(Outcome::Staged) => return,
+        // Inline install already left the "Updating Arcade Launcher <version>…"
+        // message; keep it through the engine phase below.
+        Ok(Outcome::Installed) => {}
+        Ok(Outcome::UpToDate) => {}
+        Err(e) => set(status, format!("Skipping update ({e})…")),
+    }
+
+    // Phase 2 — update the host engine, shown separately as "Updating engine…".
     // The host engine (Sunshine sidecar) is delivered by the bootstrapper, not
     // lazily fetched when the user first enables hosting — that runtime fetch was
     // fragile (a separate network call that could lag or fail, leaving the engine
@@ -121,21 +142,9 @@ pub fn run(status: &Arc<Mutex<Status>>) {
     // the app starts. Idempotent (skips when present) and best-effort.
     ensure_host_engine(status);
 
-    set(status, "Checking for updates…");
-    match check_and_apply(status) {
-        // A staged copy is now applying the update and will launch the app once
-        // it finishes. We must NOT launch here — exiting promptly is what unlocks
-        // `$INSTDIR\updater.exe` so the staged copy can overwrite it.
-        Ok(Outcome::Staged) => {
-            set(status, "Updating…");
-            return;
-        }
-        Ok(Outcome::Installed) => set(status, "Update complete — starting ArcadeLauncher…"),
-        Ok(Outcome::UpToDate) => set(status, "Up to date — starting ArcadeLauncher…"),
-        Err(e) => set(status, format!("Skipping update ({e}) — starting…")),
-    }
     // Inline install / up-to-date: we're still running from `$INSTDIR`, so the
     // default exe_dir() resolution is correct here.
+    set(status, "Starting ArcadeLauncher…");
     launch_app(None);
 }
 
@@ -165,7 +174,7 @@ fn check_and_apply(status: &Arc<Mutex<Status>>) -> Result<Outcome, String> {
     set(status, "Verifying update…");
     verify(&bytes, &entry.signature)?;
 
-    set(status, format!("Installing update {}…", manifest.version));
+    set(status, format!("Updating Arcade Launcher {}…", manifest.version));
     install(&bytes, &entry.url)
 }
 
@@ -237,10 +246,10 @@ fn ensure_host_engine(status: &Arc<Mutex<Status>>) {
     let install_dir = root.join(version);
     let bin = install_dir.join(sunshine_bin_name());
     if !bin.is_file() {
-        set(status, format!("Preparing streaming host {version}…"));
+        set(status, format!("Updating engine {version}…"));
         if let Err(e) = fetch_host_engine(version, &install_dir, &bin) {
             // Leave a breadcrumb; the app's runtime fetch still covers hosting.
-            set(status, format!("Streaming host prep skipped ({e}) — continuing…"));
+            set(status, format!("Engine update skipped ({e}) — continuing…"));
         }
     }
     // Reclaim disk from superseded engine versions left under `host-engine/`.
@@ -272,7 +281,7 @@ fn prune_old_host_engines(root: &Path, keep: &str, status: &Arc<Mutex<Status>>) 
             continue;
         }
         if std::fs::remove_dir_all(entry.path()).is_ok() {
-            set(status, format!("Removed old streaming host {name}…"));
+            set(status, format!("Removed old engine {name}…"));
         }
     }
 }

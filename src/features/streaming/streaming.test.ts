@@ -300,17 +300,14 @@ describe("streamPhaseLabel", () => {
 });
 
 describe("hostPreauthAction", () => {
-  it("runs when this PC is hosting and the server cert isn't published yet", () => {
-    expect(hostPreauthAction({ running: true }, false)).toBe("run");
-  });
-  it("skips once the server cert has been published this session", () => {
-    expect(hostPreauthAction({ running: true }, true)).toBe("skip");
+  it("runs every beat while this PC is hosting (so a cert regen re-publishes)", () => {
+    expect(hostPreauthAction({ running: true })).toBe("run");
   });
   it("skips when this PC isn't hosting (nothing to publish)", () => {
-    expect(hostPreauthAction({ running: false }, false)).toBe("skip");
+    expect(hostPreauthAction({ running: false })).toBe("skip");
   });
   it("skips when host status is unknown (engine unreachable this beat)", () => {
-    expect(hostPreauthAction(null, false)).toBe("skip");
-    expect(hostPreauthAction(undefined, false)).toBe("skip");
+    expect(hostPreauthAction(null)).toBe("skip");
+    expect(hostPreauthAction(undefined)).toBe("skip");
   });
 });
