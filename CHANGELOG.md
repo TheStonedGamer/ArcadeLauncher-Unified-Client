@@ -13,6 +13,22 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.14] - 2026-06-24
+
+### Fixed
+- **Streaming to a PC on another network now works without any manual setup.**
+  When you turn on "Let this PC be streamed", it automatically joins your private
+  play-from-anywhere mesh and publishes a reachable address, so devices on a
+  different network can connect instead of failing with "serverinfo over HTTPS
+  failed / host unreachable". Previously a host never joined the mesh on its own,
+  so off-network play could not find it.
+
+### Changed
+- **Mesh networking sets itself up once and stays on.** The first time a PC needs
+  it, the bundled Tailscale is installed as a background Windows service with a
+  single approval prompt; after that it starts automatically every time with no
+  further prompts (and survives reboots). Local-network streaming is unaffected.
+
 ## [0.13.12] - 2026-06-23
 
 ### Added

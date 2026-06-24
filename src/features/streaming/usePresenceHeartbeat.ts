@@ -15,7 +15,16 @@
 import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import type { Session } from "../session/types";
-import { hostEnable, hostStatus, myPcsRegister } from "./api";
+import {
+  hostEnable,
+  hostStatus,
+  meshIsAvailable,
+  meshJoin,
+  meshPreauth,
+  meshStatus,
+  myPcsRegister,
+  myPcsSelf,
+} from "./api";
 import { publishHostServerCert, publishOwnClientCert, seedAccountClientCerts } from "./certAuth";
 import { hostPreauthAction } from "./streaming";
 
@@ -38,11 +47,13 @@ export function usePresenceHeartbeat(session: Session | null): void {
   // server cert PEM we last pushed to the registry; we re-publish whenever the host's current
   // cert differs from it, so a mid-session cert.pem regeneration propagates instead of leaving
   // clients pinned to a stale cert. Reset whenever the session changes.
-  const hostPreauth = useRef({ seeded: false, publishedCert: "" });
+  // `meshJoined` gates the one-time persistent host-side mesh join (below) so we
+  // never re-prompt UAC / re-`up` on every beat.
+  const hostPreauth = useRef({ seeded: false, publishedCert: "", meshJoined: false });
 
   useEffect(() => {
     if (!host || !token) return;
-    hostPreauth.current = { seeded: false, publishedCert: "" };
+    hostPreauth.current = { seeded: false, publishedCert: "", meshJoined: false };
 
     // Beat immediately so presence is fresh the moment we sign in, then on cadence.
     void myPcsRegister(host, token).catch(() => {});
@@ -89,6 +100,32 @@ export function usePresenceHeartbeat(session: Session | null): void {
       // keeps the old cert and every client fails HTTPS serverinfo with a stale pin.
       const cert = await publishHostServerCert(host, token, st.publishedCert);
       if (cert) st.publishedCert = cert;
+
+      // Persistent host-side mesh presence (T12k-8). A host on a different network
+      // than its viewer is only reachable over the Headscale overlay, but nothing
+      // ever joined the mesh for a *pure* host — gather_self then published an empty
+      // mesh_addr and remote Play failed `host_unreachable`. Join once per session
+      // as a NON-ephemeral node (server-minted persistent key); the heartbeat's
+      // myPcsRegister then advertises this host's 100.x mesh_addr so off-LAN clients
+      // can resolve it. The first join performs the one-time Windows service install
+      // (single UAC), then it's unprivileged forever. Best-effort and once-per-session
+      // (we set the flag before attempting, so a declined UAC won't re-prompt every
+      // beat): LAN play is unaffected if the mesh is unavailable.
+      if (!st.meshJoined) {
+        st.meshJoined = true;
+        try {
+          if (await meshIsAvailable()) {
+            const mesh = await meshStatus();
+            if (mesh.phase !== "up") {
+              const me = await myPcsSelf();
+              const pre = await meshPreauth(host, token, me.name, false); // false = persistent host
+              await meshJoin(pre.key, me.name, false);
+            }
+          }
+        } catch {
+          /* mesh not configured / UAC declined / control unreachable — stay LAN-only */
+        }
+      }
     };
     void ensureHostPreauth();
 
