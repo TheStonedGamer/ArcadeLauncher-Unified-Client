@@ -15,14 +15,17 @@
 //! **Privileged daemon bring-up (Windows = one-time service install).** Creating
 //! the WinTun adapter needs Administrator. Rather than re-elevating every session,
 //! [`join`] installs the bundled `tailscaled` as an **auto-start LocalSystem
-//! Windows service** (`tailscaled install-system-daemon`) on first use — a single
-//! UAC accept — and in the SAME elevated batch runs `tailscale up` and grants this
-//! (non-admin) user `--operator`, so every later `status`/`up`/`resolve` is
-//! unprivileged with no further prompts and the mesh survives reboots. Linux keeps
-//! the unprivileged [`ensure_daemon`] spawn (needs `/dev/net/tun`). ⚠️ The
-//! service-install + LocalAPI-pipe-operator path is implemented but still wants a
-//! two-machine real-hardware pass (T12k-8 gate 3) to confirm the cross-internet
-//! WinTun A/V stream actually connects.
+//! Windows service** (`tailscaled install-system-daemon` + an explicit
+//! `Start-Service` — install alone leaves it Stopped) on first use, a single UAC
+//! accept. The `tailscale up` join itself, and every later `status`/`set`/
+//! `resolve`, then run **unprivileged** from the launcher: on Windows the running
+//! LocalSystem daemon grants the interactive user LocalAPI access with no
+//! `--operator` (verified on real hardware), so no auth key or operator name ever
+//! passes through the elevated batch. Because the service is auto-start, the mesh
+//! survives reboots and [`join`]'s fast path skips elevation on every later
+//! session. Linux keeps the unprivileged [`ensure_daemon`] spawn (needs
+//! `/dev/net/tun`). ⚠️ Still wants a two-machine real-hardware pass (T12k-8 gate 3)
+//! to confirm the cross-internet WinTun A/V stream actually connects.
 
 use crate::error::{AppError, AppResult};
 use crate::streaming::mesh::control::{self, MeshPhase, MeshState, UpArgs};
@@ -119,42 +122,31 @@ fn ensure_daemon() -> AppResult<()> {
     Ok(())
 }
 
-/// The Windows account to grant `tailscale --operator`, so this non-admin user
-/// can drive the LocalSystem daemon after install without further elevation.
-/// `DOMAIN\\user` when a domain is set, else the bare username.
-#[cfg(windows)]
-fn current_windows_operator() -> Option<String> {
-    let user = std::env::var("USERNAME").ok().filter(|s| !s.is_empty())?;
-    match std::env::var("USERDOMAIN").ok().filter(|s| !s.is_empty()) {
-        Some(domain) => Some(format!("{domain}\\{user}")),
-        None => Some(user),
-    }
-}
-
-/// PowerShell single-quoted literal (doubles embedded quotes) — safe for paths,
-/// the auth key, hostnames, and the operator name.
+/// PowerShell single-quoted literal (doubles embedded quotes) — safe for the
+/// bundled-binary paths and the staged script path.
 #[cfg(windows)]
 fn ps_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "''"))
 }
 
-/// The elevated bring-up script: install the service, wait for the daemon's
-/// LocalAPI to answer, then `tailscale up` (the pure-core argv, already carrying
-/// `--operator`). Runs as one elevated batch so it's a single UAC prompt.
+/// The elevated step: register the bundled `tailscaled` as an auto-start
+/// LocalSystem service **and start it**. `install-system-daemon` only *registers*
+/// the service (it leaves it Stopped → `ERROR_SERVICE_NEVER_STARTED`), so the
+/// explicit `Start-Service` is load-bearing — that was the original bug. Both the
+/// `tailscale up` join and all later `status`/`set`/`resolve` calls then run
+/// **unprivileged** from the launcher (verified: on Windows the running
+/// LocalSystem daemon grants the interactive user LocalAPI access with no
+/// `--operator`), so no auth key or operator name is ever passed through this
+/// elevated batch. Idempotent: skips the install when the service already exists,
+/// and `Start-Service` is a no-op when it's already Running.
 #[cfg(windows)]
-fn build_bring_up_script(tailscaled: &PathBuf, tailscale: &PathBuf, up_args: &[String]) -> String {
+fn build_service_install_script(tailscaled: &PathBuf) -> String {
     let tsd = ps_quote(&tailscaled.to_string_lossy());
-    let ts = ps_quote(&tailscale.to_string_lossy());
-    let up_line = up_args.iter().map(|a| ps_quote(a)).collect::<Vec<_>>().join(" ");
     format!(
         "$ErrorActionPreference = 'Stop'\r\n\
-         & {tsd} install-system-daemon\r\n\
-         for ($i = 0; $i -lt 30; $i++) {{\r\n\
-         \x20 & {ts} status *> $null\r\n\
-         \x20 if ($LASTEXITCODE -eq 0) {{ break }}\r\n\
-         \x20 Start-Sleep -Milliseconds 500\r\n\
-         }}\r\n\
-         & {ts} {up_line}\r\n"
+         $svc = Get-Service -Name 'Tailscale' -ErrorAction SilentlyContinue\r\n\
+         if (-not $svc) {{ & {tsd} install-system-daemon }}\r\n\
+         Start-Service -Name 'Tailscale'\r\n"
     )
 }
 
@@ -186,33 +178,26 @@ fn run_elevated_powershell(script_path: &PathBuf) -> AppResult<()> {
     }
 }
 
-/// Windows first-run: install the bundled `tailscaled` as an auto-start
-/// LocalSystem service, grant this user `--operator`, and `tailscale up` — all
-/// under one UAC prompt. Subsequent joins skip this entirely (the fast path in
-/// [`join`] reaches the running service unprivileged).
+/// Windows: ensure the bundled `tailscaled` LocalSystem service is installed and
+/// running (one UAC prompt the first time; a no-op reached only when the daemon
+/// isn't already reachable). The actual `tailscale up` join runs unprivileged in
+/// [`join`] afterward. Because the service is auto-start, every later session
+/// finds it Running → [`join`]'s fast path skips this entirely.
 #[cfg(windows)]
-fn windows_service_bring_up(up: &UpArgs) -> AppResult<()> {
+fn windows_ensure_service() -> AppResult<()> {
     let tailscaled = mesh_bin(DAEMON_BIN)?;
-    let tailscale = mesh_bin(CLI_BIN)?;
-
-    let mut up_args = up.cli_args();
-    if let Some(op) = current_windows_operator() {
-        up_args.push("--operator".to_string());
-        up_args.push(op);
-    }
-
     let state_dir = mesh_state_dir()?;
     let _ = std::fs::create_dir_all(&state_dir);
-    let script_path = state_dir.join("mesh-bringup.ps1");
-    std::fs::write(&script_path, build_bring_up_script(&tailscaled, &tailscale, &up_args))
-        .map_err(|e| AppError::msg(format!("failed to stage mesh bring-up script: {e}")))?;
+    let script_path = state_dir.join("mesh-service-install.ps1");
+    std::fs::write(&script_path, build_service_install_script(&tailscaled))
+        .map_err(|e| AppError::msg(format!("failed to stage mesh service-install script: {e}")))?;
 
     let ran = run_elevated_powershell(&script_path);
-    // Always delete the script — it carries the single-use pre-auth key.
     let _ = std::fs::remove_file(&script_path);
     ran?;
 
-    // The service auto-starts; wait for its LocalAPI to accept us (operator).
+    // `tailscale status --json` exits 0 as soon as the daemon's LocalAPI answers
+    // (even before login), so this confirms the service is up and ready for `up`.
     for _ in 0..20 {
         if status_json().is_ok() {
             return Ok(());
@@ -255,23 +240,23 @@ pub fn current_state() -> MeshState {
 /// (re)issue `tailscale up` — no elevation. On Windows this is every call after
 /// the first, because the service stays installed and this user is an operator.
 ///
-/// **Windows first run:** no daemon reachable → [`windows_service_bring_up`]
-/// installs the LocalSystem service + brings the node up under one UAC prompt.
-/// **Linux/dev:** spawn the daemon unprivileged, then `up`.
+/// **Windows first run:** no daemon reachable → [`windows_ensure_service`]
+/// installs + starts the LocalSystem service under one UAC prompt, then `up` runs
+/// unprivileged. **Linux/dev:** spawn the daemon unprivileged, then `up`.
 pub fn join(up: &UpArgs) -> AppResult<MeshState> {
-    if status_json().is_ok() {
-        run_cli(&up.cli_args())?;
-        return Ok(current_state());
+    if !status_json().is_ok() {
+        #[cfg(windows)]
+        {
+            windows_ensure_service()?;
+        }
+        #[cfg(not(windows))]
+        {
+            ensure_daemon()?;
+        }
     }
-    #[cfg(windows)]
-    {
-        windows_service_bring_up(up)?;
-    }
-    #[cfg(not(windows))]
-    {
-        ensure_daemon()?;
-        run_cli(&up.cli_args())?;
-    }
+    // The daemon is reachable now (running service / spawned child); `up` is an
+    // unprivileged LocalAPI call on every platform.
+    run_cli(&up.cli_args())?;
     Ok(current_state())
 }
 

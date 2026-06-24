@@ -13,6 +13,18 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.15] - 2026-06-24
+
+### Fixed
+- **Streaming to a PC on another network now actually completes the one-time
+  setup.** The previous release's auto-join could leave the background mesh
+  service installed but not running, so the host still never got a reachable
+  address and off-network play kept failing with "serverinfo over HTTPS failed /
+  host unreachable". The service is now explicitly started right after it's
+  installed, and the join no longer passes an option this Tailscale build
+  rejects — so turning on "Let this PC be streamed" brings the host onto the
+  mesh on the first try. Local-network streaming is unaffected.
+
 ## [0.13.14] - 2026-06-24
 
 ### Fixed
