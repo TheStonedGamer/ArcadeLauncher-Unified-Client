@@ -84,6 +84,58 @@ fn walk_for(dir: &Path, want_lower: &str, depth: u32) -> Option<PathBuf> {
     None
 }
 
+/// PC-content platforms whose runnable target is an `.exe` *inside* the installed
+/// content dir (the server resolves it but ships it only as a `{exe}` placeholder,
+/// which our catalog/manifest models don't carry). Resolved locally, like ROMs.
+fn is_pc_content_platform(platform: &str) -> bool {
+    matches!(platform.to_ascii_lowercase().as_str(), "pc" | "steam" | "epic" | "windows")
+}
+
+/// Locate the primary game executable inside an installed PC content dir,
+/// mirroring the server's `find_pc_launch_target` heuristic so both pick the same
+/// file: collect every `.exe`, drop obvious installer/redistributable ones, then
+/// prefer the shallowest, shortest path — falling back to *any* exe so a folder is
+/// never left unlaunchable just because every exe matched the installer heuristic.
+fn find_pc_exe(install_dir: &Path) -> Option<PathBuf> {
+    let mut exes = Vec::new();
+    collect_exes(install_dir, 6, &mut exes);
+    if exes.is_empty() {
+        return None;
+    }
+    let is_installerish = |p: &Path| {
+        let l = p.to_string_lossy().to_ascii_lowercase();
+        l.contains("unins") || l.contains("setup") || l.contains("redist")
+            || l.contains("_commonredist") || l.contains("crashreport")
+            || l.contains("crashpad") || l.contains("vcredist") || l.contains("dxsetup")
+    };
+    let mut candidates: Vec<PathBuf> = exes.iter().filter(|p| !is_installerish(p)).cloned().collect();
+    let pick = if candidates.is_empty() { &mut exes } else { &mut candidates };
+    // Shallowest then shortest path — the game's launcher exe sits at the root,
+    // helper exes live deeper (e.g. `bin/tools/foo.exe`).
+    pick.sort_by_key(|p| (p.components().count(), p.to_string_lossy().len()));
+    pick.first().cloned()
+}
+
+/// Depth-limited collection of every `.exe` under `dir` (case-insensitive).
+fn collect_exes(dir: &Path, depth: u32, out: &mut Vec<PathBuf>) {
+    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    let mut subdirs = Vec::new();
+    for entry in rd.flatten() {
+        let path = entry.path();
+        if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+            subdirs.push(path);
+        } else if path.extension().and_then(|e| e.to_str()).map(|e| e.eq_ignore_ascii_case("exe")).unwrap_or(false) {
+            out.push(path);
+        }
+    }
+    if depth == 0 {
+        return;
+    }
+    for sub in subdirs {
+        collect_exes(&sub, depth - 1, out);
+    }
+}
+
 /// The installed ROM file for a game, given its install dir. ROM installs drop a
 /// single file (the ROM/ISO); when several files exist we take the largest,
 /// which is the disc/cart image rather than a sidecar (`.txt`, checksum, etc.).
@@ -142,8 +194,25 @@ pub fn enrich_status(app: &tauri::AppHandle, game: &mut Game) -> EnrichOutcome {
     }
     let candidates = exe_candidates(&game.platform);
     if candidates.is_empty() {
-        // Not an emulated platform — leave it to the exe/uri precedence.
-        return EnrichOutcome::Resolved;
+        // Not an emulated platform. A directly-runnable entry (exe/uri set) is
+        // left to the normal precedence. For PC-content games the runnable exe
+        // lives inside the installed content dir — the server resolves it but
+        // ships only a `{exe}` placeholder our models drop, so resolve it here
+        // (symmetric with ROM resolution below).
+        if !game.exe_path.is_empty() || !is_pc_content_platform(&game.platform) {
+            return EnrichOutcome::Resolved;
+        }
+        let install_dir = resolve_install_dir(app, &game.id);
+        return match install_dir.as_deref().and_then(find_pc_exe) {
+            Some(exe) => {
+                game.exe_path = exe.to_string_lossy().into_owned();
+                EnrichOutcome::Resolved
+            }
+            // No content on disk (or no exe inside it) — the game isn't installed
+            // yet. Reuse RomMissing so the UI says "isn't installed yet" rather
+            // than the misleading blanket "no launch target configured".
+            None => EnrichOutcome::RomMissing,
+        };
     }
     let Some(emu_dir) = emulators_dir(app) else {
         return EnrichOutcome::EmulatorMissing;
@@ -210,6 +279,51 @@ mod tests {
         assert!(find_exe(&dir, &["Dolphin.exe"]).is_none());
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn find_pc_exe_prefers_root_game_over_installer_and_helpers() {
+        let dir = std::env::temp_dir().join(format!("pc_exe_test_{}", std::process::id()));
+        let bin = dir.join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        // The game launcher at the root, an installer exe, and a nested helper.
+        std::fs::write(dir.join("Diner Dash.exe"), b"MZ").unwrap();
+        std::fs::write(dir.join("unins000.exe"), b"MZ").unwrap();
+        std::fs::write(bin.join("crashreporter.exe"), b"MZ").unwrap();
+
+        let hit = find_pc_exe(&dir).unwrap();
+        assert!(hit.ends_with("Diner Dash.exe"));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn find_pc_exe_falls_back_to_any_exe_when_all_look_like_installers() {
+        let dir = std::env::temp_dir().join(format!("pc_exe_fallback_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        // Every exe matches the installer heuristic — still return one, not None.
+        std::fs::write(dir.join("setup.exe"), b"MZ").unwrap();
+        let hit = find_pc_exe(&dir).unwrap();
+        assert!(hit.ends_with("setup.exe"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn find_pc_exe_none_when_no_exe_present() {
+        let dir = std::env::temp_dir().join(format!("pc_exe_empty_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("readme.txt"), b"x").unwrap();
+        assert!(find_pc_exe(&dir).is_none());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn pc_content_platforms_recognized() {
+        assert!(is_pc_content_platform("PC"));
+        assert!(is_pc_content_platform("steam"));
+        assert!(is_pc_content_platform("Epic"));
+        assert!(!is_pc_content_platform("NES"));
+        assert!(!is_pc_content_platform("GameCube"));
     }
 
     #[test]
