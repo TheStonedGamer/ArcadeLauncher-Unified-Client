@@ -1,6 +1,6 @@
 [package]
 name = "arcade_launcher"
-version = "0.13.19"
+version = "0.13.20"
 description = "ArcadeLauncher Unified Client"
 authors = ["TheStonedGamer"]
 edition = "2021"
@@ -37,6 +37,11 @@ sha2 = "0.10"
 # decrypt, mirroring the server's auth.rs exactly. hex for wire encoding.
 hmac = "0.12"
 hex = "0.4"
+
+# Free/total disk space per library folder (multi-drive Storage manager). Tiny,
+# pure-Rust, no system-service deps — identical on Windows + Linux, consistent
+# with the project's dependency rule. `sync` selects the std (non-async) backend.
+fs4 = { version = "0.13", features = ["sync"] }
 
 # Cloud saves (T8): set a downloaded save file's mtime to the server's, so the
 # next sync sees it as in-sync instead of re-uploading. Pure-Rust, cross-platform,

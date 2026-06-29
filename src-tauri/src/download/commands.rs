@@ -63,6 +63,7 @@ async fn build_install_context(
     token: String,
     game_id: String,
     verify: bool,
+    install_root: Option<PathBuf>,
 ) -> AppResult<InstallContext> {
     let host = normalize_host(&host);
 
@@ -106,7 +107,17 @@ async fn build_install_context(
     let install_dir = match recs.get(&game_id).map(|r| r.install_dir.clone()) {
         Some(dir) if !dir.is_empty() => PathBuf::from(dir),
         _ => {
-            let games_root = data_dir.join("games");
+            // First-time install: honor the caller's chosen library root (Steam-
+            // style install prompt). With none given, fall back to the default
+            // library folder, which itself defaults to `app_data_dir/games`.
+            let games_root = install_root.unwrap_or_else(|| {
+                let lf = crate::library::store::load(&config_dir.join("library_folders.json"))
+                    .unwrap_or_default();
+                match lf.default_path() {
+                    Some(p) if !p.is_empty() => PathBuf::from(p),
+                    _ => data_dir.join("games"),
+                }
+            });
             crate::download::paths::unique_install_dir(
                 &games_root,
                 &game_id,
@@ -154,8 +165,13 @@ pub async fn download_install(
     host: String,
     token: String,
     game_id: String,
+    install_root: Option<String>,
 ) -> AppResult<()> {
-    let ctx = build_install_context(&app, host, token, game_id, false).await?;
+    let root = install_root
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from);
+    let ctx = build_install_context(&app, host, token, game_id, false, root).await?;
     app.state::<DownloadManager>().start(ctx);
     Ok(())
 }
@@ -171,7 +187,7 @@ pub async fn download_verify(
     token: String,
     game_id: String,
 ) -> AppResult<()> {
-    let ctx = build_install_context(&app, host, token, game_id, true).await?;
+    let ctx = build_install_context(&app, host, token, game_id, true, None).await?;
     app.state::<DownloadManager>().start(ctx);
     Ok(())
 }

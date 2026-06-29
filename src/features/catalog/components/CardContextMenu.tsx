@@ -21,6 +21,7 @@ interface Props {
   onInstall: (game: Game) => void;
   onVerify: (game: Game) => void;
   onOpenFolder: (game: Game) => void;
+  onMove: (game: Game) => void;
   onToggleFavorite: (game: Game) => void;
   onToggleHidden: (game: Game) => void;
   onClose: () => void;
@@ -33,6 +34,7 @@ export function CardContextMenu({
   onInstall,
   onVerify,
   onOpenFolder,
+  onMove,
   onToggleFavorite,
   onToggleHidden,
   onClose,
@@ -93,6 +95,11 @@ export function CardContextMenu({
       {onDisk && canInstall && (
         <button className="card-menu__item" role="menuitem" onClick={run(() => onVerify(game))}>
           Verify integrity &amp; repair files
+        </button>
+      )}
+      {onDisk && (
+        <button className="card-menu__item" role="menuitem" onClick={run(() => onMove(game))}>
+          Move install folder…
         </button>
       )}
       <div className="card-menu__sep" />

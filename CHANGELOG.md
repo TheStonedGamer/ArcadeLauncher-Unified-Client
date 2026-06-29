@@ -13,6 +13,20 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.20] - 2026-06-29
+
+### Added
+- **Multiple library folders, Steam-style.** Settings → Storage lets you add an
+  install folder on any drive, see each one's free/used space and how many games
+  ArcadeLauncher keeps there, and pick which folder new installs go to by
+  default. When you have more than one library, installing a game now asks which
+  drive to put it on.
+- **Move installed games between drives.** Right-click a game → "Move install
+  folder…", choose a target library, and watch a live progress bar as the files
+  are relocated. The move is safe across drives (copy-then-verify with rollback
+  if anything goes wrong) and the game launches from its new home with no further
+  setup.
+
 ## [0.13.15] - 2026-06-24
 
 ### Fixed

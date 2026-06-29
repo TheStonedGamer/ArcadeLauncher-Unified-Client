@@ -113,6 +113,12 @@ impl DownloadManager {
         }
     }
 
+    /// Whether an install/verify for `game_id` is currently in flight. Used to
+    /// refuse a library move while files are still being written.
+    pub fn is_active(&self, game_id: &str) -> bool {
+        self.active.lock().unwrap().contains_key(game_id)
+    }
+
     /// Write `state` for this install into the client-local records file
     /// (load-modify-save under the record lock). Non-destructive: it only
     /// touches `install_records.json`, never the catalog.

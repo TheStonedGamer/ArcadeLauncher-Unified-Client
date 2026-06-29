@@ -349,6 +349,58 @@ body {
 .card-menu__item:hover { background: var(--accent); color: #fff; }
 .card-menu__sep { height: 1px; margin: 4px 6px; background: var(--border); }
 
+/* ── Storage / library-folder manager (Settings → Storage) ─────────────── */
+.lib-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 10px; }
+.lib-row {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; display: grid; gap: 8px;
+}
+.lib-row__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lib-row__path {
+  flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lib-row__badge {
+  flex-shrink: 0; font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 2px 7px; border-radius: 999px;
+  background: var(--accent); color: #fff; margin-left: 8px;
+}
+/* Steam-style usage bar: other apps' usage (dim) then our installs (accent). */
+.lib-row__bar {
+  display: flex; height: 8px; border-radius: 999px; overflow: hidden;
+  background: var(--panel-2); border: 1px solid var(--border);
+}
+.lib-row__seg { display: block; height: 100%; }
+.lib-row__seg--other { background: var(--muted); opacity: 0.5; }
+.lib-row__seg--used { background: var(--accent); }
+.lib-row__meta { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--muted); }
+.lib-row__actions { display: flex; gap: 8px; }
+.lib-row__btn {
+  padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+}
+.lib-row__btn:hover:not(:disabled) { border-color: var(--accent); }
+.lib-row__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Install/Move library-picker modal (reuses .detail-backdrop). */
+.lib-modal {
+  position: relative; width: 100%; max-width: 480px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px;
+}
+.lib-modal__title { margin: 0 0 10px; font-size: 18px; }
+.lib-modal__list { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 8px; }
+.lib-modal__opt {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2);
+}
+.lib-modal__opt--on { border-color: var(--accent); }
+.lib-modal__optmain { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.lib-modal__optpath {
+  display: flex; align-items: center; font-size: 13px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lib-modal__optfree { font-size: 12px; color: var(--muted); }
+
 /* Big Picture toggle button + mode. */
 .catalog__bigpicture {
   padding: 6px 12px; border-radius: 999px; cursor: pointer;

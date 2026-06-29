@@ -14,6 +14,7 @@ import { EmulatorControllerEditor } from "../controller/EmulatorControllerEditor
 import { ThemeSettings } from "../theme/ThemeSettings";
 import { StreamingSection } from "../streaming/StreamingSection";
 import { HostingSection } from "../streaming/HostingSection";
+import { StorageSection } from "../library/StorageSection";
 import { useState } from "react";
 import { fetchRaSummary, type RaSummary } from "../retroachievements/api";
 import { pointsToLevel, summaryHeadline, topUnlocks, unlockLabel } from "../retroachievements/ra";
@@ -154,6 +155,8 @@ export function SettingsView() {
         onUsername={(v) => set("retroachievementsUsername", v)}
         onApiKey={(v) => set("retroachievementsApiKey", v)}
       />
+
+      <StorageSection />
 
       <EmulatorsSection />
 

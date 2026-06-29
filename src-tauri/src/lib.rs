@@ -9,6 +9,7 @@ mod emulators;
 mod error;
 mod hotkey;
 mod launch;
+mod library;
 mod presence;
 mod proc;
 mod requests;
@@ -158,6 +159,21 @@ pub fn run() {
                     {
                         eprintln!("install-dir migration: {line}");
                     }
+
+                    // Seed the multi-library list so the implicit `games/` root is
+                    // always present and exactly one folder is the default
+                    // (back-compat: a fresh/legacy user gets it as their sole,
+                    // default library). Best-effort — a missing file just stays
+                    // empty until the Storage manager seeds it on first open.
+                    let lf_path = config_dir.join("library_folders.json");
+                    let mut folders = library::store::load(&lf_path).unwrap_or_default();
+                    let before = folders.clone();
+                    folders.ensure_default(&games_root.to_string_lossy());
+                    if folders != before {
+                        if let Err(e) = library::store::save(&lf_path, &folders) {
+                            eprintln!("library seed failed: {e}");
+                        }
+                    }
                 });
             }
             Ok(())
@@ -257,6 +273,11 @@ pub fn run() {
             download::commands::load_install_records,
             download::commands::check_updates,
             download::commands::open_install_dir,
+            library::commands::list_library_folders,
+            library::commands::add_library_folder,
+            library::commands::remove_library_folder,
+            library::commands::set_default_library_folder,
+            library::commands::move_install,
             emulators::commands::list_emulators,
             emulators::commands::download_emulator,
             emulators::commands::download_all_emulators,

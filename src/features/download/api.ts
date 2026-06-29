@@ -14,9 +14,16 @@ export function loadInstallRecords(): Promise<InstallStateMap> {
 
 /** Start installing a game using the signed-in session's host + token. Progress
  *  arrives via the `download://progress`/`status` events the Downloads tab listens
- *  to. Rejects if the manifest fetch fails (e.g. not signed in / not found). */
-export function installGame(host: string, token: string, gameId: string): Promise<void> {
-  return call("download_install", { host, token, gameId });
+ *  to. Rejects if the manifest fetch fails (e.g. not signed in / not found).
+ *  `installRoot` (optional) targets a specific library folder for a first-time
+ *  install (Steam-style prompt); omitted, the default library folder is used. */
+export function installGame(
+  host: string,
+  token: string,
+  gameId: string,
+  installRoot?: string,
+): Promise<void> {
+  return call("download_install", { host, token, gameId, installRoot });
 }
 
 /** Validate & repair an installed game (the card right-click "Verify files"

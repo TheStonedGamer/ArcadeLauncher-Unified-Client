@@ -29,6 +29,11 @@ import { searchArtwork, applyCover } from "./api";
 import { installGame, updateGame, verifyGame, openInstallDir } from "../download/api";
 import { useInstallOverlay } from "../download/useInstallOverlay";
 import { effectiveInstallState } from "../download/installState";
+import { listLibraryFolders, moveInstall } from "../library/api";
+import { useMoveProgress } from "../library/useMoveProgress";
+import { InstallLocationModal } from "../library/InstallLocationModal";
+import { MoveLocationModal } from "../library/MoveLocationModal";
+import type { LibraryFolderInfo } from "../library/types";
 import {
   syncSaves,
   listSaveVersions,
@@ -58,15 +63,80 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
     savePathById: (id) => prefs.prefs.savePaths[id] ?? "",
   });
   const installOverlay = useInstallOverlay(session);
+  const { moves, clear: clearMove } = useMoveProgress();
+
+  // Steam-style install-location prompt: only shown when more than one library
+  // folder exists. `installPrompt` holds the game + the folder list while open.
+  const [installPrompt, setInstallPrompt] = useState<{ game: Game; folders: LibraryFolderInfo[] } | null>(null);
+  // Move prompt: the game whose files we're relocating + the target folder list.
+  const [movePrompt, setMovePrompt] = useState<{ game: Game; folders: LibraryFolderInfo[] } | null>(null);
+  const [moveBusy, setMoveBusy] = useState(false);
+  const [moveError, setMoveError] = useState("");
+
+  // Fire the engine for a given install root (undefined → server's default
+  // library folder, decided in Rust).
+  const runInstall = useCallback(
+    async (game: Game, installRoot?: string) => {
+      if (!session) throw new Error("sign in to install");
+      await installGame(session.host, session.token, game.id, installRoot);
+    },
+    [session],
+  );
 
   // Install trigger (T4d-3): start the engine for a server game using the
-  // signed-in session's host + token. Disabled in the UI when no session.
+  // signed-in session's host + token. With more than one library folder, prompt
+  // for which one (Steam-style); with one (or none on error) install straight in.
   const startInstall = useCallback(
     async (game: Game) => {
       if (!session) throw new Error("sign in to install");
-      await installGame(session.host, session.token, game.id);
+      let folders: LibraryFolderInfo[] = [];
+      try {
+        folders = await listLibraryFolders();
+      } catch {
+        // Library listing failed — fall back to the default-root install.
+      }
+      if (folders.length > 1) {
+        setInstallPrompt({ game, folders });
+        return;
+      }
+      await runInstall(game);
     },
-    [session],
+    [session, runInstall],
+  );
+
+  // Open the move prompt for an installed game (offers every library folder; the
+  // Rust side rejects a no-op move into the folder it already lives in).
+  const startMove = useCallback(async (game: Game) => {
+    setMoveError("");
+    let folders: LibraryFolderInfo[] = [];
+    try {
+      folders = await listLibraryFolders();
+    } catch (e) {
+      setMoveError(e instanceof Error ? e.message : String(e));
+    }
+    setMovePrompt({ game, folders });
+  }, []);
+
+  // Run the relocation: the progress bar is driven by `library://move-progress`
+  // (via useMoveProgress); the promise resolves once the record is rewritten.
+  const confirmMove = useCallback(
+    async (targetPath: string) => {
+      if (!movePrompt) return;
+      const id = movePrompt.game.id;
+      setMoveBusy(true);
+      setMoveError("");
+      try {
+        await moveInstall(id, targetPath);
+        clearMove(id);
+        setMovePrompt(null);
+      } catch (e) {
+        setMoveError(e instanceof Error ? e.message : String(e));
+        clearMove(id);
+      } finally {
+        setMoveBusy(false);
+      }
+    },
+    [movePrompt, clearMove],
   );
 
   // Validate & repair: re-check every manifest file on disk by size + SHA-256
@@ -374,9 +444,38 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
           onInstall={(g) => void startInstall(g)}
           onVerify={(g) => void startVerify(g)}
           onOpenFolder={(g) => void openFolder(g)}
+          onMove={(g) => void startMove(g)}
           onToggleFavorite={prefs.toggleFavorite}
           onToggleHidden={prefs.toggleHidden}
           onClose={() => setCardMenu(null)}
+        />
+      )}
+
+      {installPrompt && (
+        <InstallLocationModal
+          gameTitle={installPrompt.game.title}
+          folders={installPrompt.folders}
+          onConfirm={(path) => {
+            const game = installPrompt.game;
+            setInstallPrompt(null);
+            void runInstall(game, path);
+          }}
+          onCancel={() => setInstallPrompt(null)}
+        />
+      )}
+
+      {movePrompt && (
+        <MoveLocationModal
+          gameTitle={movePrompt.game.title}
+          folders={movePrompt.folders}
+          progress={moves[movePrompt.game.id]}
+          error={moveError}
+          busy={moveBusy}
+          onConfirm={(path) => void confirmMove(path)}
+          onCancel={() => {
+            setMovePrompt(null);
+            setMoveError("");
+          }}
         />
       )}
 
