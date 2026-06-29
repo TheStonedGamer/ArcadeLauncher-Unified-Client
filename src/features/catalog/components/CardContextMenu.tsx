@@ -20,6 +20,7 @@ interface Props {
   onLaunch: (game: Game) => void;
   onInstall: (game: Game) => void;
   onVerify: (game: Game) => void;
+  onOpenFolder: (game: Game) => void;
   onToggleFavorite: (game: Game) => void;
   onToggleHidden: (game: Game) => void;
   onClose: () => void;
@@ -31,6 +32,7 @@ export function CardContextMenu({
   onLaunch,
   onInstall,
   onVerify,
+  onOpenFolder,
   onToggleFavorite,
   onToggleHidden,
   onClose,
@@ -38,6 +40,9 @@ export function CardContextMenu({
   const { game } = target;
   const ref = useRef<HTMLDivElement>(null);
   const installed = game.installState === "installed";
+  // An update-available game is still fully on disk, so the file actions (open
+  // folder, verify integrity) apply to it too — not just the "installed" state.
+  const onDisk = installed || game.installState === "updateAvailable";
 
   // Dismiss on any outside click, scroll, or Escape.
   useEffect(() => {
@@ -80,9 +85,14 @@ export function CardContextMenu({
           {installed ? "Reinstall" : "Install"}
         </button>
       )}
-      {installed && canInstall && (
+      {onDisk && (
+        <button className="card-menu__item" role="menuitem" onClick={run(() => onOpenFolder(game))}>
+          Open local folder
+        </button>
+      )}
+      {onDisk && canInstall && (
         <button className="card-menu__item" role="menuitem" onClick={run(() => onVerify(game))}>
-          Verify files
+          Verify integrity &amp; repair files
         </button>
       )}
       <div className="card-menu__sep" />

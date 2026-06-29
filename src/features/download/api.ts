@@ -42,6 +42,13 @@ export function updateGame(host: string, token: string, gameId: string): Promise
   return call("download_verify", { host, token, gameId });
 }
 
+/** Open the game's install folder in the OS file manager (the card's right-click
+ *  "Open local folder" action). Resolves the recorded install dir Rust-side.
+ *  Rejects if the game isn't installed / the folder isn't on disk. */
+export function openInstallDir(gameId: string): Promise<void> {
+  return call("open_install_dir", { gameId });
+}
+
 export function pauseDownload(gameId: string): Promise<void> {
   return call("download_pause", { gameId });
 }

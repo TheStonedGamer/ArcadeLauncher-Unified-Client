@@ -26,7 +26,7 @@ import { applyPrefs } from "./prefs";
 import { useSession } from "../session/SessionContext";
 import { useSettings } from "../settings/useSettings";
 import { searchArtwork, applyCover } from "./api";
-import { installGame, updateGame, verifyGame } from "../download/api";
+import { installGame, updateGame, verifyGame, openInstallDir } from "../download/api";
 import { useInstallOverlay } from "../download/useInstallOverlay";
 import { effectiveInstallState } from "../download/installState";
 import {
@@ -79,6 +79,13 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
     },
     [session],
   );
+
+  // Open the game's install folder in the OS file manager. The Rust side
+  // resolves the recorded install dir (clean-title path), so this just needs the
+  // game id; surfaces a clear error if it isn't on disk.
+  const openFolder = useCallback(async (game: Game) => {
+    await openInstallDir(game.id);
+  }, []);
 
   // Apply an available update (T12c): re-pull only the changed files via the
   // verify engine pass, which finalizes the record at the new version.
@@ -366,6 +373,7 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
           onLaunch={launch}
           onInstall={(g) => void startInstall(g)}
           onVerify={(g) => void startVerify(g)}
+          onOpenFolder={(g) => void openFolder(g)}
           onToggleFavorite={prefs.toggleFavorite}
           onToggleHidden={prefs.toggleHidden}
           onClose={() => setCardMenu(null)}

@@ -247,6 +247,34 @@ pub async fn check_updates(
     Ok(recs.state_map())
 }
 
+/// Open the install folder for `game_id` in the OS file manager (the card's
+/// right-click "Open local folder" action). Resolves the directory from the
+/// install records (the recorded `install_dir`, which already follows the clean
+/// title + migration), falling back to the default per-user `games/<id>`
+/// location, and errors if nothing is on disk yet.
+#[tauri::command]
+pub fn open_install_dir(app: tauri::AppHandle, game_id: String) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| AppError::msg(format!("no config dir: {e}")))?;
+    let dir = crate::download::records::load(&config_dir.join("install_records.json"))?
+        .get(&game_id)
+        .map(|r| r.install_dir.clone())
+        .filter(|d| !d.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| app.path().app_data_dir().ok().map(|d| d.join("games").join(&game_id)))
+        .ok_or_else(|| AppError::msg("no install location on record for this game"))?;
+    if !dir.exists() {
+        return Err(AppError::msg("install folder not found on disk yet"));
+    }
+    app.opener()
+        .open_path(dir.to_string_lossy().to_string(), None::<&str>)
+        .map_err(|e| AppError::msg(format!("failed to open folder: {e}")))
+}
+
 /// Pause an active install (its `.part` files are kept for resume).
 #[tauri::command]
 pub fn download_pause(manager: State<'_, DownloadManager>, game_id: String) {
