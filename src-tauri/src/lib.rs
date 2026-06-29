@@ -135,6 +135,30 @@ pub fn run() {
                         eprintln!("firmware: {line}");
                     }
                 });
+
+                // One-time install-folder migration: rename legacy id-named game
+                // folders (`games/pc-fdc100f88077`) to clean catalog titles
+                // (`games/Food Delivery Simulator`) and update the records so
+                // launches follow. Best-effort on a background thread so a slow
+                // disk never blocks boot; skips anything locked, missing, already
+                // migrated, or colliding. Idempotent — a second run is a no-op.
+                let mig_handle = handle.clone();
+                std::thread::spawn(move || {
+                    let (data_dir, config_dir) =
+                        match (mig_handle.path().app_data_dir(), mig_handle.path().app_config_dir()) {
+                            (Ok(d), Ok(c)) => (d, c),
+                            _ => return,
+                        };
+                    let games_root = data_dir.join("games");
+                    let records_path = config_dir.join("install_records.json");
+                    let catalog = catalog::loader::load_file(&config_dir.join("library.json"))
+                        .unwrap_or_default();
+                    for line in
+                        download::migrate::migrate_install_dirs(&games_root, &records_path, &catalog)
+                    {
+                        eprintln!("install-dir migration: {line}");
+                    }
+                });
             }
             Ok(())
         })

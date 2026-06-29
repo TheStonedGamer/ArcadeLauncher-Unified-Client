@@ -14,6 +14,7 @@ pub mod endpoint;
 pub mod engine;
 pub mod extract;
 pub mod manifest;
+pub mod migrate;
 pub mod paths;
 pub mod queue;
 pub mod rate;

@@ -95,8 +95,32 @@ async fn build_install_context(
         .path()
         .app_config_dir()
         .map_err(|e| AppError::msg(format!("no config dir: {e}")))?;
-    let install_dir = data_dir.join("games").join(&game_id);
     let records_path = config_dir.join("install_records.json");
+
+    // Install folder name: prefer the clean catalog/manifest title over the
+    // opaque id (e.g. `Food Delivery Simulator`, not `pc-fdc100f88077`). Reuse an
+    // existing record's directory verbatim so a verify / update / re-install of an
+    // already-installed game never moves it — and so the startup migration stays
+    // authoritative about where each game lives.
+    let recs = crate::download::records::load(&records_path).unwrap_or_default();
+    let install_dir = match recs.get(&game_id).map(|r| r.install_dir.clone()) {
+        Some(dir) if !dir.is_empty() => PathBuf::from(dir),
+        _ => {
+            let games_root = data_dir.join("games");
+            crate::download::paths::unique_install_dir(
+                &games_root,
+                &game_id,
+                &manifest.title,
+                |cand| {
+                    cand.exists()
+                        || recs
+                            .records
+                            .values()
+                            .any(|r| std::path::Path::new(&r.install_dir) == cand)
+                },
+            )
+        }
+    };
 
     // 3) Bandwidth cap from General settings (0 = unlimited).
     let cap_kbps = crate::settings::store::load(&config_dir.join("config.json"))

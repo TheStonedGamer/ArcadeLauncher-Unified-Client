@@ -24,6 +24,10 @@ pub struct ManifestFile {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Manifest {
+    /// Clean display title of the game (e.g. `Food Delivery Simulator`). Used to
+    /// name the install folder; empty if the server omits it (then the install
+    /// falls back to the opaque game id for the folder name).
+    pub title: String,
     /// Content version (recorded for update checks). Empty if the server omits it.
     pub version: String,
     /// Install kind, e.g. `pc_archive` (a single archive to extract) vs a plain
