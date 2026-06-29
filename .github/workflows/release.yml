@@ -86,10 +86,7 @@ jobs:
   # Tools and bundles the NSIS installer (tauri fetches makensis itself on Windows
   # — native build, no wine). MSI/WiX is intentionally NOT built: the in-app updater
   # consumes the NSIS setup.exe (its platform_keys prefer the `-nsis` key and
-  # update.rs explicitly avoids the admin-oriented MSI), and the bundled stream-engine
-  # OpenSSL DLLs trip WiX ICE38 under the app's per-user (`currentUser`) install
-  # (file-keypath components in a user-profile dir need an HKCU keypath). NSIS has no
-  # such constraint and ships the engine fine. Runs on the
+  # update.rs explicitly avoids the admin-oriented MSI). Runs on the
   # self-hosted Windows runner pinned to the `arcade-win10` label → VM 111
   # (`arcade-win10-runner`); the bare self-hosted/Windows/X64 set also matches other
   # Windows runners, so the unique label keeps this leg deterministic. Runs in
@@ -139,69 +136,6 @@ jobs:
           Copy-Item src-tauri/target/release/updater.exe `
             src-tauri/binaries/updater-x86_64-pc-windows-msvc.exe
 
-      # Stage the GPL stream-engine sidecar (bundled via the release-only overlay
-      # tauri.engine-bundle.conf.json, passed with `--config` in the build step
-      # below — NOT a platform config, so CI's `cargo check` never requires the
-      # engine binary). The engine ships per-OS assets; the Linux leg has its own
-      # staging step below. externalBin wants the file with the host target-triple
-      # suffix; ALL the engine's runtime DLLs ride along as bundle resources placed
-      # next to the exe — OpenSSL (NvHTTP pairing) PLUS SDL2/FFmpeg/Opus (the
-      # client.start renderer). v0.2.0 ships 7 of them. Pulled from the
-      # engine repo's public release, so no token is required. Bump $ver (in lockstep
-      # with the Linux staging step) when the client adopts a newer engine.
-      - name: Stage stream-engine sidecar (Windows)
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Stop"
-          $ver = "0.3.9"
-          $url = "https://github.com/TheStonedGamer/ArcadeLauncher-StreamEngine/releases/download/v$ver/ArcadeLauncher-StreamEngine-$ver-win-x64.zip"
-          $zip = Join-Path $env:RUNNER_TEMP "arcade-stream-engine.zip"
-          $tmp = Join-Path $env:RUNNER_TEMP "arcade-stream-engine"
-          Invoke-WebRequest -Uri $url -OutFile $zip
-          if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
-          Expand-Archive -Path $zip -DestinationPath $tmp -Force
-          $dest = "src-tauri/binaries"
-          New-Item -ItemType Directory -Force -Path $dest | Out-Null
-          Copy-Item (Join-Path $tmp "arcade-stream-engine.exe") `
-            (Join-Path $dest "arcade-stream-engine-x86_64-pc-windows-msvc.exe") -Force
-          # Copy ALL runtime DLLs the engine ships (OpenSSL for pairing + SDL2/FFmpeg/
-          # Opus for the client.start renderer). v0.2.0 ships 7; globbing keeps this in
-          # lockstep with whatever the engine zip carries across future engine bumps.
-          Copy-Item (Join-Path $tmp "*.dll") $dest -Force
-
-      # Stage the bundled Tailscale (T12k-8 play-from-anywhere): the launcher ships
-      # `tailscale.exe`/`tailscaled.exe` next to the app (externalBin in
-      # tauri.engine-bundle.conf.json) so a remote host's 100.64.x.x mesh IP is
-      # dialable with no separate user-facing Tailscale install. Tailscale ships NO
-      # standalone Windows zip — only the .msi installer — so we do an administrative
-      # extract (`msiexec /a`, which unpacks the payload WITHOUT installing or
-      # registering the service) and lift the binaries out. wintun.dll, if the MSI
-      # carries it, rides along via the binaries/*.dll resource glob; modern
-      # tailscaled self-extracts an embedded copy at runtime otherwise.
-      # Keep $ver in lockstep with the Linux staging step.
-      - name: Stage Tailscale sidecar (Windows)
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Stop"
-          $ver = "1.98.4"
-          $url = "https://pkgs.tailscale.com/stable/tailscale-setup-${ver}-amd64.msi"
-          $msi = Join-Path $env:RUNNER_TEMP "tailscale.msi"
-          $tmp = Join-Path $env:RUNNER_TEMP "tailscale"
-          Invoke-WebRequest -Uri $url -OutFile $msi
-          if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
-          New-Item -ItemType Directory -Force -Path $tmp | Out-Null
-          # Administrative install = unpack only (no service, no system change).
-          $p = Start-Process msiexec -ArgumentList "/a", "`"$msi`"", "/qn", "TARGETDIR=`"$tmp`"" -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "msiexec admin-extract failed ($($p.ExitCode))" }
-          $dest = "src-tauri/binaries"
-          New-Item -ItemType Directory -Force -Path $dest | Out-Null
-          $cli = Get-ChildItem -Recurse -Path $tmp -Filter "tailscale.exe" | Select-Object -First 1
-          $daemon = Get-ChildItem -Recurse -Path $tmp -Filter "tailscaled.exe" | Select-Object -First 1
-          if (-not $cli -or -not $daemon) { throw "tailscale.exe/tailscaled.exe not found in MSI payload" }
-          Copy-Item $cli.FullName (Join-Path $dest "tailscale-x86_64-pc-windows-msvc.exe") -Force
-          Copy-Item $daemon.FullName (Join-Path $dest "tailscaled-x86_64-pc-windows-msvc.exe") -Force
-          Get-ChildItem -Recurse -Path $tmp -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName $dest -Force }
-
       # WOW64 redirection fix for makensis under LocalSystem.
       # The runner runs as LocalSystem, so tauri caches its (32-bit) NSIS toolset
       # under %LOCALAPPDATA% = C:\Windows\System32\config\systemprofile\AppData\
@@ -237,15 +171,11 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          # Both installers; the .sig updater artifacts ride along via
-          # createUpdaterArtifacts in tauri.conf.json. The updater prefers the
-          # NSIS setup.exe (the `-nsis` platform key) — the MSI is just an extra
-          # download for users who want it. `--config src-tauri/tauri.engine-bundle.conf.json`
-          # overlays the stream-engine sidecar + its OpenSSL DLLs for this build
-          # only (staged in the step above); the base config stays engine-free so CI
-          # doesn't need the engine binary. The path is relative to the repo root
-          # (tauri resolves --config from there, not from the tauri dir).
-          args: --bundles nsis --verbose --config src-tauri/tauri.engine-bundle.conf.json  # MSI dropped: ICE38 vs bundled engine DLLs (see job comment)
+          # The .sig updater artifacts ride along via createUpdaterArtifacts in
+          # tauri.conf.json. The updater prefers the NSIS setup.exe (the `-nsis`
+          # platform key). Only the bootstrap updater is bundled as a sidecar
+          # (externalBin in tauri.conf.json) — there are no extra runtime sidecars.
+          args: --bundles nsis --verbose  # MSI dropped: WiX ICE38 on the per-user install
           # Upload into the pre-created draft; do NOT create or publish a release
           # here (that's what caused the duplicate-draft race).
           releaseId: ${{ needs.create-release.outputs.release_id }}
@@ -298,50 +228,6 @@ jobs:
           TRIPLE=$(rustc -vV | sed -n 's/host: //p')
           cp "src-tauri/target/release/updater" "src-tauri/binaries/updater-$TRIPLE"
 
-      # Stage the GPL stream-engine sidecar for Linux (bundled via the release-only
-      # overlay tauri.engine-bundle-linux.conf.json, passed with `--config` below —
-      # NOT a platform config, so CI's `cargo check` never requires the engine binary).
-      # Unlike Windows, NO DLLs ride along: the engine links system OpenSSL
-      # (libssl.so.3/libcrypto.so.3), so the bare ELF is enough. Pulled from the engine
-      # repo's public Linux release asset (no token). Bump $ver in lockstep with the
-      # Windows staging step when adopting a newer engine.
-      - name: Stage stream-engine sidecar (Linux)
-        shell: bash
-        run: |
-          set -euo pipefail
-          ver="0.3.9"
-          url="https://github.com/TheStonedGamer/ArcadeLauncher-StreamEngine/releases/download/v$ver/ArcadeLauncher-StreamEngine-$ver-linux-x64.tar.gz"
-          tmp="$RUNNER_TEMP/arcade-stream-engine"
-          rm -rf "$tmp"; mkdir -p "$tmp"
-          curl -fsSL "$url" -o "$RUNNER_TEMP/ase-linux.tar.gz"
-          tar -xzf "$RUNNER_TEMP/ase-linux.tar.gz" -C "$tmp"
-          mkdir -p src-tauri/binaries
-          TRIPLE=$(rustc -vV | sed -n 's/host: //p')
-          install -m 0755 "$tmp/arcade-stream-engine" "src-tauri/binaries/arcade-stream-engine-$TRIPLE"
-
-      # Stage the bundled Tailscale for Linux (T12k-8) — same role as the Windows
-      # step: ship `tailscale`/`tailscaled` next to the app (externalBin in
-      # tauri.engine-bundle-linux.conf.json). No DLLs: Linux uses /dev/net/tun, not
-      # WinTun. Pulled from Tailscale's official static amd64 tarball. Keep $ver in
-      # lockstep with the Windows staging step.
-      - name: Stage Tailscale sidecar (Linux)
-        shell: bash
-        run: |
-          set -euo pipefail
-          ver="1.98.4"
-          url="https://pkgs.tailscale.com/stable/tailscale_${ver}_amd64.tgz"
-          tmp="$RUNNER_TEMP/tailscale"
-          rm -rf "$tmp"; mkdir -p "$tmp"
-          curl -fsSL "$url" -o "$RUNNER_TEMP/tailscale.tgz"
-          tar -xzf "$RUNNER_TEMP/tailscale.tgz" -C "$tmp"
-          mkdir -p src-tauri/binaries
-          TRIPLE=$(rustc -vV | sed -n 's/host: //p')
-          cli=$(find "$tmp" -type f -name tailscale | head -n1)
-          daemon=$(find "$tmp" -type f -name tailscaled | head -n1)
-          [ -n "$cli" ] && [ -n "$daemon" ] || { echo "tailscale/tailscaled not found in $url"; exit 1; }
-          install -m 0755 "$cli" "src-tauri/binaries/tailscale-$TRIPLE"
-          install -m 0755 "$daemon" "src-tauri/binaries/tailscaled-$TRIPLE"
-
       - name: Build + upload Linux artifacts
         uses: tauri-apps/tauri-action@v0
         env:
@@ -349,11 +235,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          # Upload into the same pre-created draft as the Windows leg. `--config`
-          # overlays the engine sidecar (updater + engine, no DLL resources) for this
-          # build only; default deb/rpm/appimage targets are unchanged (no --bundles).
+          # Upload into the same pre-created draft as the Windows leg. Default
+          # deb/rpm/appimage targets (no --bundles). Only the bootstrap updater is
+          # bundled as a sidecar (externalBin in tauri.conf.json).
           releaseId: ${{ needs.create-release.outputs.release_id }}
-          args: --config src-tauri/tauri.engine-bundle-linux.conf.json
 
   # ---- Phase 3: publish the draft once both legs uploaded ----------------
   publish-release:

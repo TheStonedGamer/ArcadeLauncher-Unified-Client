@@ -12,8 +12,7 @@ import { useGamepadConnected } from "../gamepad/useGamepadConnected";
 import { clampDeadZone, useControllerConfig } from "../gamepad/ControllerConfigContext";
 import { EmulatorControllerEditor } from "../controller/EmulatorControllerEditor";
 import { ThemeSettings } from "../theme/ThemeSettings";
-import { StreamingSection } from "../streaming/StreamingSection";
-import { HostingSection } from "../streaming/HostingSection";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { StorageSection } from "../library/StorageSection";
 import { useState } from "react";
 import { fetchRaSummary, type RaSummary } from "../retroachievements/api";
@@ -23,14 +22,14 @@ import { clampKeep, type AutoSyncSettings } from "../saves/saves";
 /** The Settings screen is split into tabs so it isn't one long scroll. Each tab
  *  groups related sections; `draft` marks tabs that hold config.json-bound fields
  *  (the shared save draft) — the Save bar is only meaningful there. */
-type SettingsTab = "general" | "appearance" | "library" | "saves" | "controller" | "streaming" | "integrations";
+type SettingsTab = "general" | "appearance" | "library" | "saves" | "controller" | "remoteplay" | "integrations";
 const SETTINGS_TABS: { id: SettingsTab; label: string; draft: boolean }[] = [
   { id: "general", label: "General", draft: true },
   { id: "appearance", label: "Appearance", draft: false },
   { id: "library", label: "Library", draft: false },
   { id: "saves", label: "Cloud Saves", draft: true },
   { id: "controller", label: "Controller", draft: true },
-  { id: "streaming", label: "Streaming", draft: false },
+  { id: "remoteplay", label: "Remote Play", draft: false },
   { id: "integrations", label: "Integrations", draft: true },
 ];
 
@@ -181,12 +180,7 @@ export function SettingsView() {
           </>
         )}
 
-        {tab === "streaming" && (
-          <>
-            <StreamingSection />
-            <HostingSection />
-          </>
-        )}
+        {tab === "remoteplay" && <RemotePlaySection />}
 
         {tab === "integrations" && (
           <>
@@ -243,6 +237,36 @@ export function SettingsView() {
         )}
       </footer>
     </section>
+  );
+}
+
+/** Remote Play (T13): ArcadeLauncher no longer ships a built-in stream engine.
+ *  Game streaming is delegated to the standalone Moonlight (client) + Sunshine
+ *  (host) pair, which are faster-moving and better-maintained upstream. This tab
+ *  just points the user at them; the links open in the system browser via the
+ *  opener plugin (no in-app webview navigation). */
+function RemotePlaySection() {
+  return (
+    <>
+      <h2 className="settings__heading">Remote Play</h2>
+      <p className="catalog__status">
+        ArcadeLauncher no longer includes built-in game streaming. To stream your games to or from
+        this PC, use <strong>Moonlight</strong> (the client you play on) together with{" "}
+        <strong>Sunshine</strong> (the host that runs on the gaming PC). They’re free, open-source,
+        and work with any games — not just your library.
+      </p>
+      <div className="settings__actions">
+        <button className="settings__save" onClick={() => void openUrl("https://moonlight-stream.org")}>
+          Get Moonlight (client)
+        </button>
+        <button
+          className="settings__save"
+          onClick={() => void openUrl("https://app.lizardbyte.dev/Sunshine/")}
+        >
+          Get Sunshine (host)
+        </button>
+      </div>
+    </>
   );
 }
 

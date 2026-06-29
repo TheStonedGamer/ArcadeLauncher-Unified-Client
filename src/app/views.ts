@@ -9,7 +9,6 @@ export type View =
   | "friends"
   | "requests"
   | "downloads"
-  | "mypcs"
   | "settings";
 
 /** Tab order, left to right — also the controller cycle order. */
@@ -20,7 +19,6 @@ export const VIEW_ORDER: View[] = [
   "friends",
   "requests",
   "downloads",
-  "mypcs",
   "settings",
 ];
 

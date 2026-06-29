@@ -112,39 +112,6 @@ impl Endpoint {
         format!("https://{}/api/social/prefs", self.host)
     }
 
-    /// REST URL for the caller's account devices ("My PCs"): GET lists every PC
-    /// signed into the account (T12k-7).
-    pub fn hosts_url(&self) -> String {
-        format!("https://{}/api/social/hosts", self.host)
-    }
-
-    /// REST URL to register/upsert the caller's own device (POST).
-    pub fn host_register_url(&self) -> String {
-        format!("https://{}/api/social/hosts/register", self.host)
-    }
-
-    /// REST URL to forget one of the caller's devices (DELETE, by device id).
-    pub fn host_url(&self, device_id: &str) -> String {
-        format!("https://{}/api/social/hosts/{}", self.host, encode_query(device_id))
-    }
-
-    /// REST URL for one device's published library (GET) / publish (PUT) (T12k-9).
-    pub fn host_apps_url(&self, device_id: &str) -> String {
-        format!("https://{}/api/social/hosts/{}/apps", self.host, encode_query(device_id))
-    }
-
-    /// REST URL to mint a short-lived Headscale pre-auth key for play-from-anywhere
-    /// (POST; the server is the sole holder of the Headscale API key) (T12k-8).
-    pub fn mesh_preauth_url(&self) -> String {
-        format!("https://{}/api/social/mesh/preauth", self.host)
-    }
-
-    /// REST URL for the account's streaming-client cert registry: GET lists every device's
-    /// client cert (hosts seed these for zero-PIN auto-pair); POST publishes this device's cert.
-    pub fn client_certs_url(&self) -> String {
-        format!("https://{}/api/social/client-certs", self.host)
-    }
-
     /// The bearer token, for the `Authorization` header on REST calls.
     pub fn token(&self) -> &str {
         &self.token
@@ -206,32 +173,6 @@ mod tests {
         assert_eq!(e.ignores_url(), "https://arcade.example.com/api/social/ignores");
         assert_eq!(e.turn_url(), "https://arcade.example.com/api/social/turn");
         assert_eq!(e.activity_url(), "https://arcade.example.com/api/social/activity");
-    }
-
-    #[test]
-    fn builds_mypcs_host_urls() {
-        let e = Endpoint::new("arcade.example.com", "t");
-        assert_eq!(e.hosts_url(), "https://arcade.example.com/api/social/hosts");
-        assert_eq!(
-            e.host_register_url(),
-            "https://arcade.example.com/api/social/hosts/register"
-        );
-        assert_eq!(
-            e.host_url("dev-abc"),
-            "https://arcade.example.com/api/social/hosts/dev-abc"
-        );
-        assert_eq!(
-            e.host_apps_url("dev-abc"),
-            "https://arcade.example.com/api/social/hosts/dev-abc/apps"
-        );
-        assert_eq!(
-            e.mesh_preauth_url(),
-            "https://arcade.example.com/api/social/mesh/preauth"
-        );
-        assert_eq!(
-            e.client_certs_url(),
-            "https://arcade.example.com/api/social/client-certs"
-        );
     }
 
     #[test]

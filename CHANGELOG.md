@@ -13,6 +13,20 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.22] - 2026-06-29
+
+### Removed
+- **Built-in game streaming has been removed.** The bundled stream engine, the
+  "My PCs" tab, host mode ("let this PC be streamed"), play-from-anywhere, and the
+  Streaming settings are gone, along with the extra sidecar that shipped with them
+  — so the installer is smaller and updates are quicker. If you want to stream your
+  games, Settings → Remote Play now links you to **Moonlight** (the client) and
+  **Sunshine** (the host), which are free, open-source, and work with any game.
+
+### Changed
+- Settings: the **Streaming** tab is replaced by a **Remote Play** tab with links
+  to Moonlight and Sunshine.
+
 ## [0.13.21] - 2026-06-29
 
 ### Changed
