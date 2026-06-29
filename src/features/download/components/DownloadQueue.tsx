@@ -58,7 +58,7 @@ function Controls({ item, api }: { item: DownloadItem; api: DownloadApi }) {
   }
 }
 
-function Row({ item, api }: { item: DownloadItem; api: DownloadApi }) {
+function Row({ item, api, title }: { item: DownloadItem; api: DownloadApi; title: string }) {
   const pct = percent(item);
   const speed = formatSpeed(item.speedBps);
   const sub =
@@ -73,7 +73,7 @@ function Row({ item, api }: { item: DownloadItem; api: DownloadApi }) {
   return (
     <li className={`dl__row dl__row--${item.status}`}>
       <div className="dl__head">
-        <span className="dl__name">{item.gameId}</span>
+        <span className="dl__name">{title}</span>
         <span className="dl__status">{STATUS_LABEL[item.status]}</span>
       </div>
       <div className="dl__bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
@@ -87,7 +87,16 @@ function Row({ item, api }: { item: DownloadItem; api: DownloadApi }) {
   );
 }
 
-export function DownloadQueue({ api }: { api: DownloadApi }) {
+export function DownloadQueue({
+  api,
+  titles,
+}: {
+  api: DownloadApi;
+  /** Map of game id → clean catalog title, so the queue shows readable names
+   *  instead of the raw game id. Falls back to the id when a title is missing
+   *  (e.g. the catalog hasn't been cached yet). */
+  titles?: Record<string, string>;
+}) {
   const hasDone = api.items.some((i) => i.status === "done");
   return (
     <section className="dl">
@@ -104,7 +113,7 @@ export function DownloadQueue({ api }: { api: DownloadApi }) {
       ) : (
         <ul className="dl__list">
           {api.items.map((it) => (
-            <Row key={it.gameId} item={it} api={api} />
+            <Row key={it.gameId} item={it} api={api} title={titles?.[it.gameId] ?? it.gameId} />
           ))}
         </ul>
       )}
