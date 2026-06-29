@@ -580,8 +580,14 @@ from scratch.
 
 **Bigger bets** (tie into adjacent projects)
 
-- [~] **T12k — Remote game streaming (Sunshine/Moonlight).** Wire the launcher to
-  stream an installed game from a host PC to a thin client — leverages the existing
+- [x] ~~**T12k — Remote game streaming (Sunshine/Moonlight).**~~ **DROPPED — the
+  entire built-in streaming subsystem was removed in v0.13.22 (2026-06-29):** stream
+  engine, My PCs tab, host mode, play-from-anywhere (Tailscale mesh), runtime
+  Sunshine sidecar, and Streaming settings are gone. Settings → **Remote Play** now
+  just links out to Moonlight + Sunshine. The full T12k history below is retained as
+  a record only — none of it ships anymore.
+- [~] ~~**T12k — Remote game streaming (Sunshine/Moonlight).** Wire the launcher to
+  stream an installed game from a host PC to a thin client — leverages the existing~~
   Moonlight/Debian-ISO work; effectively a personal GeForce-Now. Approach: **drive
   the existing open-source binaries** (Sunshine as the host server, Moonlight as
   the client) rather than reimplement the NVIDIA GameStream / Moonlight protocol —

@@ -6,10 +6,19 @@ left* is [`ROADMAP.md`](ROADMAP.md); this file captures *current state*, the
 Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit via
 `npm run memory -- set …`, never by hand).
 
-Last updated: 2026-06-23. Client + server share a `0.10` `major.minor` lockstep
+Last updated: 2026-06-29. Client + server share a `0.10` `major.minor` lockstep
 line. PS2 BIOS hosted on prod and wired end-to-end.
 
-**RELEASED: v0.13.12 — streaming is engine-only + manual host-engine install (2026-06-23).**
+**RELEASED: v0.13.22 — built-in game streaming REMOVED (2026-06-29).** The whole
+streaming subsystem (stream engine, My PCs tab, host mode, mesh/Tailscale, runtime
+Sunshine sidecar, Streaming settings, presence heartbeat) and its CI bundling were
+deleted; the updater no longer fetches a sidecar. Settings now has a **Remote Play**
+tab that links to **Moonlight** (client) + **Sunshine** (host) via the opener
+plugin. Verified at ship: tsc OK, frontend 338, backend lib 263, updater 6. Tag
+`v0.13.22` (commit `540e7fd`). Everything below this banner predates the removal and
+is historical.
+
+**(historical) RELEASED: v0.13.12 — streaming is engine-only + manual host-engine install (2026-06-23).**
 Tagged from `main` after engine **v0.3.9** published. Two streaming changes, both green locally
 (371 vitest, `tsc` clean, `cargo check` clean):
 - **Removed the external/system-Moonlight playback fallback.** The release engine links the

@@ -131,22 +131,15 @@ gateway. See §3 for the full subsystem.
 - **Cloud Saves v1** — per-game save sync between the client and server
   endpoints, so progress follows you across machines.
 
-### 1.9 Remote play (stream your PCs)
-- **Stream an installed game from a host PC** to a thin client — a personal
-  GeForce-Now, built on GameStream (Sunshine host + Moonlight protocol). Pair a
-  host once by IP + 4-digit PIN; a **▶ Stream from host** button appears on the
-  game's detail panel.
-- **In-engine playback (no separate Moonlight install).** The launcher ships a
-  bundled, GPL-separate **stream engine** sidecar that decodes and presents the
-  stream in its own window, showing **live status** (connecting → streaming) and an
-  in-app **■ Stop**. As of **v0.13.12** every stream runs through this engine — the
-  old external-Moonlight fallback was removed (the engine links the renderer).
-- **Host engine install/update/repair** (Settings → Stream from this PC): shows
-  whether the host components are installed and which version, with **Download**,
-  **Reinstall / repair**, and **Refresh** controls. They still download
-  automatically the first time you enable hosting — this is the manual fix-it path.
-- **Quality defaults** (resolution / fps / bitrate / window mode / HDR) configured
-  in **Settings → Streaming** and persisted locally.
+### 1.9 Remote play (Moonlight + Sunshine)
+- **Built-in game streaming was removed in v0.13.22.** The bundled stream engine,
+  the "My PCs" tab, host mode, play-from-anywhere (Tailscale mesh), the runtime
+  Sunshine sidecar, and the Streaming settings are all gone — the installer is
+  smaller and updates are quicker.
+- **Settings → Remote Play** is now a short explainer with two links: **Moonlight**
+  (the client you play on) and **Sunshine** (the host that runs on the gaming PC).
+  Both are free, open-source, and work with any game — not just your library.
+- _(Historical T12k streaming subsystem: see ROADMAP.md / git history.)_
 
 ### 1.10 Launch integration
 - **Pre/post-launch hooks** per game (run a command before/after a game runs).
