@@ -86,9 +86,27 @@ body {
 .login__forgot { margin: -6px 0 2px; text-align: right; }
 
 /* ── Settings ──────────────────────────────────────────────────────────── */
-.settings { max-width: 540px; }
-.settings__heading { margin: 0 0 16px; font-size: 18px; }
-.settings__version { margin: 28px 0 8px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); text-align: center; }
+.settings { max-width: 660px; min-height: 100%; display: flex; flex-direction: column; }
+
+/* Tab bar — sticky so the sections are reachable without losing the nav. */
+.settings__tabs {
+  position: sticky; top: -18px; z-index: 5;
+  display: flex; flex-wrap: wrap; gap: 2px; margin: -4px 0 24px;
+  padding: 8px 0 0; background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.settings__tab {
+  padding: 9px 14px; border: none; background: transparent; cursor: pointer;
+  color: var(--muted); font-size: 13px; font-weight: 600;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.settings__tab:hover { color: var(--text); }
+.settings__tab--active { color: var(--text); border-bottom-color: var(--accent); }
+
+/* The active tab's content; consistent vertical rhythm between section blocks. */
+.settings__panel { flex: 1; }
+.settings__heading { margin: 30px 0 14px; font-size: 18px; }
+.settings__panel > .settings__heading:first-child { margin-top: 4px; }
+
 .settings__field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
 .settings__label { font-size: 12px; color: var(--muted); }
 .settings__input {
@@ -97,7 +115,16 @@ body {
 }
 .settings__input--num { max-width: 140px; }
 .settings__check { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; }
+
+/* Save bar pinned to the bottom of the scroll area, version on the left. */
+.settings__footer {
+  position: sticky; bottom: -18px; z-index: 5;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 30px; padding: 12px 0; background: var(--bg); border-top: 1px solid var(--border);
+}
+.settings__footver { font-size: 12px; color: var(--muted); }
 .settings__actions { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
+.settings__footer .settings__actions { margin-top: 0; }
 .settings__save {
   padding: 8px 18px; border-radius: 8px; border: none;
   background: var(--accent); color: #fff; font-weight: 600; cursor: pointer;

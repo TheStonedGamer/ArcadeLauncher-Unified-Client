@@ -20,9 +20,42 @@ import { fetchRaSummary, type RaSummary } from "../retroachievements/api";
 import { pointsToLevel, summaryHeadline, topUnlocks, unlockLabel } from "../retroachievements/ra";
 import { clampKeep, type AutoSyncSettings } from "../saves/saves";
 
+/** The Settings screen is split into tabs so it isn't one long scroll. Each tab
+ *  groups related sections; `draft` marks tabs that hold config.json-bound fields
+ *  (the shared save draft) — the Save bar is only meaningful there. */
+type SettingsTab = "general" | "appearance" | "library" | "saves" | "controller" | "streaming" | "integrations";
+const SETTINGS_TABS: { id: SettingsTab; label: string; draft: boolean }[] = [
+  { id: "general", label: "General", draft: true },
+  { id: "appearance", label: "Appearance", draft: false },
+  { id: "library", label: "Library", draft: false },
+  { id: "saves", label: "Cloud Saves", draft: true },
+  { id: "controller", label: "Controller", draft: true },
+  { id: "streaming", label: "Streaming", draft: false },
+  { id: "integrations", label: "Integrations", draft: true },
+];
+
 export function SettingsView() {
   const { draft, loading, saved, error, set, save } = useSettings();
   const { refresh: refreshController } = useControllerConfig();
+
+  // Remember the last-open tab across relaunches (mirrors the catalog query
+  // persistence), defaulting to General.
+  const [tab, setTab] = useState<SettingsTab>(() => {
+    try {
+      const saved = localStorage.getItem("settings.tab");
+      if (saved && SETTINGS_TABS.some((t) => t.id === saved)) return saved as SettingsTab;
+    } catch {
+      // storage may be unavailable; fall through to the default
+    }
+    return "general";
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("settings.tab", tab);
+    } catch {
+      // best-effort persistence
+    }
+  }, [tab]);
 
   // Unified Client version, read from tauri.conf.json (the single source of truth)
   // so the footer can never drift from the actual build.
@@ -42,132 +75,172 @@ export function SettingsView() {
 
   if (loading) return <p className="catalog__status">Loading settings…</p>;
 
+  const activeTab = SETTINGS_TABS.find((t) => t.id === tab) ?? SETTINGS_TABS[0];
+
   return (
     <section className="settings">
-      <ThemeSettings />
+      <nav className="settings__tabs" role="tablist" aria-label="Settings sections">
+        {SETTINGS_TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            className={`settings__tab${tab === t.id ? " settings__tab--active" : ""}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
 
-      <h2 className="settings__heading">General</h2>
+      <div className="settings__panel" role="tabpanel">
+        {tab === "general" && (
+          <>
+            <h2 className="settings__heading">General</h2>
+            <label className="settings__check">
+              <input type="checkbox" checked={draft.closeToTray} onChange={(e) => set("closeToTray", e.target.checked)} />
+              Minimize to tray on close
+            </label>
+            <label className="settings__check">
+              <input type="checkbox" checked={draft.launchMinimized} onChange={(e) => set("launchMinimized", e.target.checked)} />
+              Start minimized
+            </label>
+            <label className="settings__check">
+              <input type="checkbox" checked={draft.confirmOnExit} onChange={(e) => set("confirmOnExit", e.target.checked)} />
+              Confirm before exit
+            </label>
 
-      <label className="settings__check">
-        <input type="checkbox" checked={draft.closeToTray} onChange={(e) => set("closeToTray", e.target.checked)} />
-        Minimize to tray on close
-      </label>
-      <label className="settings__check">
-        <input type="checkbox" checked={draft.launchMinimized} onChange={(e) => set("launchMinimized", e.target.checked)} />
-        Start minimized
-      </label>
-      <label className="settings__check">
-        <input type="checkbox" checked={draft.confirmOnExit} onChange={(e) => set("confirmOnExit", e.target.checked)} />
-        Confirm before exit
-      </label>
+            <label className="settings__field">
+              <span className="settings__label">Download limit (KB/s, 0 = unlimited)</span>
+              <input
+                className="settings__input settings__input--num"
+                type="number"
+                min={0}
+                value={draft.downloadLimitKbps}
+                onChange={(e) => set("downloadLimitKbps", Number(e.target.value) || 0)}
+              />
+            </label>
+            <label className="settings__field">
+              <span className="settings__label">Concurrent downloads</span>
+              <input
+                className="settings__input settings__input--num"
+                type="number"
+                min={1}
+                value={draft.concurrentDownloads}
+                onChange={(e) => set("concurrentDownloads", Number(e.target.value) || 1)}
+              />
+            </label>
 
-      <label className="settings__field">
-        <span className="settings__label">Download limit (KB/s, 0 = unlimited)</span>
-        <input
-          className="settings__input settings__input--num"
-          type="number"
-          min={0}
-          value={draft.downloadLimitKbps}
-          onChange={(e) => set("downloadLimitKbps", Number(e.target.value) || 0)}
-        />
-      </label>
-      <label className="settings__field">
-        <span className="settings__label">Concurrent downloads</span>
-        <input
-          className="settings__input settings__input--num"
-          type="number"
-          min={1}
-          value={draft.concurrentDownloads}
-          onChange={(e) => set("concurrentDownloads", Number(e.target.value) || 1)}
-        />
-      </label>
+            <h2 className="settings__heading">Global hotkey</h2>
+            <p className="catalog__status">
+              Summon or hide ArcadeLauncher from anywhere with a keyboard shortcut (e.g. while in a game).
+            </p>
+            <label className="settings__check">
+              <input
+                type="checkbox"
+                checked={draft.globalHotkeyEnabled}
+                onChange={(e) => set("globalHotkeyEnabled", e.target.checked)}
+              />
+              Enable global summon/hide hotkey
+            </label>
+            <label className="settings__field">
+              <span className="settings__label">Shortcut</span>
+              <input
+                className="settings__input"
+                value={draft.globalHotkey}
+                onChange={(e) => set("globalHotkey", e.target.value)}
+                placeholder="Ctrl+Shift+G"
+                spellCheck={false}
+              />
+            </label>
+          </>
+        )}
 
-      <h2 className="settings__heading">Discord Rich Presence</h2>
-      <p className="catalog__status">
-        Show the game you're playing in your Discord status. The Discord application is configured on
-        the server — just turn this on.
-      </p>
-      <label className="settings__check">
-        <input
-          type="checkbox"
-          checked={draft.discordRichPresence}
-          onChange={(e) => set("discordRichPresence", e.target.checked)}
-        />
-        Show current game in Discord
-      </label>
+        {tab === "appearance" && <ThemeSettings />}
 
-      <h2 className="settings__heading">Global hotkey</h2>
-      <p className="catalog__status">
-        Summon or hide ArcadeLauncher from anywhere with a keyboard shortcut (e.g. while in a game).
-      </p>
-      <label className="settings__check">
-        <input
-          type="checkbox"
-          checked={draft.globalHotkeyEnabled}
-          onChange={(e) => set("globalHotkeyEnabled", e.target.checked)}
-        />
-        Enable global summon/hide hotkey
-      </label>
-      <label className="settings__field">
-        <span className="settings__label">Shortcut</span>
-        <input
-          className="settings__input"
-          value={draft.globalHotkey}
-          onChange={(e) => set("globalHotkey", e.target.value)}
-          placeholder="Ctrl+Shift+G"
-          spellCheck={false}
-        />
-      </label>
+        {tab === "library" && (
+          <>
+            <StorageSection />
+            <EmulatorsSection />
+          </>
+        )}
 
-      <CloudSavesSection autoSync={draft.autoSync} onChange={(next) => set("autoSync", next)} />
+        {tab === "saves" && (
+          <CloudSavesSection autoSync={draft.autoSync} onChange={(next) => set("autoSync", next)} />
+        )}
 
-      <ControllerSection
-        enabled={draft.controllerEnabled}
-        deadZone={draft.controllerDeadZone}
-        onToggle={(v) => set("controllerEnabled", v)}
-        onDeadZone={(v) => set("controllerDeadZone", v)}
-      />
+        {tab === "controller" && (
+          <>
+            <ControllerSection
+              enabled={draft.controllerEnabled}
+              deadZone={draft.controllerDeadZone}
+              onToggle={(v) => set("controllerEnabled", v)}
+              onDeadZone={(v) => set("controllerDeadZone", v)}
+            />
+            <EmulatorControllerEditor />
+          </>
+        )}
 
-      <label className="settings__field">
-        <span className="settings__label">SteamGridDB API key (for the cover-art picker)</span>
-        <input
-          className="settings__input"
-          type="password"
-          value={draft.steamgriddbApiKey}
-          onChange={(e) => set("steamgriddbApiKey", e.target.value)}
-          placeholder="Paste your key from steamgriddb.com/profile/preferences/api"
-          spellCheck={false}
-          autoComplete="off"
-        />
-      </label>
+        {tab === "streaming" && (
+          <>
+            <StreamingSection />
+            <HostingSection />
+          </>
+        )}
 
-      <div className="settings__actions">
-        <button className="settings__save" onClick={onSave}>
-          Save
-        </button>
-        {saved && <span className="settings__saved">Saved ✓</span>}
-        {error && <span className="catalog__error">{error}</span>}
+        {tab === "integrations" && (
+          <>
+            <h2 className="settings__heading">Discord Rich Presence</h2>
+            <p className="catalog__status">
+              Show the game you're playing in your Discord status. The Discord application is configured on
+              the server — just turn this on.
+            </p>
+            <label className="settings__check">
+              <input
+                type="checkbox"
+                checked={draft.discordRichPresence}
+                onChange={(e) => set("discordRichPresence", e.target.checked)}
+              />
+              Show current game in Discord
+            </label>
+
+            <RetroAchievementsSection
+              username={draft.retroachievementsUsername}
+              apiKey={draft.retroachievementsApiKey}
+              onUsername={(v) => set("retroachievementsUsername", v)}
+              onApiKey={(v) => set("retroachievementsApiKey", v)}
+            />
+
+            <h2 className="settings__heading">Cover art</h2>
+            <label className="settings__field">
+              <span className="settings__label">SteamGridDB API key (for the cover-art picker)</span>
+              <input
+                className="settings__input"
+                type="password"
+                value={draft.steamgriddbApiKey}
+                onChange={(e) => set("steamgriddbApiKey", e.target.value)}
+                placeholder="Paste your key from steamgriddb.com/profile/preferences/api"
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </label>
+          </>
+        )}
       </div>
 
-      <RetroAchievementsSection
-        username={draft.retroachievementsUsername}
-        apiKey={draft.retroachievementsApiKey}
-        onUsername={(v) => set("retroachievementsUsername", v)}
-        onApiKey={(v) => set("retroachievementsApiKey", v)}
-      />
-
-      <StorageSection />
-
-      <EmulatorsSection />
-
-      <StreamingSection />
-
-      <HostingSection />
-
-      <EmulatorControllerEditor />
-
-      <footer className="settings__version">
-        ArcadeLauncher Unified Client{version ? ` v${version}` : ""}
+      <footer className="settings__footer">
+        <span className="settings__footver">
+          ArcadeLauncher Unified Client{version ? ` v${version}` : ""}
+        </span>
+        {activeTab.draft && (
+          <div className="settings__actions">
+            {error && <span className="catalog__error">{error}</span>}
+            {saved && <span className="settings__saved">Saved ✓</span>}
+            <button className="settings__save" onClick={onSave}>
+              Save
+            </button>
+          </div>
+        )}
       </footer>
     </section>
   );

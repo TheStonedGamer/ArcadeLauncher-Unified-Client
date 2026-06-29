@@ -13,6 +13,16 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.21] - 2026-06-29
+
+### Changed
+- **Settings is now organized into tabs.** Instead of one long scroll, settings
+  are grouped into General, Appearance, Library, Cloud Saves, Controller,
+  Streaming, and Integrations tabs, with the section you were last on remembered
+  between launches. Spacing was tightened up for a cleaner, more consistent
+  layout, and the Save button now sits in a pinned bar at the bottom so it's
+  always within reach.
+
 ## [0.13.20] - 2026-06-29
 
 ### Added
