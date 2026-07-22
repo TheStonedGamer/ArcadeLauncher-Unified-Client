@@ -215,9 +215,9 @@
     <div class="card"><h4>Auth</h4><p>Challenge-response + TOTP. Forgot-password emails identical responses to avoid account enumeration.</p></div>
     <div class="card"><h4>Social REST + WS</h4><p>Friends (sortable, sectioned), Chats inbox, DM &amp; room/group chat (edit/delete/react/reply/attach), presence, profiles (XP/level), privacy, game invites, rooms, 1:1 + group-mesh voice relay.</p></div>
     <div class="card"><h4>Cloud saves</h4><p>Per-game save files with traversal rejection &amp; a 50 MB/file cap.</p></div>
-    <div class="card"><h4>Remote play</h4><p>Stream an installed game from a paired host. Client plays in-engine via the bundled GPL-separate stream engine (<code>client.start</code>, live status + Stop); external Moonlight as automatic fallback.</p></div>
+    <div class="card"><h4>Remote play</h4><p><strong>Built-in game streaming was removed in v0.13.22.</strong> Settings → Remote Play links out to Moonlight (client) + Sunshine (host); the launcher ships no stream engine, host mode, or mesh VPN.</p></div>
     <div class="card"><h4>Attachments</h4><p>presign → PUT-to-MinIO → presigned-GET; bytes never touch the DB.</p></div>
-    <div class="card"><h4>Streaming</h4><p>TURN credential vending + Sunshine/Moonlight pairing.</p></div>
+    <div class="card"><h4>TURN vending</h4><p>Short-lived coturn REST credentials for WebRTC voice (<code>/api/social/turn</code>).</p></div>
     <div class="card"><h4>Admin UI</h4><p>TOTP-gated, server-rendered; Cloudflare Tunnel (external) + nginx2 (LAN).</p></div>
     <div class="card"><h4>Health / metrics</h4><p><code>/api/health</code> reports the live VERSION; <code>/api/metrics</code> scraped by Prometheus.</p></div>
   </div>
@@ -245,7 +245,7 @@
       <rect x="64" y="134" width="312" height="36" rx="8" fill="#0d1424" stroke="#2d3644"/>
       <text x="220" y="157" text-anchor="middle" fill="#5be2a3" font-size="11.5" font-weight="600">🔒 token lives Rust-side only</text>
       <text x="220" y="196" text-anchor="middle" fill="#9aa7b4" font-size="11">catalog · social · download · saves</text>
-      <text x="220" y="214" text-anchor="middle" fill="#9aa7b4" font-size="11">session · launch · streaming · tray</text>
+      <text x="220" y="214" text-anchor="middle" fill="#9aa7b4" font-size="11">session · launch · library · tray</text>
       <text x="220" y="232" text-anchor="middle" fill="#9aa7b4" font-size="11">presence · hotkey · controller · …</text>
       <text x="220" y="262" text-anchor="middle" fill="#cfe3ff" font-size="10.5">cargo tests (KATs)</text>
 
@@ -283,7 +283,7 @@
     <tr><td><code>launch</code> · <code>emulators</code></td><td>Game launch (emulator/PC), playtime tracking, emulator + BIOS config.</td></tr>
     <tr><td><code>presence</code> · <code>hotkey</code> · <code>controller</code></td><td>Discord Rich Presence, global shortcut, gamepad / Big-Picture input.</td></tr>
     <tr><td><code>tray</code> · <code>window</code></td><td>System tray, single-instance guard, fullscreen.</td></tr>
-    <tr><td><code>streaming</code> · <code>retroachievements</code> · <code>requests</code></td><td>Sunshine/Moonlight streaming, RetroAchievements, in-client Game Requests board (talks to the server's folded-in <code>/requests</code> routes).</td></tr>
+    <tr><td><code>library</code> · <code>retroachievements</code> · <code>requests</code></td><td>Multi-drive install folders + move-between-drives, RetroAchievements, in-client Game Requests board (talks to the server's folded-in <code>/requests</code> routes). <em>The <code>streaming</code> module was removed in v0.13.22.</em></td></tr>
   </table>
 
   <div class="note"><strong>Install / update model.</strong> Steam-style — per-user install (<code>%LocalAppData%</code> / <code>~/.local</code>), admin needed at most once, updates <em>never elevate</em> (Tauri updater consumes a signed NSIS <code>setup.exe</code>). A single-instance guard surfaces the existing window on a second launch.</div>

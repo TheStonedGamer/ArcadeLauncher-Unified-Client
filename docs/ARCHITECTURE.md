@@ -113,8 +113,10 @@ catalog, users, social graph, and live session state.
 - **Cloud saves** — `GET /api/saves/:id` → `{files:[…]}`, `GET/PUT …/file?path=&mtime=`,
   with traversal rejection (`valid_save_path`) and a 50 MB/file cap.
 - **Attachments/screenshots** — presign → PUT-to-MinIO → presigned-GET.
-- **Remote streaming** — TURN credential vending (`/api/social/turn`) for WebRTC;
-  Sunshine/Moonlight pairing endpoints.
+- **TURN credential vending** (`/api/social/turn`) — short-lived coturn REST
+  credentials for WebRTC voice. _(The streaming endpoints that used to sit
+  alongside it — `/api/social/hosts*`, `/api/social/client-certs`,
+  `/api/social/mesh/preauth` — were removed with the streaming subsystem.)_
 - **Admin UI** (`:8722`) — server-rendered, TOTP-gated; manages users, game
   request triage, server settings. Reachable remotely via a Cloudflare Tunnel +
   Access (external) and internal nginx2 (LAN) at `arcade-admin.orlandoaio.net`.
