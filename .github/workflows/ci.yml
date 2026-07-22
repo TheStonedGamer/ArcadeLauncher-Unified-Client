@@ -4,21 +4,25 @@ name: CI
 # before anything can ship. Frontend typecheck/build + Rust compile + unit tests
 # run on both OSes.
 #
-# BUILD INFRA:
-#   * Windows leg → self-hosted Windows runner (labels `self-hosted, Windows, X64`).
-#     Native MSVC build + the actual unit tests run here.
-#   * Linux leg   → self-hosted `prox-pve` (CT 130), building natively and running
-#     the unit tests (OS-agnostic pure logic).
+# BUILD INFRA — the two legs sit on DIFFERENT PHYSICAL MACHINES, so they build
+# fully in parallel (neither job declares `needs:`; do not add one):
+#   * Windows leg → `arcade-win10-runner`, VM 111 on Proxmox node **pve3**
+#     (10.0.0.98). Native MSVC build + unit tests. The runner needs Rust (rustup),
+#     Node, and the MSVC build tools (link.exe + Windows SDK).
+#   * Linux leg   → `arcade-pve-client-runner`, CT 130 on Proxmox node **pve2**
+#     (10.0.0.128), at /home/runner/actions-runner-client. Builds natively and runs
+#     the unit tests (OS-agnostic pure logic) plus the vitest suite.
+# Because the hosts are separate, neither leg's apt/cargo work can contend with the
+# other's — the two finish in max(win, linux), not win + linux.
 # The earlier BI1 cargo-xwin cross-compile on Linux (`prox-xwin`, CT 132) was
 # ABANDONED — cargo never resolved on that runner's step PATH — so the Windows leg
-# is a real Windows host again. The runner needs Rust (rustup), Node, and the MSVC
-# build tools (link.exe + Windows SDK).
+# is a real Windows host again.
 
 on:
   push:
     branches: [main]
-    # Docs-only pushes can't break the build, so skip CI for them and save a full
-    # staggered Windows+Linux run on the shared host.
+    # Docs-only pushes can't break the build, so skip CI for them rather than tie
+    # up both build hosts for a change no compiler will ever see.
     paths-ignore:
       - "**/*.md"
   pull_request:
@@ -105,8 +109,9 @@ jobs:
         run: cargo check --release --locked
 
   # ---- Linux leg (runs in parallel with Windows) --------------------------
-  # No `needs: windows`: the Windows leg now runs on a separate GitHub-hosted
-  # runner, so the two legs are fully independent and build concurrently.
+  # No `needs: windows`: the Windows leg runs on a different physical host (VM 111
+  # on pve3) than this one (CT 130 on pve2), so the two legs are fully independent
+  # and build concurrently.
   linux:
     runs-on: [self-hosted, prox-pve]
     # Use lld for the link step — much faster than the default bfd.
