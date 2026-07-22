@@ -13,6 +13,12 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+### Removed
+- The last leftovers of built-in game streaming are gone from both the launcher
+  and the server, finishing the removal that started in 0.13.22. Nothing changes
+  in day-to-day use — Settings → Remote Play still points you at **Moonlight**
+  and **Sunshine**. Voice chat is unaffected.
+
 ## [0.13.22] - 2026-06-29
 
 ### Removed
