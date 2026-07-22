@@ -13,6 +13,8 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.23] - 2026-07-22
+
 ### Fixed
 - **Downloads now show game names instead of internal IDs.** The queue could fall
   back to showing raw ids like `pc-fdc100f88077` — most often on a fresh install,
