@@ -5,6 +5,7 @@
 
 import type { DownloadApi } from "../useDownloads";
 import { formatBytes, formatSpeed, percent } from "../selectors";
+import { displayName } from "../titles";
 import type { DownloadItem, DownloadStatus } from "../types";
 
 const STATUS_LABEL: Record<DownloadStatus, string> = {
@@ -113,7 +114,7 @@ export function DownloadQueue({
       ) : (
         <ul className="dl__list">
           {api.items.map((it) => (
-            <Row key={it.gameId} item={it} api={api} title={titles?.[it.gameId] ?? it.gameId} />
+            <Row key={it.gameId} item={it} api={api} title={displayName(it.gameId, titles)} />
           ))}
         </ul>
       )}
