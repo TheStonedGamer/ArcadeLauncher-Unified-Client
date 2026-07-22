@@ -13,6 +13,12 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+### Fixed
+- **Downloads now show game names instead of internal IDs.** The queue could fall
+  back to showing raw ids like `pc-fdc100f88077` — most often on a fresh install,
+  where it would keep doing so until you restarted the launcher. It now picks up
+  the proper titles as soon as your library syncs.
+
 ### Removed
 - The last leftovers of built-in game streaming are gone from both the launcher
   and the server, finishing the removal that started in 0.13.22. Nothing changes
