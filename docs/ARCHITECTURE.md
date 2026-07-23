@@ -114,9 +114,7 @@ catalog, users, social graph, and live session state.
   with traversal rejection (`valid_save_path`) and a 50 MB/file cap.
 - **Attachments/screenshots** — presign → PUT-to-MinIO → presigned-GET.
 - **TURN credential vending** (`/api/social/turn`) — short-lived coturn REST
-  credentials for WebRTC voice. _(The streaming endpoints that used to sit
-  alongside it — `/api/social/hosts*`, `/api/social/client-certs`,
-  `/api/social/mesh/preauth` — were removed with the streaming subsystem.)_
+  credentials for WebRTC voice.
 - **Admin UI** (`:8722`) — server-rendered, TOTP-gated; manages users, game
   request triage, server settings. Reachable remotely via a Cloudflare Tunnel +
   Access (external) and internal nginx2 (LAN) at `arcade-admin.orlandoaio.net`.
@@ -189,7 +187,6 @@ Rust command → IPC registration → TS api wrapper → React hook → UI, plus
 | `hotkey` | Global shortcut (tauri-plugin-global-shortcut). |
 | `controller` | Gamepad / Big-Picture input. |
 | `tray`, `window` | System tray (close-to-tray, launch-minimized), single-instance guard, fullscreen. |
-| ~~`streaming`~~ | **Removed in v0.13.22.** Built-in game streaming (host pair, in-engine playback, mesh) is gone; Settings → Remote Play links out to Moonlight + Sunshine. |
 | `retroachievements` | RetroAchievements integration. |
 | `requests` | In-client Game Requests board (talks to the server's folded-in `/requests` routes). |
 | `stores` | Atomic per-user state files. |
@@ -202,8 +199,6 @@ FSMs — tested with vitest) plus a thin React hook + UI that talks to the Rust
 core over IPC. Features: `catalog`, `social`, `download`, `saves`, `session`,
 `settings`, `presence`, `controller`, `gamepad`, `emulators`,
 `retroachievements`, `requests`, `theme`, `help`, `onboarding`, `stores`.
-(The `streaming` feature was removed in v0.13.22 — Settings → Remote Play now
-links out to Moonlight + Sunshine.)
 
 State that is purely client-local (theme, prefs, onboarding flags) lives in
 separate per-user files and **never rewrites `library.json`**.
@@ -239,11 +234,10 @@ to front (no reinstall).
 - **Cloud saves** — pure `plan_sync` core decides Upload/Download/InSync/Conflict
   by mtime; execution does atomic temp+rename and stamps downloads with the server
   mtime.
-- **Remote play** — built-in game streaming was **removed in v0.13.22**. The
-  `streaming` module (engine/host sessions, mesh, My PCs, runtime sidecar fetch)
-  and its CI bundling are gone. Settings → **Remote Play** is now a static panel
-  that opens Moonlight (`moonlight-stream.org`) and Sunshine
-  (`app.lizardbyte.dev/Sunshine`) in the browser via `tauri-plugin-opener`.
+- **Remote play** — the launcher does not stream games itself. Settings →
+  **Remote Play** is a static panel that opens Moonlight (`moonlight-stream.org`)
+  and Sunshine (`app.lizardbyte.dev/Sunshine`) in the browser via
+  `tauri-plugin-opener`.
 
 ---
 

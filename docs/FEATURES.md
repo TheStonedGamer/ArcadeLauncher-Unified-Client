@@ -132,14 +132,10 @@ gateway. See §3 for the full subsystem.
   endpoints, so progress follows you across machines.
 
 ### 1.9 Remote play (Moonlight + Sunshine)
-- **Built-in game streaming was removed in v0.13.22.** The bundled stream engine,
-  the "My PCs" tab, host mode, play-from-anywhere (Tailscale mesh), the runtime
-  Sunshine sidecar, and the Streaming settings are all gone — the installer is
-  smaller and updates are quicker.
-- **Settings → Remote Play** is now a short explainer with two links: **Moonlight**
-  (the client you play on) and **Sunshine** (the host that runs on the gaming PC).
-  Both are free, open-source, and work with any game — not just your library.
-- _(Historical T12k streaming subsystem: see ROADMAP.md / git history.)_
+- The launcher does not stream games itself. **Settings → Remote Play** is a short
+  explainer with two links: **Moonlight** (the client you play on) and **Sunshine**
+  (the host that runs on the gaming PC). Both are free, open-source, and work with
+  any game — not just your library.
 
 ### 1.10 Launch integration
 - **Pre/post-launch hooks** per game (run a command before/after a game runs).

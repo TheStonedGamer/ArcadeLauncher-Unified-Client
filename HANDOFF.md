@@ -15,25 +15,16 @@ Cold-start entry point. **Current release: `v0.13.22`** (commit `540e7fd`, docs
 
 ## Current state
 
-**Built-in game streaming is GONE (removed in v0.13.22).** The stream engine, the
-My PCs tab, host mode, the Tailscale/Headscale mesh, the runtime Sunshine sidecar,
-the Streaming settings section, and the CI bundling of all of it were deleted. The
-updater no longer fetches a sidecar. Settings now has a **Remote Play** tab that
-just links out to **Moonlight** (client) and **Sunshine** (host) via the opener
-plugin.
-
-**Anything you read about streaming, mesh, Tailscale, Headscale, `stream_hosts`,
-`mesh_addr`, T12k gates, or the "serverinfo over HTTPS failed" diagnosis is
-historical.** It does not describe shipping code. That material lives in
-`docs/HANDOFF.md` below its v0.13.22 banner and in the struck-through T12k block
-in `docs/ROADMAP.md`, kept as a record only.
-
-Verified at ship: `tsc` OK, frontend 338 tests, backend lib 263, updater 6.
+The launcher does not stream games. Settings has a **Remote Play** tab that links
+out to **Moonlight** (client) and **Sunshine** (host) via the opener plugin, and
+that is the whole of it — there is no stream engine, host mode, device mesh, or
+sidecar download anywhere in the client, the server, or CI.
 
 ### Recent releases
 
 | Version | What |
 |---|---|
+| `0.13.23` | Download queue shows game titles instead of raw ids |
 | `0.13.22` | Removed built-in streaming; Settings → Remote Play links to Moonlight/Sunshine |
 | `0.13.21` | Settings reorganized into tabs, pinned Save bar, tighter spacing |
 | `0.13.20` | Multi-drive library support + move installed games between drives |

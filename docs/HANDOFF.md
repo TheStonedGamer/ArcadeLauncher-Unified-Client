@@ -6,36 +6,9 @@ left* is [`ROADMAP.md`](ROADMAP.md); this file captures *current state*, the
 Durable, non-obvious facts live in [`AGENT_MEMORY.md`](AGENT_MEMORY.md) (edit via
 `npm run memory -- set …`, never by hand).
 
-Last updated: 2026-06-29. Client + server share a `0.10` `major.minor` lockstep
-line. PS2 BIOS hosted on prod and wired end-to-end.
-
-**RELEASED: v0.13.22 — built-in game streaming REMOVED (2026-06-29).** The whole
-streaming subsystem (stream engine, My PCs tab, host mode, mesh/Tailscale, runtime
-Sunshine sidecar, Streaming settings, presence heartbeat) and its CI bundling were
-deleted; the updater no longer fetches a sidecar. Settings now has a **Remote Play**
-tab that links to **Moonlight** (client) + **Sunshine** (host) via the opener
-plugin. Verified at ship: tsc OK, frontend 338, backend lib 263, updater 6. Tag
-`v0.13.22` (commit `540e7fd`). Everything below this banner predates the removal and
-is historical.
-
-**(historical) RELEASED: v0.13.12 — streaming is engine-only + manual host-engine install (2026-06-23).**
-Tagged from `main` after engine **v0.3.9** published. Two streaming changes, both green locally
-(371 vitest, `tsc` clean, `cargo check` clean):
-- **Removed the external/system-Moonlight playback fallback.** The release engine links the
-  renderer, so `client.start` does real in-app A/V — every stream (library, host, My PCs) now
-  plays through the bundled engine. `streaming/moonlight.rs` → `settings.rs`; dropped the
-  `moonlight_available`/`stream_launch` commands + JS bindings; UI gates on `engine` only.
-- **Added a "Host engine" install/update/repair surface** in Settings → Stream from this PC
-  (`HostEngineInstall.tsx` + `host_install`/`host_install_status`): status + version readout and
-  Download / Reinstall(force) / Refresh buttons; the on-demand recovery path when a host won't
-  come up. Rides engine v0.3.9 which no longer adopts a system Sunshine (always runs its own
-  bundled child — the `not_paired` Bug 2 fix).
-- **CAVEAT:** end-to-end live A/V from a real host with these fixes installed is **not yet
-  validated** (host root-cause only fixed today). Next: install v0.13.12, host from the RTX 3060
-  PC, Play from a second PC, confirm `cert.pem` mints + stream renders.
-- _CHANGELOG note:_ the `[0.13.12]` section was added to `CHANGELOG.md` on `main` **after** the
-  tag, so the auto Discord announce (checks out the tag) will fall back to a link — re-send via
-  `discord-changelog.yml` `workflow_dispatch` (checks out `main`) to post the real section.
+Last updated: 2026-07-22. Client `0.13.23`, server `0.12.0`. PS2 BIOS hosted on
+prod and wired end-to-end. The launcher does not stream games — Settings → Remote
+Play just links out to Moonlight and Sunshine.
 
 **v0.10.19 — half-built T12 items finished (2026-06-21).** Three client-only
 increments, all green locally (344 vitest, 263 cargo, tsc + vite build + cargo
@@ -253,10 +226,9 @@ signed in; confirms the v0.10.7 updater no longer reinstalls on launch);
 relaunch); **Requests search works live** ("zelda" returns results — the 503 fix is
 good in prod); Settings renders fully (themes/accents, controller map, global
 hotkey, SteamGridDB key, RetroAchievements, all emulators + BIOS "Ready"/
-"Deployed", **Streaming** UI with correct "Moonlight not on PATH" detection); and
-the **social gateway shows "Connected"** (live WS, presence Online). Not tested
-(need a second peer / live host PIN): real Sunshine pairing, voice calls, and the
-not-yet-built T12d/T12f group UIs.
+"Deployed"); and the **social gateway shows "Connected"** (live WS, presence
+Online). Not tested (need a second peer): voice calls and the not-yet-built
+T12d/T12f group UIs.
 
 **Next:** ROADMAP Phase T12 — the remaining items (T12d Join UI, T12e/f/g social
 UI + wiring, T12i auto-sync lifecycle + restore UI) are blocked on interactive
@@ -264,79 +236,6 @@ computer-use smoke tests and live server frames, deferred while the user is away
 T12d + T12f now both have pure-core protocol + reducer groundwork landed & released
 (CI-only); the UI/wiring halves remain. Land pure-core / CI-only increments where
 possible.
-
-**In progress: T12k (remote streaming).** `T12k-1` landed (CI-only, no UI):
-`src-tauri/src/streaming/host.rs` is the pure host core — `StreamHost`/`HostState`,
-`config_base_url` (`https://<addr>:47990`), `is_ready`, Sunshine `apps.json`
-parsing (`parse_apps`/`SunshineApp`), and `is_streamable(host, apps, game)`. 12
-Rust KATs. **`T12k-2` DONE** (CI-only): `streaming::control` (pure shaping +
-cert-pin decision, 10 KATs), `streaming::store` (`StreamHosts` registry +
-atomic `streaming_hosts.json`, 4 KATs), and `streaming::commands` (live seam):
-a `reqwest` client built with `tls_info(true)` + `danger_accept_invalid_certs/
-hostnames` that captures the host's self-signed leaf cert and enforces a SHA-256
-**pin** (TOFU on first pair via `fingerprint_matches`, reject-on-change after) —
-so no custom rustls verifier and **no new dep**. Commands `sunshine_pair`,
-`sunshine_apps`, `sunshine_add_app`, `streaming_hosts`, `streaming_forget_host`;
-Basic-auth creds passed per-call, never persisted. **Live-host verification is
-deferred to T12k-4** (no Sunshine host available to drive these headless; the UI
-will exercise them). **`T12k-3` DONE** (CI-only): `streaming::moonlight` is the
-pure argv core — `DisplayMode`, `StreamSettings` (`Default` 1080p60 @ 20 Mbps +
-`sanitized()` clamps), `executable_candidates()` (per-OS), `stream_args` /
-`pair_args` — 7 Rust KATs (33 streaming KATs total). Thin seam in
-`streaming::commands`: `moonlight_available` (probe PATH for the client) and
-`stream_launch(address, app, settings?)` (resolve exe, spawn Moonlight, GPL —
-separate process, never linked). Real-Moonlight flag correctness rides on the
-T12k-4 smoke test. **`T12k-4` DONE** (shipped in v0.10.5): the streaming UI.
-Frontend feature `src/features/streaming/` — pure `streaming.ts` core
-(sanitize/clamp mirroring the Rust bounds, `isValidPin`, `parseStoredSettings`;
-11 vitest KATs), typed IPC `api.ts`, `useStreaming` hook (hosts +
-Moonlight-availability + localStorage-persisted quality defaults), a
-**Settings → Streaming** `StreamingSection` (pair/forget hosts, Moonlight-
-installed indicator, quality defaults), and a **▶ Stream from host**
-`StreamFromHost` button wired into `GameDetail` (auto-picks a lone host, else a
-picker). Verified: tsc + `vite build` + 260 unit tests + a full `tauri dev`
-compile & launch (all 7 streaming commands register, webview loads). **Live
-visual/pairing smoke test deferred** — needs a real Sunshine host + Moonlight and
-interactive computer-use approval (unavailable on this autonomous run); the seam
-is exercised by exactly this UI when a host is present. **T12k-5 deferred** —
-it's a cross-project doc/wiring task in the separate `debian-autoinstall` repo,
-not this client.
-
-**T12k — dedicated StreamEngine track (separate repo). SHIPPED in launcher
-v0.12.0 (2026-06-22).** The **`ArcadeLauncher-StreamEngine`** sidecar (GPL-3.0,
-own repo) is a Qt-free GameStream engine the client drives over an arm's-length
-JSON IPC boundary (named pipe / unix socket; **never linked**, to keep the GPL
-boundary). Engine path is feature-complete for video + audio + input — GameStream
-pairing (NvHTTP port) → persistent identity/paired-host store → launch/resume →
-`LiStartConnection` → **FFmpeg HW-decode** (`d3d11va`/`vaapi`, software fallback)
-into a borderless **SDL2** window → **Opus audio** → SDL gamepad capture →
-`stream.state`/`stream.stats` events — and **engine v0.2.0** (first streaming-capable
-release) is published and **bundled in the launcher installer** (release.yml stages
-`0.2.0` on both OSes).
-
-**The client now consumes the engine for playback** (was: always spawned external
-Moonlight). New transport on the launcher side:
-- `streaming/play.rs` — pure core: `client_start_params` (pins the `client.start`
-  settings schema), `is_terminal_phase`/`state_phase`, `STREAM_STATE_EVENT`
-  (`stream://state`) / `STREAM_STATS_EVENT` (`stream://stats`). 5 KATs.
-- `streaming/engine_session.rs` — persistent session transport (the one-shot
-  `engine_conn` can't drive a long-lived stream): spawns the engine in `stream`
-  mode, does the `client.start` handshake (engine in-band errors —
-  `not_paired`/`host_unreachable`/`app_not_found` — surface synchronously), then a
-  reader task forwards `stream.state`/`stream.stats` to the webview, with an
-  `AtomicU64` generation counter for supersession and the stop-channel close as a
-  graceful `client.stop`. Commands `engine_stream_available` / `stream_start` /
-  `stream_stop`.
-- Frontend `streaming.ts` (+11 KATs: `parseStreamState`/`isStreamTerminal`/
-  `streamPhaseLabel`), `useStreaming.play()` (engine-preferred, returns
-  `"engine"|"moonlight"`) + `stop()`, and `StreamFromHost.tsx` (live phase label +
-  in-app **■ Stop**). **External Moonlight is retained as automatic fallback** when
-  the engine isn't installed.
-
-Green before release: cargo test 293, vitest 362, tsc + clippy (new files) clean.
-**Still unvalidated:** live end-to-end A/V — no GameStream host + GPU client in CI;
-needs a real host on the homelab LAN + this PC as client. Engine status + next steps
-live in that repo's `docs/STREAMING_PLAN.md`, `docs/BUILD.md`, `docs/IPC.md`.
 
 **In progress: T12i (auto-sync + save version history).** Version-history
 groundwork shipped (CI-only, no UI): pure `saves::versions` — `SaveVersion`,
