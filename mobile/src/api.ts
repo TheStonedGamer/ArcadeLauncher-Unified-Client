@@ -136,20 +136,20 @@ export async function fetchCatalog(session: MobileSession): Promise<MobileGame[]
 }
 
 export async function fetchRequests(session: MobileSession): Promise<MobileBoard> {
-  return parseBoard(await authed(session, "/api/requests"));
+  return parseBoard(await authed(session, "/requests/api/requests"));
 }
 
 /** Upvote a board row. Returns the server's own view of whether the caller has
  *  now voted, so an optimistic toggle can be corrected. */
 export async function voteRequest(session: MobileSession, id: number): Promise<boolean> {
-  const body = await authed(session, `/api/requests/${id}/vote`, { method: "POST" });
+  const body = await authed(session, `/requests/api/requests/${id}/vote`, { method: "POST" });
   return !!body && typeof body === "object" && (body as { voted?: unknown }).voted === true;
 }
 
 /** Confirm a stored token still works before showing the library. */
 export async function checkSession(session: MobileSession): Promise<boolean> {
   try {
-    await authed(session, "/api/me");
+    await authed(session, "/requests/api/me");
     return true;
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) return false;
