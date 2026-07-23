@@ -144,6 +144,8 @@ export function applyFrame(state: RosterState, frame: Frame, now: number): Roste
         },
       };
 
+    // Calls are their own machine (core/call.ts) and hold no roster state.
+    case "voice_signal":
     case "unknown":
       return state;
   }

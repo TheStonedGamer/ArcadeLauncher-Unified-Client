@@ -124,6 +124,22 @@ describe("parseFrame", () => {
     });
   });
 
+  it("passes a call signal through without inspecting the payload", () => {
+    // The payload is the two clients' business; core/call.ts narrows it. Frame
+    // parsing must not reject a kind it has not heard of, or a newer client
+    // could never add one.
+    expect(parseFrame('{"type":"voice_signal","fromId":7,"payload":{"kind":"offer","sdp":"v=0"}}')).toEqual({
+      type: "voice_signal",
+      fromId: 7,
+      payload: { kind: "offer", sdp: "v=0" },
+    });
+    expect(parseFrame('{"type":"voice_signal","fromId":"7"}')).toEqual({
+      type: "voice_signal",
+      fromId: 0,
+      payload: undefined,
+    });
+  });
+
   it("turns anything it does not recognise into an unknown frame", () => {
     // A newer server must be able to add frames without crashing this phone.
     for (const raw of ["", "not json", "[]", "null", '"a"', '{"type":"invented_later"}']) {
@@ -176,6 +192,12 @@ describe("outbound", () => {
   it("builds a remote install command", () => {
     expect(outbound.remoteInstall("pc-1", "g-7", "Doom")).toBe(
       '{"type":"remote_install","deviceId":"pc-1","gameId":"g-7","gameTitle":"Doom"}',
+    );
+  });
+
+  it("wraps a call signal for the relay, leaving the payload alone", () => {
+    expect(outbound.voiceSignal(5, { kind: "invite" })).toBe(
+      '{"type":"voice_signal","to":5,"payload":{"kind":"invite"}}',
     );
   });
 

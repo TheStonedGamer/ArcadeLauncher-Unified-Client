@@ -75,6 +75,14 @@ export interface GuardRequestFrame {
   expiresIn: number;
 }
 
+/** Opaque WebRTC signalling relayed between two friends. The server does not
+ *  look inside `payload`; core/call.ts narrows it at the far end. */
+export interface VoiceSignalFrame {
+  type: "voice_signal";
+  fromId: number;
+  payload: unknown;
+}
+
 export interface UnknownFrame {
   type: "unknown";
   raw: string;
@@ -88,6 +96,7 @@ export type Frame =
   | InstallAckFrame
   | InstallResultFrame
   | GuardRequestFrame
+  | VoiceSignalFrame
   | UnknownFrame;
 
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
@@ -153,6 +162,8 @@ export function parseFrame(raw: string): Frame {
         status: str(f.status) || "unknown",
         message: str(f.message),
       };
+    case "voice_signal":
+      return { type: "voice_signal", fromId: num(f.fromId), payload: f.payload };
     case "guard_request":
       return {
         type: "guard_request",
@@ -210,6 +221,11 @@ export const outbound = {
 
   remoteInstall: (deviceId: string, gameId: string, gameTitle: string): string =>
     JSON.stringify({ type: "remote_install", deviceId, gameId, gameTitle }),
+
+  /** Relay one opaque WebRTC signalling payload to a friend. The server gates
+   *  the (caller, peer) pair on invite/accept/end, so those kinds must travel
+   *  inside the payload alongside offer/answer/ice — see core/call.ts. */
+  voiceSignal: (to: number, payload: unknown): string => JSON.stringify({ type: "voice_signal", to, payload }),
 
   /** Answer a sign-in push. */
   guardDecision: (requestId: string, approve: boolean): string =>

@@ -4,6 +4,8 @@ import { StatusBar } from "expo-status-bar";
 
 import type { MobileSession } from "./src/core/session";
 import { useGateway } from "./src/gateway";
+import { useCall } from "./src/useCall";
+import CallOverlay from "./src/screens/CallOverlay";
 import ChatScreen from "./src/screens/ChatScreen";
 import GuardPrompt from "./src/screens/GuardPrompt";
 import { DevicesModal } from "./src/screens/InstallSheet";
@@ -28,12 +30,19 @@ export default function App() {
   // there when the install picker opens.
   const gateway = useGateway(session);
   const online = gateway.state === "connected";
+  // Calls live at the app level for the same reason: an incoming call has to
+  // ring on whichever tab is open, including none of them.
+  const call = useCall(gateway.send, gateway.setFrameHandler);
   const friends = useMemo(() => {
     const map: Record<number, string> = {};
     for (const id of Object.keys(gateway.roster.presence)) map[Number(id)] = "";
     for (const id of Object.keys(gateway.roster.conversations)) map[Number(id)] = map[Number(id)] ?? "";
     return map;
   }, [gateway.roster.presence, gateway.roster.conversations]);
+
+  // A call can come from someone the friends map has no name for yet, so it
+  // falls back to the id rather than showing a blank caller.
+  const friendName = (id: number) => friends[id] || (id > 0 ? `User ${id}` : "");
 
   useEffect(() => {
     void (async () => {
@@ -102,7 +111,14 @@ export default function App() {
                 send={gateway.send}
               />
             ) : tab === "chat" ? (
-              <ChatScreen session={session} roster={gateway.roster} online={online} send={gateway.send} friends={friends} />
+              <ChatScreen
+                session={session}
+                roster={gateway.roster}
+                online={online}
+                send={gateway.send}
+                friends={friends}
+                onCall={call.start}
+              />
             ) : (
               <RequestsScreen session={session} onExpired={signOut} />
             )}
@@ -118,6 +134,7 @@ export default function App() {
 
           <DevicesModal roster={gateway.roster} visible={showDevices} onClose={() => setShowDevices(false)} />
           <GuardPrompt roster={gateway.roster} send={gateway.send} onAnswered={gateway.dismissGuard} />
+          <CallOverlay call={call} name={friendName(call.state.peerId)} />
         </>
       )}
     </SafeAreaView>

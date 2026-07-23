@@ -22,6 +22,7 @@ export default function ChatScreen({
   online,
   send,
   friends,
+  onCall,
 }: {
   session: MobileSession;
   roster: RosterState;
@@ -30,6 +31,7 @@ export default function ChatScreen({
   /** userId -> display name, from the friends list. Ids with no name fall back
    *  to the id itself so a conversation is never unreachable. */
   friends: Record<number, string>;
+  onCall: (peerId: number) => void;
 }) {
   const [peer, setPeer] = useState<number | null>(null);
 
@@ -47,6 +49,7 @@ export default function ChatScreen({
       online={online}
       send={send}
       onBack={() => setPeer(null)}
+      onCall={() => onCall(peer)}
     />
   );
 }
@@ -120,6 +123,7 @@ function Conversation({
   online,
   send,
   onBack,
+  onCall,
 }: {
   session: MobileSession;
   peer: number;
@@ -128,6 +132,7 @@ function Conversation({
   online: boolean;
   send: (frame: string) => boolean;
   onBack: () => void;
+  onCall: () => void;
 }) {
   const [draft, setDraft] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -180,6 +185,9 @@ function Conversation({
         <Text style={[styles.h2, { flex: 1 }]} numberOfLines={1}>
           {name}
         </Text>
+        <TouchableOpacity onPress={onCall} disabled={!online}>
+          <Text style={{ color: online ? colors.accent : colors.dim, fontSize: 15 }}>Call</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList

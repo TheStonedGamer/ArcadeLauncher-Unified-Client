@@ -2,13 +2,13 @@
 // Every decision worth testing is in src/core/social.ts (the wire) and
 // src/core/roster.ts (the state); this file only moves bytes between them.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Application from "expo-application";
 import { Platform } from "react-native";
 
 import type { MobileSession } from "./core/session";
 import { applyFrame, emptyRoster, type RosterState } from "./core/roster";
-import { gatewayUrl, outbound, parseFrame } from "./core/social";
+import { gatewayUrl, outbound, parseFrame, type Frame } from "./core/social";
 
 export type GatewayState = "connecting" | "connected" | "reconnecting" | "offline";
 
@@ -40,13 +40,29 @@ export interface Gateway {
   dismissInstall: () => void;
   /** Clear the sign-in prompt once it has been answered. */
   dismissGuard: () => void;
+  /** Watch every inbound frame. Calls need this: WebRTC signalling drives a
+   *  peer connection rather than any roster state, so it cannot be read back
+   *  out of the roster afterwards. One watcher at a time, replaced on set. */
+  setFrameHandler: (handler: ((frame: Frame) => void) | null) => void;
 }
 
 export function useGateway(session: MobileSession | null): Gateway {
   const [state, setState] = useState<GatewayState>("offline");
   const [roster, setRoster] = useState<RosterState>(emptyRoster);
   const socket = useRef<WebSocket | null>(null);
+  const onFrame = useRef<((frame: Frame) => void) | null>(null);
   const device = useMemo(localDevice, []);
+  // Stable identity: the watcher is registered from an effect, and a new
+  // function every render would re-register it on every render.
+  const setFrameHandler = useCallback((handler: ((frame: Frame) => void) | null) => {
+    onFrame.current = handler;
+  }, []);
+  const send = useCallback((frame: string) => {
+    const ws = socket.current;
+    if (!ws || ws.readyState !== 1) return false;
+    ws.send(frame);
+    return true;
+  }, []);
 
   useEffect(() => {
     if (!session) {
@@ -81,6 +97,7 @@ export function useGateway(session: MobileSession | null): Gateway {
         if (closed || typeof event.data !== "string") return;
         const frame = parseFrame(event.data);
         setRoster((prev) => applyFrame(prev, frame, Math.floor(Date.now() / 1000)));
+        onFrame.current?.(frame);
       };
 
       const drop = () => {
@@ -117,13 +134,9 @@ export function useGateway(session: MobileSession | null): Gateway {
   return {
     state,
     roster,
-    send: (frame: string) => {
-      const ws = socket.current;
-      if (!ws || ws.readyState !== 1) return false;
-      ws.send(frame);
-      return true;
-    },
+    send,
     dismissInstall: () => setRoster((prev) => (prev.install ? { ...prev, install: null } : prev)),
     dismissGuard: () => setRoster((prev) => (prev.guard ? { ...prev, guard: null } : prev)),
+    setFrameHandler,
   };
 }
