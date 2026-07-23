@@ -480,9 +480,13 @@ from scratch.
     the same context instance. Verified in the browser preview (cross-tab render,
     Dismiss removes, no console errors). _Remaining:_ live end-to-end pairing
     still needs the server invite frame + a second peer (prod smoke test).
-- [ ] **T12e — Screen share / video calls.** `useVoice.ts` already owns the full
-  WebRTC offer/answer/ICE/TURN flow; adding a video / `getDisplayMedia` track is
-  incremental, not a new subsystem.
+- [x] **T12e — Screen share / video calls.** Shipped in v0.13.24. Camera and
+  screen share ride the existing 1:1 WebRTC call: a pure `video.ts` core (mode
+  vocabulary, toggle semantics, constraints, tile layout — 20 KATs), a
+  `{kind:"video"}` announce frame on the same `voice_signal` relay, and
+  renegotiation in `useVoice.ts` via one reused `RTCRtpSender`. The call bar
+  gains Camera / Share screen buttons and a `CallStage` picture-in-picture.
+  _Not covered:_ group-call video (`useGroupVoice` mesh is audio-only).
 - [x] **T12f — Group DMs / channels.** Multi-party rooms over the same gateway +
   reducer (DMs are strictly 1:1 today).
   - [x] Protocol + pure room-state core (groundwork): `room_created` /

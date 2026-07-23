@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+### Added
+- **Video calls and screen sharing.** While you're in a voice call with a friend,
+  the call bar now has **📷 Camera** and **🖥 Share screen** buttons. Whatever's
+  being shared appears in a floating window above the bar, with your own picture
+  tucked into the corner. Switch straight from camera to screen (or back) without
+  dropping the call, and stopping a share from your browser/OS bar is picked up
+  automatically. Group calls stay voice-only for now.
+
 ## [0.13.23] - 2026-07-22
 
 ### Fixed

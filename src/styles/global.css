@@ -782,6 +782,26 @@ body {
 .callbar__accept { background: var(--on); border-color: var(--on); color: #06210f; }
 .callbar__mute { background: var(--panel-2); color: var(--text); }
 .callbar__hangup { background: var(--error); border-color: var(--error); color: #fff; }
+.callbar__video { background: var(--panel-2); color: var(--text); }
+.callbar__video.is-on { background: var(--on); border-color: var(--on); color: #06210f; }
+
+/* Video / screen share stage (T12e) — floats above the call bar */
+.callstage {
+  position: fixed; bottom: 74px; left: 50%; transform: translateX(-50%); z-index: 59;
+  width: min(52vw, 720px); background: #000;
+  border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.55);
+}
+.callstage__main { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; }
+.callstage__label {
+  position: absolute; left: 10px; bottom: 8px; padding: 3px 8px; border-radius: 6px;
+  background: rgba(0,0,0,0.6); color: #fff; font-size: 11px; font-weight: 600;
+}
+.callstage__self {
+  position: absolute; right: 10px; bottom: 10px; width: 22%; max-width: 160px;
+  aspect-ratio: 16 / 9; object-fit: cover; background: #000;
+  border: 1px solid var(--border); border-radius: 8px;
+}
 
 /* Game-invite toasts (T12d) */
 .invites {

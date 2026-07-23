@@ -5,6 +5,13 @@
 // the signaling-payload codec. The RTCPeerConnection/getUserMedia glue lives in
 // useVoice; the wire frame (outbound.voiceSignal / inbound voice_signal) lives in
 // protocol.ts. Everything here is deterministic → unit-tested in voice.test.ts.
+//
+// Video / screen share (T12e) rides the same connection and the same relay: the
+// mode vocabulary and its UI helpers live in video.ts, and the call FSM below
+// just tracks which mode each side is sending.
+
+import type { VideoMode } from "./video";
+import { parseVideoMode } from "./video";
 
 /** Call lifecycle. `inviting` = I rang them; `ringing` = they rang me;
  *  `connecting` = invite accepted, negotiating media; `connected` = audio up. */
@@ -16,9 +23,19 @@ export interface CallState {
   peerId: number;
   /** Whether my mic is muted locally. */
   muted: boolean;
+  /** What I'm currently sending on the video track (T12e). */
+  localVideo: VideoMode;
+  /** What the peer announced it is sending (T12e). */
+  remoteVideo: VideoMode;
 }
 
-export const IDLE_CALL: CallState = { phase: "idle", peerId: 0, muted: false };
+export const IDLE_CALL: CallState = {
+  phase: "idle",
+  peerId: 0,
+  muted: false,
+  localVideo: "none",
+  remoteVideo: "none",
+};
 
 /** Events that drive the FSM. Local UI actions + remote signaling, unified. */
 export type CallEvent =
@@ -29,7 +46,9 @@ export type CallEvent =
   | { type: "connected" } // media is flowing (pc connected)
   | { type: "toggleMute" }
   | { type: "hangup" } // I end / cancel / decline
-  | { type: "remoteEnd" }; // remote ended / declined
+  | { type: "remoteEnd" } // remote ended / declined
+  | { type: "localVideo"; mode: VideoMode } // my camera/screen track changed
+  | { type: "remoteVideo"; mode: VideoMode }; // peer announced its video mode
 
 /** Pure call-state transition. Invalid events for the current phase are ignored
  *  (return the same state) so out-of-order signaling can't corrupt the call. */
@@ -37,10 +56,10 @@ export function callReducer(state: CallState, event: CallEvent): CallState {
   switch (event.type) {
     case "invite":
       if (state.phase !== "idle" && state.phase !== "ended") return state;
-      return { phase: "inviting", peerId: event.peerId, muted: false };
+      return { ...IDLE_CALL, phase: "inviting", peerId: event.peerId };
     case "incoming":
       if (state.phase !== "idle" && state.phase !== "ended") return state;
-      return { phase: "ringing", peerId: event.peerId, muted: false };
+      return { ...IDLE_CALL, phase: "ringing", peerId: event.peerId };
     case "accept":
       if (state.phase !== "ringing") return state;
       return { ...state, phase: "connecting" };
@@ -53,10 +72,19 @@ export function callReducer(state: CallState, event: CallEvent): CallState {
     case "toggleMute":
       if (state.phase === "idle" || state.phase === "ended") return state;
       return { ...state, muted: !state.muted };
+    case "localVideo":
+    case "remoteVideo": {
+      // Video only exists while a peer connection does; a stale announcement
+      // arriving after hangup must not resurrect a picture.
+      if (state.phase !== "connecting" && state.phase !== "connected") return state;
+      const key = event.type === "localVideo" ? "localVideo" : "remoteVideo";
+      if (state[key] === event.mode) return state;
+      return { ...state, [key]: event.mode };
+    }
     case "hangup":
     case "remoteEnd":
       if (state.phase === "idle") return state;
-      return { phase: "ended", peerId: state.peerId, muted: false };
+      return { ...IDLE_CALL, phase: "ended", peerId: state.peerId };
     default:
       return state;
   }
@@ -78,7 +106,11 @@ export type SignalPayload =
   | { kind: "end" }
   | { kind: "offer"; sdp: string }
   | { kind: "answer"; sdp: string }
-  | { kind: "ice"; candidate: string };
+  | { kind: "ice"; candidate: string }
+  /** Announces what the sender is putting on its video track. Sent alongside
+   *  renegotiation so the receiver can label the picture — and, on "none", knows
+   *  the track vanished deliberately rather than failing. */
+  | { kind: "video"; mode: VideoMode };
 
 /** Narrow an arbitrary relayed payload object to a known SignalPayload, or null
  *  if it's malformed/unknown. Defensive: the payload crosses the network. */
@@ -95,6 +127,10 @@ export function parseSignal(payload: unknown): SignalPayload | null {
       return typeof p.sdp === "string" ? { kind: p.kind, sdp: p.sdp } : null;
     case "ice":
       return typeof p.candidate === "string" ? { kind: "ice", candidate: p.candidate } : null;
+    case "video": {
+      const mode = parseVideoMode(p.mode);
+      return mode ? { kind: "video", mode } : null;
+    }
     default:
       return null;
   }

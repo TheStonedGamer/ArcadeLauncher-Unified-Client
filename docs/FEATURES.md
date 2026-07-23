@@ -272,6 +272,12 @@ A persistent, full-duplex social layer shared between the launcher's
   via **STUN + a deployed coturn TURN server**, with TTL-limited TURN credentials
   served from `GET /api/social/turn`. (The two voice models don't interop — fine
   post-cutover since the unified client is now the sole shipping client.)
+- **Video / screen share (1:1)** — camera or `getDisplayMedia` screen capture on
+  the *same* peer connection as the call audio. One `RTCRtpSender` is reused for
+  the life of the call (camera↔screen switches are a `replaceTrack`), a
+  `{kind:"video", mode}` frame on the existing `voice_signal` relay announces
+  what each side is sending, and the track itself moves by renegotiation. Group
+  calls remain audio-only.
 
 ### 3.3 Keepalive & resilience (the hard-won bits)
 - **Server-side control Ping every 25s** keeps proxies/timeouts happy.

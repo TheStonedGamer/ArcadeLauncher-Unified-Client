@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { callReducer, IDLE_CALL, isBusy, parseSignal, type CallState, type SignalPayload } from "./voice";
+import { canShareVideo, nextVideoMode, videoConstraints, type VideoMode } from "./video";
 
 const DEFAULT_ICE: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
@@ -27,6 +28,12 @@ export interface VoiceApi {
   hangup: () => void;
   /** Toggle local mic mute. */
   toggleMute: () => void;
+  /** Turn camera or screen share on/off (T12e). Pressing the live mode stops it. */
+  toggleVideo: (mode: Exclude<VideoMode, "none">) => void;
+  /** Attach the <video> element that should show my own outgoing picture. */
+  attachLocalVideo: (el: HTMLVideoElement | null) => void;
+  /** Attach the <video> element that should show the peer's picture. */
+  attachRemoteVideo: (el: HTMLVideoElement | null) => void;
 }
 
 interface VoiceTransport {
@@ -48,6 +55,27 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
   const pendingIce = useRef<RTCIceCandidateInit[]>([]);
   // Cached ICE servers for the in-progress call (fresh creds per call).
   const iceRef = useRef<RTCIceServer[] | null>(null);
+  // --- video (T12e) ---
+  // The mic is added exactly once per connection; renegotiation offers must not
+  // re-acquire it (that would prompt again and duplicate the audio track).
+  const audioAddedRef = useRef(false);
+  const videoStreamRef = useRef<MediaStream | null>(null);
+  // One video sender for the life of the call: created on first share, then
+  // reused via replaceTrack so camera↔screen switches need no new m-line.
+  const videoSenderRef = useRef<RTCRtpSender | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
+  const localElRef = useRef<HTMLVideoElement | null>(null);
+  const remoteElRef = useRef<HTMLVideoElement | null>(null);
+
+  /** Stop and release whatever the camera/screen picker handed us. */
+  const dropLocalVideo = useCallback(() => {
+    videoStreamRef.current?.getTracks().forEach((t) => {
+      t.onended = null;
+      t.stop();
+    });
+    videoStreamRef.current = null;
+    if (localElRef.current) localElRef.current.srcObject = null;
+  }, []);
 
   const cleanup = useCallback(() => {
     pcRef.current?.close();
@@ -56,8 +84,13 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
     localRef.current = null;
     pendingIce.current = [];
     iceRef.current = null; // next call refetches fresh TURN credentials
+    audioAddedRef.current = false;
+    dropLocalVideo();
+    videoSenderRef.current = null; // owned by the closed pc
+    remoteStreamRef.current = null;
+    if (remoteElRef.current) remoteElRef.current.srcObject = null;
     if (audioRef.current) audioRef.current.srcObject = null;
-  }, []);
+  }, [dropLocalVideo]);
 
   /** Resolve ICE servers for this call: fetched once, then cached. Falls back to
    *  public STUN if no provider or the fetch fails. */
@@ -85,11 +118,22 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
         if (e.candidate) transport.voiceSend(peerId, { kind: "ice", candidate: JSON.stringify(e.candidate) });
       };
       pc.ontrack = (e) => {
+        const stream = e.streams[0];
+        if (e.track.kind === "video") {
+          // Video shares the same stream as audio; keep it off the <audio>
+          // element and route it to the attached <video> instead.
+          remoteStreamRef.current = stream;
+          if (remoteElRef.current) {
+            remoteElRef.current.srcObject = stream;
+            void remoteElRef.current.play().catch(() => {});
+          }
+          return;
+        }
         if (!audioRef.current) {
           audioRef.current = new Audio();
           audioRef.current.autoplay = true;
         }
-        audioRef.current.srcObject = e.streams[0];
+        audioRef.current.srcObject = stream;
         void audioRef.current.play().catch(() => {});
       };
       pc.onconnectionstatechange = () => {
@@ -106,11 +150,17 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
     [transport, cleanup, ensureIce],
   );
 
-  /** Acquire the mic and add its track to the connection. */
+  /** Acquire the mic and add its track to the connection. Idempotent: adding
+   *  video renegotiates, and that second offer must not re-prompt for the mic
+   *  or attach a duplicate audio track. */
   const addLocalAudio = useCallback(async (pc: RTCPeerConnection) => {
+    if (audioAddedRef.current) return;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     localRef.current = stream;
     stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+    audioAddedRef.current = true;
+    // Honour a mute toggled before the mic existed.
+    if (callRef.current.muted) stream.getAudioTracks().forEach((t) => (t.enabled = false));
   }, []);
 
   /** End a call that can't proceed (mic denied, negotiation error): tell the
@@ -147,6 +197,95 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
     dispatch({ type: "hangup" });
     cleanup();
   }, [transport, cleanup]);
+
+  /** Re-offer after the track set changed. Waits for a stable signaling state so
+   *  a renegotiation can't collide with the initial offer/answer still in
+   *  flight; gives up rather than throwing if it never settles. */
+  const renegotiate = useCallback(
+    async (pc: RTCPeerConnection, peerId: number) => {
+      for (let i = 0; i < 15 && pc.signalingState !== "stable"; i++) {
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      if (pc.signalingState !== "stable" || pcRef.current !== pc) return;
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      transport.voiceSend(peerId, { kind: "offer", sdp: offer.sdp ?? "" });
+    },
+    [transport],
+  );
+
+  /** Switch the outgoing video track to `mode` ("none" stops sharing), announce
+   *  it to the peer, and renegotiate. A cancelled picker leaves the call
+   *  untouched — that's a decision, not a failure. */
+  const setVideoMode = useCallback(
+    async (mode: VideoMode) => {
+      const c = callRef.current;
+      const pc = pcRef.current;
+      if (!pc || !canShareVideo(c.phase) || c.localVideo === mode) return;
+
+      dropLocalVideo();
+      let track: MediaStreamTrack | null = null;
+      if (mode !== "none") {
+        let stream: MediaStream;
+        try {
+          stream =
+            mode === "screen"
+              ? await navigator.mediaDevices.getDisplayMedia(videoConstraints("screen"))
+              : await navigator.mediaDevices.getUserMedia(videoConstraints("camera"));
+        } catch {
+          // Picker dismissed or no device — fall back to whatever we had, which
+          // dropLocalVideo already stopped, so report "none" to stay truthful.
+          if (c.localVideo !== "none") await setVideoMode("none");
+          return;
+        }
+        track = stream.getVideoTracks()[0] ?? null;
+        if (!track) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        videoStreamRef.current = stream;
+        // The browser's own "Stop sharing" bar ends the track behind our back.
+        track.onended = () => void setVideoMode("none");
+        if (localElRef.current) {
+          localElRef.current.srcObject = stream;
+          void localElRef.current.play().catch(() => {});
+        }
+      }
+
+      if (videoSenderRef.current) {
+        await videoSenderRef.current.replaceTrack(track);
+      } else if (track) {
+        videoSenderRef.current = pc.addTrack(track, videoStreamRef.current!);
+      }
+      dispatch({ type: "localVideo", mode });
+      transport.voiceSend(c.peerId, { kind: "video", mode });
+      await renegotiate(pc, c.peerId);
+    },
+    [transport, dropLocalVideo, renegotiate],
+  );
+
+  const toggleVideo = useCallback(
+    (mode: Exclude<VideoMode, "none">) => {
+      void setVideoMode(nextVideoMode(callRef.current.localVideo, mode));
+    },
+    [setVideoMode],
+  );
+
+  const attachLocalVideo = useCallback((el: HTMLVideoElement | null) => {
+    localElRef.current = el;
+    if (el && videoStreamRef.current) {
+      el.srcObject = videoStreamRef.current;
+      void el.play().catch(() => {});
+    }
+  }, []);
+
+  const attachRemoteVideo = useCallback((el: HTMLVideoElement | null) => {
+    remoteElRef.current = el;
+    if (el && remoteStreamRef.current) {
+      el.srcObject = remoteStreamRef.current;
+      void el.play().catch(() => {});
+    }
+  }, []);
 
   const toggleMute = useCallback(() => {
     const next = !callRef.current.muted;
@@ -186,9 +325,14 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
           return;
         }
         case "offer": {
-          // I'm the callee (already accepted) → answer.
+          // I'm the callee (already accepted) → answer. Also the renegotiation
+          // path when the peer adds/removes video.
           if (fromId !== c.peerId) return;
           const pc = pcRef.current ?? (await makePc(fromId));
+          // Glare: both peers re-offered at once. Ours is already in flight, so
+          // drop theirs — their announce still landed, and the picture arrives
+          // on our own renegotiation.
+          if (pc.signalingState === "have-local-offer") return;
           try {
             await addLocalAudio(pc);
           } catch {
@@ -221,6 +365,18 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
           else pendingIce.current.push(cand);
           return;
         }
+        case "video":
+          // Announcement only — the track itself arrives via renegotiation.
+          if (fromId === c.peerId) {
+            dispatch({ type: "remoteVideo", mode: sig.mode });
+            // On a re-share the transceiver is reused, so ontrack won't fire
+            // again — re-point the element at the stream we already hold.
+            if (sig.mode !== "none" && remoteElRef.current && remoteStreamRef.current) {
+              remoteElRef.current.srcObject = remoteStreamRef.current;
+              void remoteElRef.current.play().catch(() => {});
+            }
+          }
+          return;
         case "end":
           if (fromId === c.peerId) {
             dispatch({ type: "remoteEnd" });
@@ -261,5 +417,15 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
     return () => clearTimeout(timer);
   }, [call.phase, transport, cleanup]);
 
-  return { call, enabled, startCall, acceptCall, hangup, toggleMute };
+  return {
+    call,
+    enabled,
+    startCall,
+    acceptCall,
+    hangup,
+    toggleMute,
+    toggleVideo,
+    attachLocalVideo,
+    attachRemoteVideo,
+  };
 }
