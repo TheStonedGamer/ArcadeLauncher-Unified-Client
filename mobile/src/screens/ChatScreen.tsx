@@ -1,0 +1,196 @@
+// Friends and chat. Two views in one screen: the conversation list, and one
+// conversation.
+//
+// Sending is deliberately not optimistic. The server echoes every message back
+// with its assigned id, and that echo is what `applyFrame` files into the
+// thread — so a message the server never accepted never appears, instead of
+// appearing and then quietly needing to be taken away again.
+
+import { useMemo, useRef, useState } from "react";
+import { FlatList, Text, TextInput, TouchableOpacity, View } from "react-native";
+
+import { conversationOrder, isOnline, type Message, type RosterState } from "../core/roster";
+import { outbound } from "../core/social";
+import { colors, styles } from "../theme";
+
+export default function ChatScreen({
+  roster,
+  online,
+  send,
+  friends,
+}: {
+  roster: RosterState;
+  online: boolean;
+  send: (frame: string) => boolean;
+  /** userId -> display name, from the friends list. Ids with no name fall back
+   *  to the id itself so a conversation is never unreachable. */
+  friends: Record<number, string>;
+}) {
+  const [peer, setPeer] = useState<number | null>(null);
+
+  const nameOf = (id: number) => friends[id] || `User ${id}`;
+
+  if (peer === null) {
+    return <ConversationList roster={roster} friends={friends} nameOf={nameOf} onOpen={setPeer} />;
+  }
+  return (
+    <Conversation
+      peer={peer}
+      name={nameOf(peer)}
+      messages={roster.conversations[peer] ?? []}
+      online={online}
+      send={send}
+      onBack={() => setPeer(null)}
+    />
+  );
+}
+
+function ConversationList({
+  roster,
+  friends,
+  nameOf,
+  onOpen,
+}: {
+  roster: RosterState;
+  friends: Record<number, string>;
+  nameOf: (id: number) => string;
+  onOpen: (id: number) => void;
+}) {
+  // Everyone with history, then any remaining friend, so a first message can be
+  // started without hunting for a separate "new chat" button.
+  const rows = useMemo(() => {
+    const withHistory = conversationOrder(roster);
+    const rest = Object.keys(friends)
+      .map(Number)
+      .filter((id) => !withHistory.includes(id))
+      .sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+    return [...withHistory, ...rest];
+  }, [roster, friends, nameOf]);
+
+  return (
+    <FlatList
+      style={styles.screen}
+      data={rows}
+      keyExtractor={(id) => String(id)}
+      ListEmptyComponent={<Text style={styles.empty}>No friends yet. Add them from the desktop launcher.</Text>}
+      renderItem={({ item }) => {
+        const thread = roster.conversations[item] ?? [];
+        const last = thread[thread.length - 1];
+        return (
+          <TouchableOpacity style={styles.row} onPress={() => onOpen(item)}>
+            <View
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 5,
+                backgroundColor: isOnline(roster, item) ? colors.ok : colors.border,
+              }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.h2} numberOfLines={1}>
+                {nameOf(item)}
+              </Text>
+              <Text style={styles.dim} numberOfLines={1}>
+                {last ? preview(last) : roster.playing[item] || "Tap to start a conversation"}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        );
+      }}
+    />
+  );
+}
+
+function preview(m: Message): string {
+  const body = m.text || (m.attachmentId > 0 ? "Attachment" : "");
+  return m.mine ? `You: ${body}` : body;
+}
+
+function Conversation({
+  peer,
+  name,
+  messages,
+  online,
+  send,
+  onBack,
+}: {
+  peer: number;
+  name: string;
+  messages: Message[];
+  online: boolean;
+  send: (frame: string) => boolean;
+  onBack: () => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const list = useRef<FlatList<Message>>(null);
+
+  const submit = () => {
+    const text = draft.trim();
+    if (!text) return;
+    // Only clear the box once the frame is actually on the socket, so an
+    // offline tap does not silently eat what was typed.
+    if (send(outbound.chat(peer, text))) setDraft("");
+  };
+
+  return (
+    <View style={styles.screen}>
+      <View style={[styles.row, { paddingVertical: 12 }]}>
+        <TouchableOpacity onPress={onBack}>
+          <Text style={{ color: colors.accent, fontSize: 15 }}>Back</Text>
+        </TouchableOpacity>
+        <Text style={[styles.h2, { flex: 1 }]} numberOfLines={1}>
+          {name}
+        </Text>
+      </View>
+
+      <FlatList
+        ref={list}
+        data={messages}
+        keyExtractor={(m, i) => (m.id > 0 ? String(m.id) : `local-${i}`)}
+        contentContainerStyle={{ padding: 12 }}
+        onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
+        ListEmptyComponent={<Text style={styles.empty}>Nothing here yet.</Text>}
+        renderItem={({ item }) => (
+          <View
+            style={{
+              alignSelf: item.mine ? "flex-end" : "flex-start",
+              backgroundColor: item.mine ? colors.accent : colors.panel,
+              borderRadius: 14,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              marginVertical: 3,
+              maxWidth: "80%",
+            }}
+          >
+            <Text style={{ color: item.mine ? "#0b0d12" : colors.text, fontSize: 15 }}>
+              {item.text || (item.attachmentId > 0 ? "Attachment" : "")}
+            </Text>
+          </View>
+        )}
+      />
+
+      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, padding: 12 }}>
+        <TextInput
+          style={[styles.input, { flex: 1, marginTop: 0 }]}
+          placeholder={online ? "Message" : "Offline"}
+          placeholderTextColor={colors.dim}
+          editable={online}
+          multiline
+          value={draft}
+          onChangeText={(t) => {
+            setDraft(t);
+            if (t) send(outbound.typing(peer));
+          }}
+          onSubmitEditing={submit}
+        />
+        <TouchableOpacity
+          style={[styles.button, { marginTop: 0, paddingHorizontal: 18, opacity: online && draft.trim() ? 1 : 0.4 }]}
+          onPress={submit}
+          disabled={!online || !draft.trim()}
+        >
+          <Text style={styles.buttonText}>Send</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
