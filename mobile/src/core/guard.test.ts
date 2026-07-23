@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  CODE_ALPHABET,
   CODE_LENGTH,
   codeAt,
   codeForCounter,
@@ -100,12 +99,33 @@ describe("counterFor / secondsRemaining", () => {
 });
 
 describe("codeForCounter", () => {
+  // RFC 6238's shared secret: the ASCII string "12345678901234567890".
   const secret = fromHex("3132333435363738393031323334353637383930");
+
+  it("matches the RFC 6238 reference vectors (6-digit, SHA-1)", () => {
+    // The RFC publishes 8-digit codes; a 6-digit code is the low 6 digits,
+    // because both come from `bin % 10^digits` of the same truncation.
+    const cases: Array<[number, string]> = [
+      [59, "287082"],
+      [1111111109, "081804"],
+      [1111111111, "050471"],
+      [1234567890, "005924"],
+      [2000000000, "279037"],
+    ];
+    for (const [t, want] of cases) {
+      expect(codeAt(secret, t)).toBe(want);
+    }
+  });
 
   it("produces a stable code of the right shape", () => {
     const code = codeForCounter(secret, 1);
     expect(code).toHaveLength(CODE_LENGTH);
-    for (const ch of code) expect(CODE_ALPHABET).toContain(ch);
+    expect(code).toMatch(/^\d{6}$/);
+  });
+
+  it("zero-pads codes whose truncation is below 100000", () => {
+    // 1234567890 → "005924" above; assert the padding explicitly.
+    expect(codeAt(secret, 1234567890).startsWith("00")).toBe(true);
   });
 
   it("is deterministic for the same secret and counter", () => {
@@ -121,9 +141,9 @@ describe("codeForCounter", () => {
     expect(codeForCounter(secret, 42)).not.toBe(codeForCounter(other, 42));
   });
 
-  it("uses only the reduced alphabet across many windows", () => {
+  it("always emits six digits across many windows", () => {
     for (let c = 0; c < 500; c++) {
-      for (const ch of codeForCounter(secret, c)) expect(CODE_ALPHABET).toContain(ch);
+      expect(codeForCounter(secret, c)).toMatch(/^\d{6}$/);
     }
   });
 
@@ -153,15 +173,14 @@ describe("verifyCode", () => {
     expect(verifyCode(secret, codeAt(secret, now - 30), now, 0)).toBe(false);
   });
 
-  it("ignores case, spaces and dashes the way a human retypes", () => {
+  it("ignores spaces and dashes the way a human retypes", () => {
     const code = codeAt(secret, now);
-    expect(verifyCode(secret, code.toLowerCase(), now)).toBe(true);
     expect(verifyCode(secret, `${code.slice(0, 2)} ${code.slice(2)}`, now)).toBe(true);
     expect(verifyCode(secret, `${code.slice(0, 2)}-${code.slice(2)}`, now)).toBe(true);
   });
 
   it("rejects a wrong or malformed code", () => {
-    for (const bad of ["", "22222", "ABC", "2222222", "!!!!!"]) {
+    for (const bad of ["", "22222", "ABC", "2222222", "!!!!!", "1234567"]) {
       if (bad === codeAt(secret, now)) continue;
       expect(verifyCode(secret, bad, now)).toBe(false);
     }
@@ -174,8 +193,10 @@ describe("verifyCode", () => {
 });
 
 describe("normalizeCode", () => {
-  it("upper-cases and strips separators", () => {
-    expect(normalizeCode(" 2b-3c d ")).toBe("2B3CD");
+  it("keeps only digits, the way the server's verify_user_totp does", () => {
+    expect(normalizeCode(" 12-34 56 ")).toBe("123456");
+    expect(normalizeCode("abc123")).toBe("123");
+    expect(normalizeCode("")).toBe("");
   });
 });
 
