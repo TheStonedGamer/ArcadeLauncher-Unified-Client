@@ -99,6 +99,14 @@ export interface SocialApi {
   setVoiceHandler: (cb: (fromId: number, payload: unknown) => void) => void;
   /** Register the handler for inbound group voice_signal frames (useGroupVoice). */
   setGroupVoiceHandler: (cb: (fromId: number, payload: unknown) => void) => void;
+  /** Register the handler for an inbound remote_install request from the owner's
+   *  phone (0.14). Lives outside this hook because honoring it needs the catalog
+   *  and the download queue, neither of which the social layer knows about. */
+  setRemoteInstallHandler: (
+    cb: (gameId: string, gameTitle: string, fromDeviceId: string) => void,
+  ) => void;
+  /** Report a remote install's outcome back to the phone that asked. */
+  remoteInstallResult: (deviceId: string, gameId: string, status: string, message?: string) => void;
   /** Pending "join my game" invites I've received, newest-first (ROADMAP T12d). */
   gameInvites: GameInvite[];
   /** Invite a friend to join the game I'm playing. */
@@ -196,6 +204,11 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
   // Group voice (T12g) rides the same voice_signal relay; payloads tagged
   // `group: true` route here instead of the 1:1 handler so the two coexist.
   const groupVoiceHandlerRef = useRef<(fromId: number, payload: unknown) => void>(() => {});
+  // Remote install (0.14): routed out to useRemoteInstall for the same reason as
+  // voice -- the decision needs state this hook does not hold.
+  const remoteInstallRef = useRef<(gameId: string, gameTitle: string, fromDeviceId: string) => void>(
+    () => {},
+  );
 
   const host = auth?.host ?? null;
   const token = auth?.token ?? null;
@@ -207,6 +220,9 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
       if (msg.type === "voice_signal") {
         if (isGroupSignal(msg.payload)) groupVoiceHandlerRef.current(msg.fromId, msg.payload);
         else voiceHandlerRef.current(msg.fromId, msg.payload);
+      }
+      if (msg.type === "remote_install") {
+        remoteInstallRef.current(msg.gameId, msg.gameTitle, msg.fromDeviceId);
       }
       // Game invites (T12d): a game_invite / cancel / friend_removed frame maps to
       // an invite action; everything else is ignored by the mapper.
@@ -382,6 +398,24 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     groupVoiceHandlerRef.current = cb;
   }, []);
 
+  const setRemoteInstallHandler = useCallback(
+    (cb: (gameId: string, gameTitle: string, fromDeviceId: string) => void) => {
+      remoteInstallRef.current = cb;
+    },
+    [],
+  );
+
+  const remoteInstallResult = useCallback(
+    (deviceId: string, gameId: string, status: string, message = "") => {
+      // A result with no device id has nowhere to go; dropping it here keeps a
+      // pointless frame off the wire.
+      if (deviceId && gameId) {
+        gatewayRef.current?.send(outbound.remoteInstallResult(deviceId, gameId, status, message));
+      }
+    },
+    [],
+  );
+
   const sendGameInvite = useCallback((to: number, gameId: string) => {
     if (to && gameId) gatewayRef.current?.send(outbound.gameInvite(to, gameId));
   }, []);
@@ -512,6 +546,8 @@ export function useSocial(auth: SocialAuth | null = null): SocialApi {
     voiceSend,
     setVoiceHandler,
     setGroupVoiceHandler,
+    setRemoteInstallHandler,
+    remoteInstallResult,
     gameInvites,
     sendGameInvite,
     acceptGameInvite,

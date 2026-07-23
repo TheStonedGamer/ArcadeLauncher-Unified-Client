@@ -13,6 +13,28 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+### Added
+- **The phone app grew up.** The ArcadeLauncher companion for Android now does
+  everything the launcher does socially: **friends and presence**, **chat with
+  photo attachments**, and **voice and video calls** with your friends on their
+  PCs. Calls ring on whatever screen you're on.
+- **Install to your PC from your phone.** Open a game on the phone, pick which
+  of your signed-in PCs should get it, and the download starts there. The PC
+  reports back — started, already installed, already downloading — so you know
+  it landed without walking over to look.
+- **Sign-in approval, Steam Guard style.** When something signs into your
+  account, your phone asks you to approve or deny it and shows the device name
+  and the IP it came from. If your phone is offline, the app also shows a
+  rolling six-digit code you can type instead.
+
+### Changed
+- Your PC now tells the server its name when it connects, so the phone's
+  install picker can list your machines by name instead of by number.
+- **The phone app is now downloadable straight from the release page.** Every
+  release from this one on carries a signed `ArcadeLauncher-Companion-vX.Y.Z.apk`
+  alongside the Windows and Linux installers — no more digging through build
+  logs. Install it once and future versions update in place.
+
 ## [0.13.24] - 2026-07-22
 
 ### Added

@@ -139,7 +139,10 @@ Linux; the KATs run natively on the `prox-pve` Linux leg. **Verified:** a manual
 single-instance all OK). **Not yet exercised:** the `makensis` NSIS bundling step
 (only runs under `tauri build`) — the first CI/release run validates it.
 **Code-signing the `.exe`** (e.g. `osslsigncode` on Linux) is NOT wired yet — a
-follow-up; only the Tauri updater `.sig` is produced today.
+follow-up; only the Tauri updater `.sig` is produced today. Unlike the Android
+keystore (which is self-signed and was simply generated), Authenticode needs a
+**purchased** OV/EV certificate — EV on a hardware token or cloud HSM — so this
+is blocked on procurement, not on workflow code.
 
 **IN FLIGHT (2026-06-20) — read before pushing.** `v0.10.11` (T12d follow-up) is
 committed and PUSHED (`52a6e58`); its CI run was verifying under the OLD staggered
@@ -484,6 +487,19 @@ No roadmap blockers remain. Net-new feature backlog now lives in
 - Distribute only **legally self-dumped** console firmware/BIOS — never
   redistribute vendor firmware beyond the owner's own machines.
 - Do not use `-ExecutionPolicy Bypass`. WiX/NSIS `UpgradeCode` is **permanent**.
+- The **Android release keystore is permanent**, the same class of decision as
+  `UpgradeCode`. Android refuses any update whose signing certificate changed, so
+  replacing the key forces every user to uninstall and lose their app data — and
+  there is no Play App Signing rotation to fall back on, because the APK is
+  sideloaded rather than shipped through the Play Store. Created 2026-07-23:
+  alias `arcadelauncher`, RSA 4096, SHA384withRSA, valid to 2056, SHA-256
+  fingerprint `FE:A6:E3:9F:31:06:79:C7:54:8E:E8:88:2F:F8:B9:E1:21:7A:CC:7F:0B:2B:16:06:E1:48:64:43:E7:17:DF:C6`.
+  It is **not** in this repo. Copies: `C:\Users\BrianTheMint\.arcadelauncher-signing\`
+  on the owner's workstation, and the `ANDROID_KEYSTORE_BASE64` repo secret.
+  Both are machines the owner controls and **neither is an off-box backup** —
+  lose both and the phone app can never be updated again, only reinstalled.
+  `release.yml` verifies with `apksigner` and fails the release if the debug
+  certificate signed the APK.
 - `[minor]` commit keyword is **only** for client↔server compat-breaking changes.
 
 ## Repo facts

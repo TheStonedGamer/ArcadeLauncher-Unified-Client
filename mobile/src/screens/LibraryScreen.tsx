@@ -14,10 +14,24 @@ import {
 
 import { ApiError, fetchCatalog } from "../api";
 import { filterGames, formatSize, gameSubtitle, platformsOf, type MobileGame } from "../core/catalog";
+import type { RosterState } from "../core/roster";
 import type { MobileSession } from "../core/session";
 import { colors, styles } from "../theme";
+import InstallSheet from "./InstallSheet";
 
-export default function LibraryScreen({ session, onExpired }: { session: MobileSession; onExpired: () => void }) {
+export default function LibraryScreen({
+  session,
+  onExpired,
+  roster,
+  online,
+  send,
+}: {
+  session: MobileSession;
+  onExpired: () => void;
+  roster: RosterState;
+  online: boolean;
+  send: (frame: string) => boolean;
+}) {
   const [games, setGames] = useState<MobileGame[]>([]);
   const [query, setQuery] = useState("");
   const [platform, setPlatform] = useState("");
@@ -130,12 +144,13 @@ export default function LibraryScreen({ session, onExpired }: { session: MobileS
               {selected.summary ? (
                 <Text style={{ color: colors.text, marginTop: 16, lineHeight: 21 }}>{selected.summary}</Text>
               ) : null}
-              <Text style={[styles.dim, { marginTop: 24 }]}>
-                Installing is done from the desktop launcher — the companion is read-only for the library.
-              </Text>
-              <TouchableOpacity style={styles.button} onPress={() => setSelected(null)}>
-                <Text style={styles.buttonText}>Close</Text>
-              </TouchableOpacity>
+              <InstallSheet
+                game={selected}
+                roster={roster}
+                online={online}
+                send={send}
+                onClose={() => setSelected(null)}
+              />
             </>
           )}
         </ScrollView>

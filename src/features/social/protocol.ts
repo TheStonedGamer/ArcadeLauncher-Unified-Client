@@ -31,6 +31,10 @@ export type Inbound =
   // Voice (ROADMAP T9g): opaque WebRTC signaling relayed between friends. The
   // `payload` is interpreted by voice.ts (parseSignal); we keep it untyped here.
   | { type: "voice_signal"; fromId: number; payload: unknown }
+  // Remote install (0.14): the owner's phone asks this PC to install a game.
+  // `fromDeviceId` is the phone, kept only so the result can be reported back
+  // to it; the server has already checked both sockets are the same account.
+  | { type: "remote_install"; gameId: string; gameTitle: string; fromDeviceId: string }
   | { type: "unknown" };
 
 function num(v: unknown): number {
@@ -138,6 +142,13 @@ export function parseInbound(utf8: string): Inbound | null {
       };
     case "voice_signal":
       return { type: "voice_signal", fromId: num(v.fromId), payload: v.payload };
+    case "remote_install":
+      return {
+        type: "remote_install",
+        gameId: str(v.gameId),
+        gameTitle: str(v.gameTitle),
+        fromDeviceId: str(v.fromDeviceId),
+      };
     default:
       return { type: "unknown" };
   }
@@ -186,4 +197,9 @@ export const outbound = {
   // ice (see voice.ts SignalPayload).
   voiceSignal: (to: number, payload: unknown): string =>
     JSON.stringify({ type: "voice_signal", to, payload }),
+  // Remote install (0.14): report back to the phone that asked. `deviceId` is
+  // the phone's, so the server knows which socket to relay to; omitting it
+  // would leave the phone waiting on a result that never arrives.
+  remoteInstallResult: (deviceId: string, gameId: string, status: string, message = ""): string =>
+    JSON.stringify({ type: "remote_install_result", deviceId, gameId, status, message }),
 };
