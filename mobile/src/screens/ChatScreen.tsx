@@ -7,18 +7,23 @@
 // appearing and then quietly needing to be taken away again.
 
 import { useMemo, useRef, useState } from "react";
-import { FlatList, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, FlatList, Text, TextInput, TouchableOpacity, View } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 
+import { ApiError, uploadAttachment } from "../api";
 import { conversationOrder, isOnline, type Message, type RosterState } from "../core/roster";
+import type { MobileSession } from "../core/session";
 import { outbound } from "../core/social";
 import { colors, styles } from "../theme";
 
 export default function ChatScreen({
+  session,
   roster,
   online,
   send,
   friends,
 }: {
+  session: MobileSession;
   roster: RosterState;
   online: boolean;
   send: (frame: string) => boolean;
@@ -35,6 +40,7 @@ export default function ChatScreen({
   }
   return (
     <Conversation
+      session={session}
       peer={peer}
       name={nameOf(peer)}
       messages={roster.conversations[peer] ?? []}
@@ -107,6 +113,7 @@ function preview(m: Message): string {
 }
 
 function Conversation({
+  session,
   peer,
   name,
   messages,
@@ -114,6 +121,7 @@ function Conversation({
   send,
   onBack,
 }: {
+  session: MobileSession;
   peer: number;
   name: string;
   messages: Message[];
@@ -122,7 +130,38 @@ function Conversation({
   onBack: () => void;
 }) {
   const [draft, setDraft] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [attachError, setAttachError] = useState("");
   const list = useRef<FlatList<Message>>(null);
+
+  // Photos only, from the phone's own library. A general file picker is a much
+  // wider door on a device where most of what is pickable is not something
+  // anyone means to put in a chat.
+  const attach = async () => {
+    setAttachError("");
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+    });
+    if (picked.canceled || !picked.assets[0]) return;
+    const asset = picked.assets[0];
+    setUploading(true);
+    try {
+      const id = await uploadAttachment(session, {
+        uri: asset.uri,
+        name: asset.fileName || `photo-${asset.assetId ?? "1"}.jpg`,
+        size: asset.fileSize ?? 0,
+      });
+      // The caption rides along with the attachment rather than being sent as a
+      // second message, so the two cannot arrive out of order.
+      if (send(outbound.chat(peer, draft.trim(), 0, id))) setDraft("");
+      else setAttachError("Sent nothing — you are offline.");
+    } catch (err) {
+      setAttachError(err instanceof ApiError ? err.message : "Could not send that photo.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const submit = () => {
     const text = draft.trim();
@@ -162,14 +201,32 @@ function Conversation({
               maxWidth: "80%",
             }}
           >
-            <Text style={{ color: item.mine ? "#0b0d12" : colors.text, fontSize: 15 }}>
-              {item.text || (item.attachmentId > 0 ? "Attachment" : "")}
-            </Text>
+            {item.attachmentId > 0 && (
+              <Text style={{ color: item.mine ? "#0b0d12" : colors.dim, fontSize: 13, marginBottom: 2 }}>
+                Attachment
+              </Text>
+            )}
+            {item.text ? (
+              <Text style={{ color: item.mine ? "#0b0d12" : colors.text, fontSize: 15 }}>{item.text}</Text>
+            ) : null}
           </View>
         )}
       />
 
+      {attachError ? <Text style={[styles.error, { paddingHorizontal: 12 }]}>{attachError}</Text> : null}
+
       <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, padding: 12 }}>
+        <TouchableOpacity
+          onPress={() => void attach()}
+          disabled={!online || uploading}
+          style={{ paddingVertical: 12, paddingHorizontal: 4, opacity: online && !uploading ? 1 : 0.4 }}
+        >
+          {uploading ? (
+            <ActivityIndicator color={colors.dim} size="small" />
+          ) : (
+            <Text style={{ color: colors.accent, fontSize: 22 }}>+</Text>
+          )}
+        </TouchableOpacity>
         <TextInput
           style={[styles.input, { flex: 1, marginTop: 0 }]}
           placeholder={online ? "Message" : "Offline"}

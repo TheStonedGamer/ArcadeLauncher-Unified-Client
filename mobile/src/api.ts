@@ -2,6 +2,7 @@
 // IO lives in src/core/*; this file only performs the request and hands the raw
 // body back to a parser.
 
+import { attachmentBlocker, parsePresign, presignRequest } from "./core/attach";
 import { parseCatalog, type MobileGame } from "./core/catalog";
 import { parseBoard, type MobileBoard } from "./core/requests";
 import { apiUrl, authHeaders, loginError, sessionFromLogin, type MobileSession } from "./core/session";
@@ -90,4 +91,73 @@ export async function checkSession(session: MobileSession): Promise<boolean> {
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) return false;
     throw err;
   }
+}
+
+/** Upload one picked file and return its attachment id, ready to hang off a
+ *  chat frame. Three steps, matching the desktop client exactly: presign over
+ *  the authenticated API, PUT the bytes to the URL that comes back, then hand
+ *  the id to the caller.
+ *
+ *  The session token is deliberately NOT sent on the PUT. That URL is already
+ *  signed, it points at the object store rather than at our server, and sending
+ *  a bearer token to a third-party host is how tokens leak. */
+export async function uploadAttachment(
+  session: MobileSession,
+  file: { uri: string; name: string; size: number },
+): Promise<number> {
+  const blocker = attachmentBlocker(file.name, file.size);
+  if (blocker) throw new ApiError(blocker, 0);
+
+  const req = presignRequest(file.name, file.size);
+  const presigned = parsePresign(
+    await authed(session, "/api/social/attachments/presign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    }),
+  );
+  if (!presigned) throw new ApiError("The server would not accept that attachment", 0);
+
+  // The bytes go up as a blob read from the picked URI. An upload gets its own
+  // generous window: TIMEOUT_MS is sized for a JSON round-trip, and 25 MiB over
+  // a phone connection is not that.
+  const blob = await (await fetch(file.uri)).blob();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120_000);
+  try {
+    const res = await fetch(presigned.uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": req.contentType },
+      body: blob,
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new ApiError(`Upload failed (HTTP ${res.status})`, res.status);
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw new ApiError("The upload did not finish", 0);
+  } finally {
+    clearTimeout(timer);
+  }
+  return presigned.attachmentId;
+}
+
+/** A short-lived download URL for an attachment somebody sent us. The server
+ *  gates this on being a party to the conversation, so an id guessed from
+ *  someone else's chat resolves to nothing. */
+export async function attachmentUrl(
+  session: MobileSession,
+  attachmentId: number,
+): Promise<{ url: string; filename: string; contentType: string } | null> {
+  const body = await authed(session, `/api/social/attachments/${attachmentId}`);
+  if (!body || typeof body !== "object") return null;
+  const v = body as Record<string, unknown>;
+  // `downloadUrl` is the server's field name, as read by the desktop client's
+  // AttachmentLink; nothing else is guessed at.
+  const url = typeof v.downloadUrl === "string" ? v.downloadUrl : "";
+  if (!url) return null;
+  return {
+    url,
+    filename: typeof v.filename === "string" ? v.filename : "attachment",
+    contentType: typeof v.contentType === "string" ? v.contentType : "application/octet-stream",
+  };
 }

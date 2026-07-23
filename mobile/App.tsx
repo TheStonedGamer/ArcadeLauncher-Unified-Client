@@ -102,7 +102,7 @@ export default function App() {
                 send={gateway.send}
               />
             ) : tab === "chat" ? (
-              <ChatScreen roster={gateway.roster} online={online} send={gateway.send} friends={friends} />
+              <ChatScreen session={session} roster={gateway.roster} online={online} send={gateway.send} friends={friends} />
             ) : (
               <RequestsScreen session={session} onExpired={signOut} />
             )}
