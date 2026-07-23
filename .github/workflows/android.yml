@@ -101,10 +101,32 @@ jobs:
       - name: Expo prebuild (generate android/)
         run: npx expo prebuild --platform android --clean --no-install
 
+      # Built through a junction at C:\rn rather than from the workspace path.
+      #
+      # expo-modules-core compiles C++, and its ninja build dir lands under
+      # <workspace>\mobile\node_modules\expo-modules-core\android\.cxx\... —
+      # about 150 characters before ninja adds its own object paths, which puts
+      # the deeper ones past Windows' 260-character MAX_PATH. Ninja does not
+      # report that as a path error; it reports "manifest 'build.ninja' still
+      # dirty after 100 tries", because the files it just wrote are ones it then
+      # cannot stat.
+      #
+      # A junction gives the same files a short path (C:\rn\android\...) without
+      # copying anything or moving the checkout, so the artifact still comes out
+      # of mobile/android where the upload step expects it. `rmdir` is used to
+      # clear a stale link: `rm -rf` on a junction would delete the workspace
+      # through it.
       - name: Gradle assembleDebug
-        working-directory: mobile/android
         shell: bash
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: |
+          set -euo pipefail
+          cmd //c "if exist C:\\rn rmdir C:\\rn"
+          cmd //c "mklink /J C:\\rn \"$(pwd -W | sed 's|/|\\\\|g')\""
+          cd /c/rn/android
+          # arm64 is every phone made this decade; x86_64 keeps an emulator
+          # able to run it. Dropping the two dead ABIs halves the C++ build.
+          ./gradlew assembleDebug --no-daemon --stacktrace \
+            -PreactNativeArchitectures=arm64-v8a,x86_64
 
       - uses: actions/upload-artifact@v4
         with:
