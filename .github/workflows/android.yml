@@ -57,7 +57,38 @@ jobs:
       # Installs cmdline-tools + accepts licences and exports ANDROID_HOME /
       # ANDROID_SDK_ROOT. The platform/build-tools versions the Expo template
       # asks for are then fetched by Gradle itself on first build.
-      - uses: android-actions/setup-android@v3
+      #
+      # Done by hand rather than with android-actions/setup-android, which fails
+      # on THIS runner: it hands the downloaded archive to PowerShell's
+      # Expand-Archive, and PS 5.1 refuses a temp file with no .zip extension.
+      # Hosted runners get away with it because they have pwsh; VM 111 has only
+      # Windows PowerShell 5.1. Unzipping in bash sidesteps the whole question.
+      #
+      # The SDK is installed once to a fixed path outside the workspace and
+      # reused, so repeat builds neither re-download it nor re-accept licences.
+      - name: Install the Android SDK
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          SDK="C:/android-sdk"
+          BIN="$SDK/cmdline-tools/latest/bin"
+          if [ ! -x "$BIN/sdkmanager.bat" ]; then
+            mkdir -p "$SDK/cmdline-tools"
+            curl -sSLo /tmp/cmdline-tools.zip \
+              https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip
+            unzip -q -o /tmp/cmdline-tools.zip -d "$SDK/cmdline-tools"
+            # The zip unpacks as cmdline-tools/; sdkmanager insists on being at
+            # cmdline-tools/latest/ or it cannot locate the SDK root.
+            rm -rf "$SDK/cmdline-tools/latest"
+            mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
+          fi
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "$BIN" >> "$GITHUB_PATH"
+          echo "$SDK/platform-tools" >> "$GITHUB_PATH"
+          yes | "$BIN/sdkmanager.bat" --sdk_root="$SDK" --licenses > /dev/null || true
+          "$BIN/sdkmanager.bat" --sdk_root="$SDK" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Install npm deps
         run: npm ci
