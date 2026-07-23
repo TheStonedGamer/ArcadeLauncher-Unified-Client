@@ -120,8 +120,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cmd //c "if exist C:\\rn rmdir C:\\rn"
-          cmd //c "mklink /J C:\\rn \"$(pwd -W | sed 's|/|\\\\|g')\""
+          # PowerShell rather than mklink: the target has to survive both bash
+          # and cmd quoting, and cmd needs backslashes, so the escaping is one
+          # layer deeper than it looks (an earlier attempt produced a junction
+          # pointing at a literally backslash-doubled path). PowerShell takes
+          # the forward-slash form from `pwd -W` as-is.
+          #
+          # Directory.Delete removes only the reparse point. Remove-Item on a
+          # junction in PS 5.1 can follow it and take the workspace with it.
+          powershell -NoProfile -Command "if (Test-Path 'C:\rn') { [System.IO.Directory]::Delete('C:\rn') }"
+          powershell -NoProfile -Command "New-Item -ItemType Junction -Path 'C:\rn' -Target '$(pwd -W)' | Out-Null"
+          test -f /c/rn/android/gradlew
           cd /c/rn/android
           # arm64 is every phone made this decade; x86_64 keeps an emulator
           # able to run it. Dropping the two dead ABIs halves the C++ build.
