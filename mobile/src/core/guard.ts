@@ -15,12 +15,15 @@
 /** Seconds a single code is valid for before it rolls. */
 export const CODE_PERIOD_SECONDS = 30;
 
-/** Steam's code alphabet: digits and letters that cannot be misread aloud
- *  (no 0/O, 1/I/L, 5/S, A/E, U/V ambiguity). */
-export const CODE_ALPHABET = "23456789BCDFGHJKMNPQRTVWXY";
-
-/** Length of a generated code. */
-export const CODE_LENGTH = 5;
+/** Digits in a generated code.
+ *
+ *  This is 6-digit RFC 6238 TOTP, NOT Steam's 5-character alphabet, and that is
+ *  deliberate: the server already ships TOTP (`users.totp_enabled` /
+ *  `totp_secret`, checked at login by `verify_user_totp`) over the identical
+ *  HMAC-SHA1 construction. Emitting a second, prettier code format would mean
+ *  two algorithms to keep in step for a purely cosmetic difference, so the phone
+ *  produces exactly the code the deployed server already verifies. */
+export const CODE_LENGTH = 6;
 
 // ---------------------------------------------------------------------------
 // SHA-1 (FIPS 180-4) over byte arrays.
@@ -133,7 +136,8 @@ export function secondsRemaining(unixSeconds: number): number {
   return CODE_PERIOD_SECONDS - used;
 }
 
-/** Dynamic truncation (RFC 4226 §5.3) reduced into the code alphabet. */
+/** Dynamic truncation (RFC 4226 §5.3), zero-padded to CODE_LENGTH digits.
+ *  Byte-for-byte equivalent to the server's `totp_code`. */
 export function codeForCounter(secret: Uint8Array, counter: number): string {
   const msg = new Uint8Array(8);
   const dv = new DataView(msg.buffer);
@@ -142,19 +146,14 @@ export function codeForCounter(secret: Uint8Array, counter: number): string {
 
   const mac = hmacSha1(secret, msg);
   const offset = mac[19] & 0x0f;
-  let value =
-    ((mac[offset] & 0x7f) << 24) |
-    ((mac[offset + 1] & 0xff) << 16) |
-    ((mac[offset + 2] & 0xff) << 8) |
-    (mac[offset + 3] & 0xff);
-  value = value >>> 0;
+  const value =
+    (((mac[offset] & 0x7f) << 24) |
+      ((mac[offset + 1] & 0xff) << 16) |
+      ((mac[offset + 2] & 0xff) << 8) |
+      (mac[offset + 3] & 0xff)) >>>
+    0;
 
-  let code = "";
-  for (let i = 0; i < CODE_LENGTH; i++) {
-    code += CODE_ALPHABET[value % CODE_ALPHABET.length];
-    value = Math.floor(value / CODE_ALPHABET.length);
-  }
-  return code;
+  return String(value % 1_000_000).padStart(CODE_LENGTH, "0");
 }
 
 /** The code for a moment in time. */
@@ -175,9 +174,10 @@ export function verifyCode(secret: Uint8Array, typed: string, unixSeconds: numbe
   return false;
 }
 
-/** Strip the formatting a human introduces when retyping a code. */
+/** Strip the formatting a human introduces when retyping a code. Mirrors the
+ *  server's `verify_user_totp`, which keeps only ASCII digits. */
 export function normalizeCode(typed: string): string {
-  return (typed ?? "").replace(/[\s-]/g, "").toUpperCase();
+  return (typed ?? "").replace(/\D/g, "");
 }
 
 // ---------------------------------------------------------------------------
