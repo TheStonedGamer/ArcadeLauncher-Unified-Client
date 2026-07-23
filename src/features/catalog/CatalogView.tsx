@@ -15,6 +15,7 @@ import { ControllerHints } from "../gamepad/ControllerHints";
 import { CatalogGrid } from "./components/CatalogGrid";
 import { ContinuePlayingRow } from "./components/ContinuePlayingRow";
 import { LibraryStatsPanel } from "./components/LibraryStatsPanel";
+import { WeeklyRecapPanel } from "./components/WeeklyRecapPanel";
 import { recentlyPlayed } from "./stats";
 import { CardContextMenu, type CardMenuTarget } from "./components/CardContextMenu";
 import { Sidebar } from "./components/Sidebar";
@@ -288,6 +289,10 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
     () => (showContinue ? recentlyPlayed(merged) : []),
     [showContinue, merged],
   );
+  const totalPlaytimeSeconds = useMemo(
+    () => merged.reduce((sum, g) => sum + Math.max(0, g.playtimeSeconds), 0),
+    [merged],
+  );
 
   const setFilter = (filter: Filter) => setQuery((q) => ({ ...q, filter }));
 
@@ -420,6 +425,10 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
           </div>
 
           {showContinue && <LibraryStatsPanel games={merged} />}
+
+          {/* Total playtime changes exactly when a game exits, so it doubles as
+              the signal to re-read the session log. */}
+          {showContinue && <WeeklyRecapPanel refreshKey={totalPlaytimeSeconds} />}
 
           {continueGames.length > 0 && (
             <ContinuePlayingRow games={continueGames} nowMs={Date.now()} onLaunch={launch} />

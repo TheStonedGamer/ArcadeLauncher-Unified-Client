@@ -58,6 +58,12 @@ external runtime dependencies.
 - **Controller-friendly** — full **gamepad navigation** and a **Big Picture**
   fullscreen mode for couch/arcade-cabinet use.
 - **Global hotkey** to summon the launcher from anywhere.
+- **Continue Playing, library stats, and a weekly recap** — recently-played
+  strip, a collapsible stats panel (games / played / total time + most-played
+  chart), and a **Your week** recap driven by a per-session play log the client
+  writes on exit (`play_sessions.json`, client-local, 400-day retention):
+  weekly total, session count, busiest day, longest session, per-day chart, top
+  games, week-over-week change, and games new that week.
 
 ### 1.3 Downloads & installation
 - **Manifest-driven installs** — each server game install is described by a

@@ -23,6 +23,15 @@ pub struct GameExited {
 
 pub const GAME_EXITED_EVENT: &str = "game-exited";
 
+/// Wall-clock unix seconds. A clock before the epoch yields 0 rather than
+/// panicking — a nonsense stamp is better than killing the exit thread.
+fn unix_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
 /// Start a play session for `game`. Resolves the launch target, runs the
 /// pre-launch hook, spawns the process, and detaches a waiter thread.
 pub fn start(app: &AppHandle, mut game: Game) -> AppResult<u32> {
@@ -50,12 +59,28 @@ pub fn start(app: &AppHandle, mut game: Game) -> AppResult<u32> {
 
     std::thread::spawn(move || {
         let started = Instant::now();
+        let started_at = unix_now();
         let exit_ok = child.wait().map(|s| s.success()).unwrap_or(false);
         hooks::run(&post);
+        let seconds = started.elapsed().as_secs();
+
+        // Record the session before emitting, so history is captured even if no
+        // webview is listening. Best-effort: a failed write must never affect
+        // the exit path.
+        if let Ok(path) = crate::catalog::sessions_commands::sessions_path(&app) {
+            let entry = crate::catalog::sessions::PlaySession {
+                id: id.clone(),
+                title: title.clone(),
+                started_at,
+                seconds,
+            };
+            let _ = crate::catalog::sessions::record(&path, entry, unix_now());
+        }
+
         let payload = GameExited {
             id,
             title,
-            playtime_seconds: started.elapsed().as_secs(),
+            playtime_seconds: seconds,
             exit_ok,
         };
         let _ = app.emit(GAME_EXITED_EVENT, payload);

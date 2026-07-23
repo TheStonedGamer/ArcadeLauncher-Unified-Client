@@ -9,3 +9,5 @@ pub mod loader;
 pub mod model;
 pub mod prefs;
 pub mod prefs_commands;
+pub mod sessions;
+pub mod sessions_commands;

@@ -4,6 +4,7 @@
 import { call } from "../../lib/ipc";
 import type { Game } from "./types";
 import type { CatalogPrefs } from "./prefs";
+import { parseSessions, type PlaySession } from "./recap";
 
 /** Load the user's client-local catalog prefs (favorites/hidden/collections). */
 export function loadCatalogPrefs(): Promise<CatalogPrefs> {
@@ -13,6 +14,12 @@ export function loadCatalogPrefs(): Promise<CatalogPrefs> {
 /** Persist the whole prefs object. */
 export function saveCatalogPrefs(prefs: CatalogPrefs): Promise<void> {
   return call("save_catalog_prefs", { prefs });
+}
+
+/** Load the client-local per-session play history (oldest first). Written by
+ *  Rust when a game exits; parsed defensively before use. */
+export async function loadPlaySessions(): Promise<PlaySession[]> {
+  return parseSessions(await call<unknown>("load_play_sessions"));
 }
 
 /** Load games. The library.json path is resolved in Rust (per-user default);

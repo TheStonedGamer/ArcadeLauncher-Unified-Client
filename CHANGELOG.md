@@ -20,6 +20,12 @@ Added / Changed / Fixed / Removed.
   tucked into the corner. Switch straight from camera to screen (or back) without
   dropping the call, and stopping a share from your browser/OS bar is picked up
   automatically. Group calls stay voice-only for now.
+- **Your week — a weekly recap of what you played.** The launcher now remembers
+  each play session, not just a running total, and a new **Your week** panel above
+  your library shows total time, how many sessions, your busiest day, your longest
+  sitting, a bar per day, your top games of the week, whether you played more or
+  less than last week, and anything you picked up for the first time. It starts
+  filling in from your next game — earlier playtime totals are untouched.
 
 ## [0.13.23] - 2026-07-22
 

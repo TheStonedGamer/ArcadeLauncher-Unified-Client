@@ -146,6 +146,7 @@ pub fn run() {
             catalog::commands::fetch_catalog,
             catalog::prefs_commands::load_catalog_prefs,
             catalog::prefs_commands::save_catalog_prefs,
+            catalog::sessions_commands::load_play_sessions,
             catalog::art_commands::steamgriddb_search,
             catalog::art_commands::apply_cover,
             retroachievements::commands::retroachievements_summary,

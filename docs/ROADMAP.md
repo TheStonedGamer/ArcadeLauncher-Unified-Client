@@ -579,8 +579,16 @@ from scratch.
   - [x] Library stats dashboard: collapsible panel with headline numbers
         (games / played / total time) + a "Most Played" bar chart, backed by
         pure `playtimeBars` + `libraryStats`.
-  - [ ] _Deferred:_ weekly recap (needs per-session history; we only track
-        cumulative playtime + lastPlayed) and HowLongToBeat (external API).
+  - [x] Per-session play history (v0.13.24): Rust appends one record per
+        completed session to a client-local `play_sessions.json` (pure
+        `catalog/sessions.rs` append/retention core — zero-second sessions
+        dropped, 400-day / 5000-record retention, corrupt file reads as empty).
+        Written from the post-exit thread, so history survives a closed webview.
+  - [x] Weekly recap (v0.13.24): "Your week" panel above the catalog — total
+        time, session count, busiest day, longest session, a per-weekday bar
+        chart, this week's top games, week-over-week change, and what's new
+        this week. Pure `recap.ts` core (26 KATs), local weeks, injected clock.
+  - [ ] _Deferred:_ HowLongToBeat (external API).
 
 **Bigger bets** (tie into adjacent projects)
 
