@@ -13,6 +13,16 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-07-23
+
+### Fixed
+- **Phone app sign-in.** The Android companion now signs in the same secure way
+  the desktop launcher does — your password is proven to the server without ever
+  leaving your phone — instead of failing at the login screen.
+- **The library and request board now load on the phone.** The companion was
+  asking the server for these at the wrong address and getting nothing back;
+  it now reaches the right place, so your games and the request board appear.
+
 ## [0.14.0] - 2026-07-23
 
 ### Added
