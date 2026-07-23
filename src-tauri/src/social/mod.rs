@@ -9,6 +9,7 @@
 pub mod attach;
 pub mod backoff;
 pub mod commands;
+pub mod device;
 pub mod endpoint;
 pub mod model;
 pub mod protocol;

@@ -16,6 +16,7 @@
 //! sees a stale `disconnected` clobbering a live `connected`.
 
 use crate::social::backoff::Backoff;
+use crate::social::device;
 use crate::social::endpoint::Endpoint;
 use crate::social::protocol::{outbound, Inbound};
 use futures_util::{SinkExt, StreamExt};
@@ -115,7 +116,17 @@ async fn run_connection(
             return;
         }
 
-        match tokio_tungstenite::connect_async(endpoint.ws_url()).await {
+        // Identity is derived per connect rather than cached: it is two env
+        // reads and a hash, and re-deriving means a machine renamed while the
+        // launcher is open reconnects under its new name.
+        let (host, user) = device::local_identity();
+        let url = endpoint.ws_url_with_device(
+            &device::device_id(&host, &user),
+            &device::device_name(&host, &user),
+            device::DEVICE_KIND,
+            env!("CARGO_PKG_VERSION"),
+        );
+        match tokio_tungstenite::connect_async(url).await {
             Ok((ws, _)) => {
                 backoff.reset();
                 if !emit_if_current(&app, &gen, my_gen, STATE_EVENT, "connected") {

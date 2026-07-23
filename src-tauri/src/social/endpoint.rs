@@ -37,6 +37,31 @@ impl Endpoint {
         format!("wss://{}/ws/social?token={}", self.host, encode_query(&self.token))
     }
 
+    /// The WebSocket URL with this machine's device identity attached, so the
+    /// server can address it individually for remote install (0.14).
+    ///
+    /// Empty fields are omitted rather than sent blank: the server treats an
+    /// unusable id as "no device identity", and sending `deviceId=` would be a
+    /// noisier way of saying the same thing. A connection with no identity still
+    /// gets chat and presence — it just never appears as an install target.
+    pub fn ws_url_with_device(&self, id: &str, name: &str, kind: &str, version: &str) -> String {
+        let mut url = self.ws_url();
+        for (key, value) in [
+            ("deviceId", id),
+            ("deviceName", name),
+            ("deviceKind", kind),
+            ("appVersion", version),
+        ] {
+            if !value.trim().is_empty() {
+                url.push('&');
+                url.push_str(key);
+                url.push('=');
+                url.push_str(&encode_query(value.trim()));
+            }
+        }
+        url
+    }
+
     /// The REST URL for the authoritative friend list.
     pub fn friends_url(&self) -> String {
         format!("https://{}/api/social/friends", self.host)
@@ -142,6 +167,27 @@ mod tests {
         assert_eq!(e.ws_url(), "wss://arcade.example.com/ws/social?token=abc123");
         assert_eq!(e.friends_url(), "https://arcade.example.com/api/social/friends");
         assert_eq!(e.token(), "abc123");
+    }
+
+    #[test]
+    fn appends_device_identity_to_the_ws_url() {
+        let e = Endpoint::new("h.test", "t");
+        assert_eq!(
+            e.ws_url_with_device("pc-1", "Living Room PC", "desktop", "0.14.0"),
+            "wss://h.test/ws/social?token=t&deviceId=pc-1&deviceName=Living%20Room%20PC\
+             &deviceKind=desktop&appVersion=0.14.0"
+        );
+    }
+
+    #[test]
+    fn omits_device_fields_it_has_no_value_for() {
+        let e = Endpoint::new("h.test", "t");
+        assert_eq!(
+            e.ws_url_with_device("pc-1", "  ", "desktop", ""),
+            "wss://h.test/ws/social?token=t&deviceId=pc-1&deviceKind=desktop"
+        );
+        // No identity at all is the same URL the pre-0.14 client sent.
+        assert_eq!(e.ws_url_with_device("", "", "", ""), e.ws_url());
     }
 
     #[test]

@@ -171,9 +171,57 @@ pub enum Inbound {
         #[serde(default)]
         timestamp: u64,
     },
+    /// The phone asked this PC to install a game (0.14). `from_device_id` is
+    /// the phone that sent it, kept so the result can name who asked.
+    #[serde(rename = "remote_install", rename_all = "camelCase")]
+    RemoteInstall {
+        #[serde(default)]
+        game_id: String,
+        #[serde(default)]
+        game_title: String,
+        #[serde(default)]
+        from_device_id: String,
+    },
+    /// The devices currently signed in on this account. The desktop mostly
+    /// ignores this (it is the phone's picker), but parsing it keeps the frame
+    /// out of `Unknown` and makes the list available for a future settings pane.
+    #[serde(rename = "devices")]
+    Devices {
+        #[serde(default)]
+        devices: Vec<DeviceEntry>,
+    },
+    /// A sign-in on some machine is waiting on approval. Delivered only to
+    /// phones by the server, so a desktop seeing one is a server-side change:
+    /// it is parsed rather than dropped so the UI can decide what to do.
+    #[serde(rename = "guard_request", rename_all = "camelCase")]
+    GuardRequest {
+        #[serde(default)]
+        request_id: String,
+        #[serde(default)]
+        prompt: String,
+        #[serde(default)]
+        device_name: String,
+        #[serde(default)]
+        ip: String,
+        #[serde(default)]
+        expires_in: u64,
+    },
     /// Any frame type we don't model yet (e.g. voice_signal — that's T4).
     #[serde(other)]
     Unknown,
+}
+
+/// One machine signed in on this account, as the gateway reports it.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DeviceEntry {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub version: String,
 }
 
 impl Inbound {
@@ -267,6 +315,40 @@ pub mod outbound {
         json!({ "type": "room_leave", "roomId": room_id }).to_string()
     }
 
+    /// Ask the gateway for the account's currently signed-in devices (0.14).
+    pub fn devices() -> String {
+        json!({ "type": "devices" }).to_string()
+    }
+
+    /// Ask another of our own machines to install a game.
+    pub fn remote_install(device_id: &str, game_id: &str, game_title: &str) -> String {
+        json!({
+            "type": "remote_install",
+            "deviceId": device_id,
+            "gameId": game_id,
+            "gameTitle": game_title,
+        })
+        .to_string()
+    }
+
+    /// Report back what happened to a remote install we were asked to run.
+    /// `status` is one of started / done / failed; `message` is shown verbatim
+    /// on the phone, so it carries the real error rather than a code.
+    pub fn remote_install_result(game_id: &str, status: &str, message: &str) -> String {
+        json!({
+            "type": "remote_install_result",
+            "gameId": game_id,
+            "status": status,
+            "message": message,
+        })
+        .to_string()
+    }
+
+    /// Answer a sign-in approval push: "approve" or "deny".
+    pub fn guard_decision(request_id: &str, action: &str) -> String {
+        json!({ "type": "guard_decision", "requestId": request_id, "action": action }).to_string()
+    }
+
     /// Post a chat message to a room (T12f-2).
     pub fn room_chat(room_id: u64, text: &str) -> String {
         json!({ "type": "room_chat", "roomId": room_id, "text": text }).to_string()
@@ -276,6 +358,90 @@ pub mod outbound {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_a_remote_install_command() {
+        assert_eq!(
+            Inbound::parse(
+                r#"{"type":"remote_install","gameId":"g-7","gameTitle":"Doom","fromDeviceId":"phone-1"}"#
+            ),
+            Some(Inbound::RemoteInstall {
+                game_id: "g-7".into(),
+                game_title: "Doom".into(),
+                from_device_id: "phone-1".into(),
+            })
+        );
+    }
+
+    #[test]
+    fn a_remote_install_without_a_title_still_parses() {
+        // The gateway relays whatever the phone sent; a title is cosmetic and a
+        // missing one must not cost us the install.
+        assert_eq!(
+            Inbound::parse(r#"{"type":"remote_install","gameId":"g-7"}"#),
+            Some(Inbound::RemoteInstall {
+                game_id: "g-7".into(),
+                game_title: String::new(),
+                from_device_id: String::new(),
+            })
+        );
+    }
+
+    #[test]
+    fn parses_the_device_list() {
+        let f = r#"{"type":"devices","devices":[{"id":"pc-1","name":"Living Room PC","kind":"desktop","version":"0.14.0"}]}"#;
+        assert_eq!(
+            Inbound::parse(f),
+            Some(Inbound::Devices {
+                devices: vec![DeviceEntry {
+                    id: "pc-1".into(),
+                    name: "Living Room PC".into(),
+                    kind: "desktop".into(),
+                    version: "0.14.0".into(),
+                }]
+            })
+        );
+    }
+
+    #[test]
+    fn an_empty_device_list_is_not_an_error() {
+        assert_eq!(
+            Inbound::parse(r#"{"type":"devices","devices":[]}"#),
+            Some(Inbound::Devices { devices: vec![] })
+        );
+    }
+
+    #[test]
+    fn parses_a_sign_in_approval_push() {
+        let f = r#"{"type":"guard_request","requestId":"r1","prompt":"PC is trying to sign in from 10.0.0.5.","deviceName":"PC","ip":"10.0.0.5","expiresIn":120}"#;
+        assert_eq!(
+            Inbound::parse(f),
+            Some(Inbound::GuardRequest {
+                request_id: "r1".into(),
+                prompt: "PC is trying to sign in from 10.0.0.5.".into(),
+                device_name: "PC".into(),
+                ip: "10.0.0.5".into(),
+                expires_in: 120,
+            })
+        );
+    }
+
+    #[test]
+    fn builds_the_new_outbound_frames() {
+        assert_eq!(outbound::devices(), r#"{"type":"devices"}"#);
+        assert_eq!(
+            outbound::remote_install("pc-1", "g-7", "Doom"),
+            r#"{"deviceId":"pc-1","gameId":"g-7","gameTitle":"Doom","type":"remote_install"}"#
+        );
+        assert_eq!(
+            outbound::remote_install_result("g-7", "failed", "no disk space"),
+            r#"{"gameId":"g-7","message":"no disk space","status":"failed","type":"remote_install_result"}"#
+        );
+        assert_eq!(
+            outbound::guard_decision("r1", "approve"),
+            r#"{"action":"approve","requestId":"r1","type":"guard_decision"}"#
+        );
+    }
 
     #[test]
     fn parses_hello() {
