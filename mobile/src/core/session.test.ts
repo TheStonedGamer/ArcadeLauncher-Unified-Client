@@ -6,8 +6,11 @@ import {
   loginBlocker,
   loginError,
   normalizeHost,
+  parseChallengeNonce,
   parseStoredSession,
+  parseVerifyCipher,
   sessionFromLogin,
+  sessionFromVerify,
 } from "./session";
 
 describe("normalizeHost", () => {
@@ -129,5 +132,44 @@ describe("parseStoredSession", () => {
     for (const bad of [null, "", "{oops", {}, { host: "h.net" }, { token: "t" }, { host: "", token: "t" }]) {
       expect(parseStoredSession(bad)).toBeNull();
     }
+  });
+});
+
+describe("parseChallengeNonce", () => {
+  it("returns the nonce string when present", () => {
+    expect(parseChallengeNonce({ nonce: "abc123" })).toBe("abc123");
+  });
+  it("is null for a missing, empty, non-string or non-object body", () => {
+    for (const bad of [null, undefined, "", "nope", {}, { nonce: "" }, { nonce: 5 }]) {
+      expect(parseChallengeNonce(bad)).toBeNull();
+    }
+  });
+});
+
+describe("parseVerifyCipher", () => {
+  it("returns iv+token when both are non-empty strings", () => {
+    expect(parseVerifyCipher({ iv: "00ff", token: "dead", username: "x" })).toEqual({
+      iv: "00ff",
+      token: "dead",
+    });
+  });
+  it("is null when either field is missing or not a non-empty string", () => {
+    for (const bad of [null, {}, { iv: "00" }, { token: "aa" }, { iv: "", token: "aa" }, { iv: "00", token: 1 }]) {
+      expect(parseVerifyCipher(bad)).toBeNull();
+    }
+  });
+});
+
+describe("sessionFromVerify", () => {
+  it("builds a normalized session, preferring the server's username and admin flag", () => {
+    const s = sessionFromVerify("https://Host.NET/", "  Me  ", { username: "RealName", isAdmin: true }, "tok");
+    expect(s).toEqual({ host: "Host.NET", username: "RealName", token: "tok", isAdmin: true });
+  });
+  it("falls back to the typed username and non-admin when the body omits them", () => {
+    const s = sessionFromVerify("h.net", "typed", {}, "tok");
+    expect(s).toEqual({ host: "h.net", username: "typed", token: "tok", isAdmin: false });
+  });
+  it("is null when there is no token", () => {
+    expect(sessionFromVerify("h.net", "u", { username: "u" }, "")).toBeNull();
   });
 });

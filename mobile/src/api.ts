@@ -4,8 +4,18 @@
 
 import { attachmentBlocker, parsePresign, presignRequest } from "./core/attach";
 import { parseCatalog, type MobileGame } from "./core/catalog";
+import { challengeProof, decryptToken, deriveAuthKey } from "./core/crypto";
 import { parseBoard, type MobileBoard } from "./core/requests";
-import { apiUrl, authHeaders, loginError, sessionFromLogin, type MobileSession } from "./core/session";
+import {
+  apiUrl,
+  authHeaders,
+  loginError,
+  parseChallengeNonce,
+  parseVerifyCipher,
+  sessionFromLogin,
+  sessionFromVerify,
+  type MobileSession,
+} from "./core/session";
 
 const TIMEOUT_MS = 15000;
 
@@ -44,15 +54,69 @@ async function request(
   }
 }
 
-/** Sign in against the server's plain form endpoint. */
+/** Sign in, matching the desktop client's auth exactly: the privacy-preserving
+ *  challenge-response flow first (the password never leaves the device — only a
+ *  derived proof does), falling back to the plain `POST /api/login` form for
+ *  accounts that have no challenge key. See src-tauri/src/session/commands.rs. */
 export async function login(host: string, username: string, password: string): Promise<MobileSession> {
-  const form = `username=${encodeURIComponent(username.trim())}&password=${encodeURIComponent(password)}`;
+  const user = username.trim();
+  const viaChallenge = await challengeLogin(host, user, password);
+  if (viaChallenge) return viaChallenge;
+  return passwordLogin(host, user, password);
+}
+
+/** Challenge-response attempt. Returns a session on full success, or null to
+ *  signal "fall through to the password path" — a missing challenge key, a bad
+ *  proof (wrong password), or a malformed response — so the user sees the single
+ *  clear error the password attempt produces, exactly as the desktop does. */
+async function challengeLogin(
+  host: string,
+  user: string,
+  password: string,
+): Promise<MobileSession | null> {
+  // 1) Ask for a nonce. A non-2xx (typically 401 = no challenge key) means this
+  //    account uses plain password login.
+  const challenge = await request(host, `/api/auth/challenge?username=${encodeURIComponent(user)}`, {
+    headers: { Accept: "application/json" },
+  });
+  const nonce =
+    challenge.status >= 200 && challenge.status < 300 ? parseChallengeNonce(challenge.body) : null;
+  if (!nonce) return null;
+
+  // 2) Prove knowledge of the password without sending it.
+  const key = deriveAuthKey(user, password);
+  const proof = challengeProof(key, nonce);
+  const form = `username=${encodeURIComponent(user)}&proof=${encodeURIComponent(proof)}&totpCode=`;
+  const verify = await request(host, "/api/auth/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+    body: form,
+  });
+  if (verify.status < 200 || verify.status >= 300) return null; // bad proof / TOTP → fall through
+
+  // 3) Decrypt the returned bearer token with the same key.
+  const cipher = parseVerifyCipher(verify.body);
+  if (!cipher) return null;
+  let token: string;
+  try {
+    token = decryptToken(key, cipher.iv, cipher.token);
+  } catch {
+    return null; // corrupt ciphertext — let the password path report cleanly
+  }
+  return sessionFromVerify(host, user, verify.body, token);
+}
+
+/** Plain form login: the fallback for accounts with no challenge key. This is
+ *  the one path that sends the password (over TLS), so it runs only after the
+ *  challenge flow has declined. */
+async function passwordLogin(host: string, user: string, password: string): Promise<MobileSession> {
+  const form = `username=${encodeURIComponent(user)}&password=${encodeURIComponent(password)}`;
   const { status, body } = await request(host, "/api/login", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
     body: form,
   });
-  const session = status >= 200 && status < 300 ? sessionFromLogin(host, username, body) : null;
+  const session = status >= 200 && status < 300 ? sessionFromLogin(host, user, body) : null;
   if (!session) throw new ApiError(loginError(body, status), status);
   return session;
 }

@@ -60,6 +60,40 @@ export function sessionFromLogin(host: string, username: string, body: unknown):
   };
 }
 
+/** The nonce from a `GET /api/auth/challenge` response, or null when the body
+ *  carries none (an account with no challenge key, or a non-JSON error page). */
+export function parseChallengeNonce(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const n = (body as Record<string, unknown>).nonce;
+  return typeof n === "string" && n ? n : null;
+}
+
+/** The `iv` + `token` ciphertext hex from a `POST /api/auth/verify` response,
+ *  or null if either field is missing — so a malformed body falls through to
+ *  the password path rather than throwing. */
+export function parseVerifyCipher(body: unknown): { iv: string; token: string } | null {
+  if (!body || typeof body !== "object") return null;
+  const b = body as Record<string, unknown>;
+  if (typeof b.iv !== "string" || !b.iv) return null;
+  if (typeof b.token !== "string" || !b.token) return null;
+  return { iv: b.iv, token: b.token };
+}
+
+/** Build a session from a verify response once the caller has decrypted its
+ *  token. Returns null when there is no token. `body` supplies the display name
+ *  and admin flag; the token is the already-decrypted bearer. */
+export function sessionFromVerify(
+  host: string,
+  username: string,
+  body: unknown,
+  token: string,
+): MobileSession | null {
+  if (!token) return null;
+  const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  const name = typeof b.username === "string" && b.username ? b.username : username.trim();
+  return { host: normalizeHost(host), username: name, token, isAdmin: b.isAdmin === true };
+}
+
 /** Pull the server's own error message out of a failed response body, falling
  *  back to a status-based line so the user never sees a bare "failed". */
 export function loginError(body: unknown, status: number): string {
