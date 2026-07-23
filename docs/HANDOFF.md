@@ -494,10 +494,11 @@ No roadmap blockers remain. Net-new feature backlog now lives in
   sideloaded rather than shipped through the Play Store. Created 2026-07-23:
   alias `arcadelauncher`, RSA 4096, SHA384withRSA, valid to 2056, SHA-256
   fingerprint `FE:A6:E3:9F:31:06:79:C7:54:8E:E8:88:2F:F8:B9:E1:21:7A:CC:7F:0B:2B:16:06:E1:48:64:43:E7:17:DF:C6`.
-  It is **not** in this repo. Copies: `C:\Users\BrianTheMint\.arcadelauncher-signing\`
-  on the owner's workstation, and the `ANDROID_KEYSTORE_BASE64` repo secret.
-  Both are machines the owner controls and **neither is an off-box backup** —
-  lose both and the phone app can never be updated again, only reinstalled.
+  It is **not** in this client repo. Copies: `C:\Users\BrianTheMint\.arcadelauncher-signing\`
+  on the owner's workstation, the `ANDROID_KEYSTORE_BASE64` repo secret, and the
+  **private** backup repo `TheStonedGamer/arcadelauncher-signing-backup` (which
+  also carries the password and a recovery README — keep it private and
+  collaborator-free, since it is a complete usable signing identity).
   `release.yml` verifies with `apksigner` and fails the release if the debug
   certificate signed the APK.
 - `[minor]` commit keyword is **only** for client↔server compat-breaking changes.

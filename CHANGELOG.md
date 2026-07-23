@@ -13,6 +13,8 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-07-23
+
 ### Added
 - **The phone app grew up.** The ArcadeLauncher companion for Android now does
   everything the launcher does socially: **friends and presence**, **chat with
