@@ -43,3 +43,6 @@ arcade-updater.key*
 memory/
 
 LOOP_PROMPT.md
+
+# Stray regenerated handoff at the repo root; the real one is docs/HANDOFF.md
+/HANDOFF.md

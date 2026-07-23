@@ -230,7 +230,7 @@ the social/download features. Mirrors the server's `auth.rs`.
   `session_clear`, keyed by a stable per-install seed (the app-config dir).
   `SessionProvider` auto-restores a non-expired session on launch, saves on
   login, clears on sign-out; token never touches localStorage.
-- [ ] **TSc** Wire the session host+token into the social live connection
+- [x] **TSc** Wire the session host+token into the social live connection
   (unblocks social-live) and the download install trigger (unblocks T4d-3).
 - [x] **TSd** Account creation / self-registration with admin email approval.
   **DONE & LIVE (v0.10.13, server 0.10.2+).** Plus follow-ups this session:
@@ -262,7 +262,7 @@ Bearer-authed: `GET /api/saves/:id` → `{files:[…]}`, `GET
 /api/saves/:id/file?path=` → raw bytes, `PUT /api/saves/:id/file?path=&mtime=`
 → upsert. Server rejects traversal paths (`valid_save_path`).
 
-- [ ] **T8a** Cloud-save sync v1 against the existing server endpoints
+- [x] **T8a** Cloud-save sync v1 against the existing server endpoints
   (upload/download save sets, conflict handling).
   - [x] **T8a-1** Pure sync-decision core (`saves::sync`, 11 KATs): `SaveFile`
     `{path,mtime,size}` mirrors the server contract; `plan_sync(local, remote)`
@@ -603,10 +603,35 @@ from scratch.
   All logic lives in pure `mobile/src/core/{session,catalog,requests}.ts` (58 KATs)
   which the **root** vitest run covers, so both CI runners gate it; the React
   Native UI stays outside the desktop `tsconfig`.
-  - [ ] _Deferred:_ "install to my PC" and download-queue control. Both act on a
-        specific running desktop client, and the server has no relay to push a
-        command to one — that is server-side work, not a client change.
-  - [ ] _Deferred:_ chat / presence and filing new requests (the create flow is
+  - [x] **Companion II (v0.14.0)** — both deferrals below were taken up, plus the
+        rest of what the owner asked for. The server gained a **device registry**
+        (every signed-in socket announces `deviceId`/`deviceName`/`deviceKind`)
+        and a **remote-install relay**, which is what the first deferral was
+        actually waiting on.
+    - [x] **Remote install.** The phone lists the account's desktops, picks one
+          and sends `remote_install`; the PC decides via the pure
+          `src/features/social/remoteInstall.ts` (17 KATs) and reports back.
+          Refusals are ordered and phrased for a phone screen; an unknown game id
+          is only refused once a catalogue has actually loaded.
+    - [x] **Friends, presence and chat**, folded into UI state by the pure
+          `mobile/src/core/roster.ts` (24 KATs). Non-optimistic send: the
+          server's echo is what files a message into a thread.
+    - [x] **Attachments**, `mobile/src/core/attach.ts` (13 KATs) mirroring
+          `src-tauri/src/social/attach.rs` case for case, so a file the PC would
+          send is never one the phone silently refuses. Presign is the only
+          authenticated call; the PUT carries no bearer.
+    - [x] **Voice and video calls** over the existing `voice_signal` relay.
+          `mobile/src/core/call.ts` (29 KATs) restates the desktop's `voice.ts`
+          contract rather than inventing a second one. STUN only — a
+          symmetric-NAT pair would need TURN.
+    - [x] **Sign-in approval (Steam-Guard style)**: approve/deny push showing the
+          device and IP, plus a rolling TOTP for when the phone is offline
+          (`mobile/src/core/guard.ts`, 31 KATs). An unanswered prompt expires and
+          degrades to "type your code" rather than locking the owner out.
+    - [ ] _Still open:_ push while the app is **closed**. WS delivery covers an
+          open app; background delivery needs FCM credentials, which is an
+          account the owner has to create.
+  - [ ] _Deferred:_ filing new requests from the phone (the create flow is
         IGDB-search-driven and lives with the desktop metadata picker).
 
 **Polish**
