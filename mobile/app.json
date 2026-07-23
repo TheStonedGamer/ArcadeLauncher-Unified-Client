@@ -30,6 +30,7 @@
     },
     "plugins": [
       "@config-plugins/react-native-webrtc",
+      "./plugins/withReleaseSigning",
       [
         "expo-build-properties",
         {

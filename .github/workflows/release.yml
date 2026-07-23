@@ -37,6 +37,16 @@ name: Release
 # signs artifacts with them):
 #   TAURI_SIGNING_PRIVATE_KEY           (contents of ~/.tauri/arcade-updater.key)
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  (empty for this key)
+#
+# The Android leg needs four more, and will fail the release rather than ship an
+# unsigned APK if any is missing:
+#   ANDROID_KEYSTORE_BASE64    (base64 of the release .jks)
+#   ANDROID_KEYSTORE_PASSWORD
+#   ANDROID_KEY_ALIAS          (`arcadelauncher`)
+#   ANDROID_KEY_PASSWORD
+# The keystore itself is NOT in this repo. Its only copies are the owner's
+# off-repo backup and the secret above; losing both means no user can ever
+# upgrade the phone app again (see the release-android job for why).
 
 on:
   push:
@@ -240,10 +250,185 @@ jobs:
           # bundled as a sidecar (externalBin in tauri.conf.json).
           releaseId: ${{ needs.create-release.outputs.release_id }}
 
-  # ---- Phase 3: publish the draft once both legs uploaded ----------------
+  # ---- Phase 2c: Android companion — signed APK --------------------------
+  # Builds the phone app as a RELEASE-signed APK and attaches it to the same
+  # draft. Runs on `arcade-win10` like the Windows leg, so the two serialize on
+  # that host rather than running in parallel; the APK build is ~14 min.
+  #
+  # Signing comes from four repo secrets (ANDROID_KEYSTORE_BASE64,
+  # ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD), decoded
+  # into a keystore outside the workspace and handed to Gradle as properties that
+  # `mobile/plugins/withReleaseSigning.js` wires into the generated build.gradle.
+  #
+  # THE SIGNING KEY IS PERMANENT. Android refuses to update an installed app
+  # whose signature changed, so replacing this keystore forces every user to
+  # uninstall and lose their app data. Treat it exactly like the WiX UpgradeCode:
+  # it cannot be rotated after the first release ships.
+  #
+  # The C:\rn short-path staging is not optional — see android.yml for the full
+  # CMAKE_OBJECT_PATH_MAX explanation.
+  release-android:
+    needs: create-release
+    runs-on: [self-hosted, Windows, X64, arcade-win10]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install the Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="C:/android-sdk"
+          BIN="$SDK/cmdline-tools/latest/bin"
+          if [ ! -x "$BIN/sdkmanager.bat" ]; then
+            mkdir -p "$SDK/cmdline-tools"
+            curl -sSLo /tmp/cmdline-tools.zip \
+              https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip
+            unzip -q -o /tmp/cmdline-tools.zip -d "$SDK/cmdline-tools"
+            rm -rf "$SDK/cmdline-tools/latest"
+            mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
+          fi
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "$BIN" >> "$GITHUB_PATH"
+          echo "$SDK/platform-tools" >> "$GITHUB_PATH"
+          yes | "$BIN/sdkmanager.bat" --sdk_root="$SDK" --licenses > /dev/null || true
+          "$BIN/sdkmanager.bat" --sdk_root="$SDK" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Stage the app at a short path
+        shell: bash
+        run: |
+          set -euo pipefail
+          powershell -NoProfile -Command "if (Test-Path 'C:\rn') { \$i = Get-Item 'C:\rn' -Force; if (\$i.Attributes -band [IO.FileAttributes]::ReparsePoint) { [IO.Directory]::Delete('C:\rn') } }"
+          rm -rf /c/rn
+          mkdir -p /c/rn
+          cp -r mobile/. /c/rn/
+
+      # Fail loudly and EARLY if the secrets are missing, rather than at the
+      # very end with a debug-signed APK that looks like a release.
+      - name: Decode the release keystore
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for v in KEYSTORE_B64 STORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::Secret for $v is not set. Refusing to build an unsigned release." >&2
+              exit 1
+            fi
+          done
+          # Outside the workspace so no cleanup step can sweep it into an
+          # artifact, and outside /c/rn so `expo prebuild --clean` cannot eat it.
+          KS="C:/android-signing/arcadelauncher-release.jks"
+          mkdir -p "$(dirname "$KS")"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$KS"
+          # Gradle reads these; the file lives at an absolute path so the
+          # property does not depend on the build's working directory.
+          {
+            echo "ARCADE_UPLOAD_STORE_FILE=$KS"
+            echo "ARCADE_UPLOAD_STORE_PASSWORD=$STORE_PASSWORD"
+            echo "ARCADE_UPLOAD_KEY_ALIAS=$KEY_ALIAS"
+            echo "ARCADE_UPLOAD_KEY_PASSWORD=$KEY_PASSWORD"
+          } >> /c/rn/gradle.properties.signing
+
+      - name: Install npm deps
+        shell: bash
+        run: cd /c/rn && npm ci
+
+      - name: Expo prebuild (generate android/)
+        shell: bash
+        run: cd /c/rn && npx expo prebuild --platform android --clean --no-install
+
+      # prebuild --clean rewrites android/gradle.properties, so the signing
+      # properties are appended AFTER it has run, never before.
+      - name: Apply the signing properties
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat /c/rn/gradle.properties.signing >> /c/rn/android/gradle.properties
+          rm -f /c/rn/gradle.properties.signing
+          # Confirm the plugin actually rewrote build.gradle. Without this the
+          # only symptom of a failed injection is a debug-signed release.
+          grep -q ARCADE_UPLOAD_STORE_FILE /c/rn/android/app/build.gradle \
+            || { echo "::error::withReleaseSigning did not modify build.gradle" >&2; exit 1; }
+
+      - name: Gradle assembleRelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /c/rn/android
+          ./gradlew assembleRelease --no-daemon --stacktrace \
+            -PreactNativeArchitectures=arm64-v8a,x86_64
+
+      # apksigner is the authority on what actually signed the APK. If this
+      # reports the debug certificate, the release must not ship.
+      - name: Verify the APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=$(ls /c/rn/android/app/build/outputs/apk/release/*.apk | head -1)
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner.bat" verify --print-certs "$APK" | tee /tmp/certs.txt
+          if grep -qi 'CN=Android Debug' /tmp/certs.txt; then
+            echo "::error::APK is signed with the DEBUG certificate." >&2
+            exit 1
+          fi
+          grep -q 'CN=ArcadeLauncher Companion' /tmp/certs.txt \
+            || { echo "::error::APK is not signed by the expected release key." >&2; exit 1; }
+
+      - name: Name the APK after the tag
+        id: apk
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=mobile/android/app/build/outputs/apk/release
+          mkdir -p "$OUT"
+          NAME="ArcadeLauncher-Companion-${{ needs.create-release.outputs.tag }}.apk"
+          cp "$(ls /c/rn/android/app/build/outputs/apk/release/*.apk | head -1)" "$OUT/$NAME"
+          echo "path=$OUT/$NAME" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          ls -l "$OUT"
+
+      # Uploaded by release_id, not by tag: the release is still a DRAFT at this
+      # point and GitHub's "get release by tag" never returns drafts — the same
+      # trap documented in this file's header.
+      - name: Attach the APK to the draft release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = '${{ steps.apk.outputs.path }}';
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ needs.create-release.outputs.release_id }},
+              name: '${{ steps.apk.outputs.name }}',
+              data: fs.readFileSync(path),
+              headers: {
+                'content-type': 'application/vnd.android.package-archive',
+                'content-length': fs.statSync(path).size,
+              },
+            });
+
+  # ---- Phase 3: publish the draft once every leg uploaded ----------------
   publish-release:
-    needs: [create-release, release-windows, release-linux]
-    # Only flip to published when BOTH build legs succeeded. If a leg failed the
+    needs: [create-release, release-windows, release-linux, release-android]
+    # Only flip to published when ALL build legs succeeded. If a leg failed the
     # release stays a draft (with whatever did upload) for inspection / re-run,
     # rather than publishing a half-complete release.
     runs-on: ubuntu-latest

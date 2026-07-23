@@ -30,6 +30,10 @@ Added / Changed / Fixed / Removed.
 ### Changed
 - Your PC now tells the server its name when it connects, so the phone's
   install picker can list your machines by name instead of by number.
+- **The phone app is now downloadable straight from the release page.** Every
+  release from this one on carries a signed `ArcadeLauncher-Companion-vX.Y.Z.apk`
+  alongside the Windows and Linux installers — no more digging through build
+  logs. Install it once and future versions update in place.
 
 ## [0.13.24] - 2026-07-22
 
