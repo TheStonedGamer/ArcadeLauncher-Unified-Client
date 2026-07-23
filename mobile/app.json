@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "ArcadeLauncher",
+    "slug": "arcadelauncher-companion",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "arcadelauncher",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0e0f13"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "net.orlandoaio.arcadelauncher.companion"
+    },
+    "android": {
+      "package": "net.orlandoaio.arcadelauncher.companion",
+      "adaptiveIcon": {
+        "backgroundColor": "#0e0f13"
+      }
+    }
+  }
+}

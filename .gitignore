@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Expo (mobile companion) build artefacts
+mobile/.expo/
+mobile/package-lock.json
+mobile/android/
+mobile/ios/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

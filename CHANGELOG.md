@@ -13,6 +13,8 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.13.24] - 2026-07-22
+
 ### Added
 - **Video calls and screen sharing.** While you're in a voice call with a friend,
   the call bar now has **📷 Camera** and **🖥 Share screen** buttons. Whatever's
@@ -26,6 +28,11 @@ Added / Changed / Fixed / Removed.
   sitting, a bar per day, your top games of the week, whether you played more or
   less than last week, and anything you picked up for the first time. It starts
   filling in from your next game — earlier playtime totals are untouched.
+- **Mobile companion app.** A phone app (React Native / Expo, source under
+  `mobile/`) for browsing the library and the request board when you're away from
+  the PC: sign in with your usual account, search and filter the catalogue, open a
+  game for its cover, summary and size, and upvote on the request board. Installing
+  and launching still happen on the desktop launcher.
 
 ## [0.13.23] - 2026-07-22
 

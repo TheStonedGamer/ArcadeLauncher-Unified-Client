@@ -326,6 +326,26 @@ under `/requests` in the same binary (the extra port/systemd unit is retired):
 
 ---
 
+## 4b. Mobile companion (`mobile/`)
+
+A React Native / Expo phone app that talks to the same server API as the desktop
+launcher. It is read-only by design:
+- **Sign-in** via the server's plain `POST /api/login` form endpoint (rather than
+  re-implementing the desktop's AES challenge-response on-device), with the token
+  held in the platform keystore through `expo-secure-store`.
+- **Library** — `GET /api/catalog` (both the bare-array and `{games:[]}` shapes),
+  search across title / platform / genre / developer, platform filter chips, and a
+  detail sheet with cover, summary, developer, genres and download size.
+- **Requests** — `GET /api/requests` board with status badges and optimistic
+  upvoting via `POST /api/requests/:id/vote`.
+- **Not included:** install / launch / download-queue control (needs a server-side
+  relay to a specific running desktop client), filing new requests, and voice.
+- All decisions live in pure `mobile/src/core/*.ts`, tested by the **root** vitest
+  run so both CI runners gate them; `src/api.ts` and `src/storage.ts` are the only
+  IO, and the RN UI is outside the desktop `tsconfig`'s `include`.
+
+---
+
 ## 5. Deployment & operations
 
 - **Server** runs as a systemd service in a Proxmox CT, port `8721`, with the

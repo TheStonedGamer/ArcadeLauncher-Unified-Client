@@ -596,8 +596,18 @@ from scratch.
   wholesale in v0.13.22 (2026-06-29). Settings → **Remote Play** now just links out
   to Moonlight and Sunshine; the launcher ships no streaming code. See CHANGELOG
   v0.13.22 and git history if the detail is ever needed.
-- [ ] **T12l — Mobile companion app.** Remote library browse, "install to my PC",
-  chat / presence, and download-queue control from a phone.
+- [x] **T12l — Mobile companion app.** React Native / Expo app under `mobile/`,
+  shipped v0.13.24. Sign-in against the server's form endpoint with the token in
+  the platform keystore, catalogue browse (search across title/platform/genre/
+  developer, platform filter, detail sheet), and the request board with upvoting.
+  All logic lives in pure `mobile/src/core/{session,catalog,requests}.ts` (58 KATs)
+  which the **root** vitest run covers, so both CI runners gate it; the React
+  Native UI stays outside the desktop `tsconfig`.
+  - [ ] _Deferred:_ "install to my PC" and download-queue control. Both act on a
+        specific running desktop client, and the server has no relay to push a
+        command to one — that is server-side work, not a client change.
+  - [ ] _Deferred:_ chat / presence and filing new requests (the create flow is
+        IGDB-search-driven and lives with the desktop metadata picker).
 
 **Polish**
 

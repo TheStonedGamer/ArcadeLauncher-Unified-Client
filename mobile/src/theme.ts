@@ -1,0 +1,75 @@
+// Shared dark palette, roughly matching the desktop launcher's chrome.
+
+import { StyleSheet } from "react-native";
+
+export const colors = {
+  bg: "#0e0f13",
+  panel: "#171922",
+  panelAlt: "#1f2230",
+  border: "#2a2e3d",
+  text: "#e8eaf2",
+  dim: "#9aa0b4",
+  accent: "#5b8cff",
+  danger: "#ff6b6b",
+  ok: "#4bd28b",
+};
+
+export const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  pad: { padding: 16 },
+  h1: { color: colors.text, fontSize: 24, fontWeight: "700", marginBottom: 4 },
+  h2: { color: colors.text, fontSize: 17, fontWeight: "600" },
+  dim: { color: colors.dim, fontSize: 13 },
+  error: { color: colors.danger, fontSize: 13, marginTop: 8 },
+  input: {
+    backgroundColor: colors.panel,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    color: colors.text,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 10,
+    fontSize: 15,
+  },
+  button: {
+    backgroundColor: colors.accent,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  buttonText: { color: "#0b0d12", fontWeight: "700", fontSize: 15 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  cover: { width: 44, height: 60, borderRadius: 6, backgroundColor: colors.panelAlt },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: colors.panel,
+    borderColor: colors.border,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  chipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  chipText: { color: colors.dim, fontSize: 13 },
+  chipTextOn: { color: "#0b0d12", fontWeight: "700" },
+  tabbar: {
+    flexDirection: "row",
+    borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    backgroundColor: colors.panel,
+  },
+  tab: { flex: 1, alignItems: "center", paddingVertical: 12 },
+  tabText: { color: colors.dim, fontSize: 13, fontWeight: "600" },
+  tabTextOn: { color: colors.accent },
+  empty: { color: colors.dim, textAlign: "center", marginTop: 48, paddingHorizontal: 24 },
+});
