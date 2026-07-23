@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+// The PURE half of the plugin — no @expo/config-plugins, so this resolves with
+// only the root node_modules installed, which is all either CI runner has.
 // @ts-expect-error — plain CommonJS build script, deliberately not typed.
-import plugin from "./withReleaseSigning.js";
+import mod from "./releaseSigning.js";
 
-const { injectReleaseSigning, MARKER } = plugin as {
+const { injectReleaseSigning, MARKER } = mod as {
   injectReleaseSigning: (gradle: string) => string;
   MARKER: string;
 };
