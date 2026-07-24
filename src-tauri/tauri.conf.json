@@ -43,7 +43,10 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser",
-        "installerHooks": "nsis/installer-hooks.nsh"
+        "installerHooks": "nsis/installer-hooks.nsh",
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "nsis/header.bmp",
+        "sidebarImage": "nsis/sidebar.bmp"
       },
       "wix": {
         "template": "wix/main.wxs"
