@@ -13,6 +13,12 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.14.3] - 2026-07-23
+
+### Added
+- **The phone app now has a title bar** with the Arcade Launcher logo and name
+  at the top, on both the sign-in screen and the main app.
+
 ## [0.14.2] - 2026-07-23
 
 ### Fixed

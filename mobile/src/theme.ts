@@ -17,6 +17,18 @@ export const colors = {
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   pad: { padding: 16 },
+  brandBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.panel,
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  brandLogo: { width: 30, height: 30, borderRadius: 7 },
+  brandTitle: { color: colors.text, fontSize: 18, fontWeight: "700" },
   h1: { color: colors.text, fontSize: 24, fontWeight: "700", marginBottom: 4 },
   h2: { color: colors.text, fontSize: 17, fontWeight: "600" },
   dim: { color: colors.dim, fontSize: 13 },

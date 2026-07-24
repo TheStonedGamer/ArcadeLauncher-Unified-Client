@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,6 +14,8 @@ import {
 import { ApiError, login } from "../api";
 import { loginBlocker, type MobileSession } from "../core/session";
 import { colors, styles } from "../theme";
+
+const LOGO = require("../../assets/logo.png");
 
 export default function SignInScreen({ onSignedIn }: { onSignedIn: (s: MobileSession) => void }) {
   const [host, setHost] = useState("");
@@ -41,7 +44,10 @@ export default function SignInScreen({ onSignedIn }: { onSignedIn: (s: MobileSes
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={[styles.pad, { flexGrow: 1, justifyContent: "center" }]}>
-        <Text style={styles.h1}>ArcadeLauncher</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 }}>
+          <Image source={LOGO} style={{ width: 44, height: 44, borderRadius: 10 }} resizeMode="contain" />
+          <Text style={styles.h1}>Arcade Launcher</Text>
+        </View>
         <Text style={styles.dim}>Sign in with the same account you use on the launcher.</Text>
 
         <TextInput

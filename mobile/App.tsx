@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, SafeAreaView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, SafeAreaView, Text, TouchableOpacity, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
+
+const LOGO = require("./assets/logo.png");
 
 import { fetchFriends } from "./src/api";
 import { friendNames, type Friend } from "./src/core/friends";
@@ -100,16 +102,18 @@ export default function App() {
         <SignInScreen onSignedIn={signIn} />
       ) : (
         <>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              paddingHorizontal: 16,
-              paddingVertical: 10,
-            }}
-          >
-            <Text style={styles.h2}>{session.username || session.host}</Text>
+          <View style={styles.brandBar}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+              <Image source={LOGO} style={styles.brandLogo} resizeMode="contain" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.brandTitle}>Arcade Launcher</Text>
+                {session.username ? (
+                  <Text style={styles.dim} numberOfLines={1}>
+                    {session.username}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
               <TouchableOpacity onPress={() => setShowDevices(true)}>
                 <Text style={{ color: online ? colors.ok : colors.dim, fontSize: 13 }}>
