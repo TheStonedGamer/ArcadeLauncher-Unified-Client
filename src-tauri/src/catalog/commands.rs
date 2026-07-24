@@ -104,3 +104,75 @@ pub async fn fetch_catalog(
 
     Ok(games)
 }
+
+/// The game ids in the signed-in account's library (`GET /api/library`,
+/// Bearer-authed). The Library tab intersects the catalog with this; the Store
+/// tab annotates each card's owned state. An empty/failed response is surfaced
+/// as an error so the caller can distinguish "owns nothing" from "offline".
+#[tauri::command]
+pub async fn fetch_owned_ids(host: String, token: String) -> AppResult<Vec<String>> {
+    let host = normalize_host(&host);
+    let url = format!("https://{host}/api/library");
+    let resp = reqwest::Client::new()
+        .get(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("library request failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!(
+            "library fetch failed (HTTP {})",
+            resp.status()
+        )));
+    }
+    #[derive(serde::Deserialize)]
+    struct LibraryResp {
+        #[serde(rename = "gameIds")]
+        game_ids: Vec<String>,
+    }
+    let parsed: LibraryResp = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("library parse failed: {e}")))?;
+    Ok(parsed.game_ids)
+}
+
+/// Add a game to the account's library (`POST /api/library/:id`, Bearer-authed).
+#[tauri::command]
+pub async fn library_add(host: String, token: String, id: String) -> AppResult<()> {
+    let host = normalize_host(&host);
+    let url = format!("https://{host}/api/library/{id}");
+    let resp = reqwest::Client::new()
+        .post(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("add-to-library failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!(
+            "add-to-library failed (HTTP {})",
+            resp.status()
+        )));
+    }
+    Ok(())
+}
+
+/// Remove a game from the account's library (`DELETE /api/library/:id`).
+#[tauri::command]
+pub async fn library_remove(host: String, token: String, id: String) -> AppResult<()> {
+    let host = normalize_host(&host);
+    let url = format!("https://{host}/api/library/{id}");
+    let resp = reqwest::Client::new()
+        .delete(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("remove-from-library failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!(
+            "remove-from-library failed (HTTP {})",
+            resp.status()
+        )));
+    }
+    Ok(())
+}

@@ -39,6 +39,22 @@ export function launchGame(game: Game): Promise<number> {
   return call<number>("launch_game", { game });
 }
 
+/** The game ids in the signed-in account's library (Bearer-authed). Drives the
+ *  Library tab's owned-only filter and the Store tab's owned annotation. */
+export function fetchOwnedIds(host: string, token: string): Promise<string[]> {
+  return call<string[]>("fetch_owned_ids", { host, token });
+}
+
+/** Add a game to the account's library. */
+export function addToLibrary(host: string, token: string, id: string): Promise<void> {
+  return call("library_add", { host, token, id });
+}
+
+/** Remove a game from the account's library. */
+export function removeFromLibrary(host: string, token: string, id: string): Promise<void> {
+  return call("library_remove", { host, token, id });
+}
+
 /** Whether a game can run right now, and if not, a specific reason. Mirrors the
  *  Rust `launch::target::TargetStatus`. */
 export interface TargetStatus {

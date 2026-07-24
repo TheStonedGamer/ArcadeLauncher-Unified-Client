@@ -1,19 +1,24 @@
-/* Palette mirrors the native C++ client (Renderer.cpp C_* constants) so the
-   unified client reads as the same product: GitHub-dark base, darker sidebar
-   than the top bar, #21262D cards, GitHub link-blue (#58A6FF) accent. */
+/* Steam-faithful palette (shared with the store website's styles.css and the
+   Claude Design "Arcade Launcher — Steam-style UI" system). Deep blue-slate
+   base (#1b2838), darker chrome/sidebar, #66c0f4 accent, and a green action
+   colour reserved for ownership/run (Add to Library, Install, Play). */
 :root {
-  --bg: #0d1117;        /* C_BG */
-  --panel: #161b22;     /* C_TOPBAR */
-  --sidebar: #13181e;   /* C_SIDEBAR (darker than the top bar) */
-  --panel-2: #21262d;   /* C_CARD */
-  --card-hover: #30363d;/* C_CARD_HOV */
-  --border: #30363d;    /* faint card/panel edge */
-  --text: #c9d1d9;      /* C_TEXT */
-  --muted: #8b949e;     /* C_SUBTEXT */
-  --accent: #58a6ff;    /* C_ACCENT */
-  --selected: #388bfd;  /* C_SELECTED */
+  --bg: #1b2838;        /* Steam client body */
+  --panel: #171a21;     /* chrome / top bar */
+  --sidebar: #16202d;   /* library sidebar (darker than body) */
+  --panel-2: #23303f;   /* cards / raised panels */
+  --panel-3: #2a3a4d;   /* hover / secondary buttons */
+  --card-hover: #2a3a4d;
+  --border: #0e1620;    /* hairline card/panel edge */
+  --text: #c7d5e0;      /* body text */
+  --muted: #8f98a0;     /* subtext */
+  --accent: #66c0f4;    /* Steam light-blue accent */
+  --selected: #66c0f4;
+  --accent-2: #417a9b;  /* deep accent */
+  --green: #75b022;     /* action: add/install/play */
+  --green-2: #4f7c17;
   --star: #f5c518;
-  --on: #3fb950;
+  --on: #a4d007;
   --off: #6e7681;
   --error: #f85149;
   color-scheme: dark;
@@ -34,26 +39,31 @@ body {
 .app { display: flex; flex-direction: column; height: 100%; }
 
 .app__header {
-  display: flex; align-items: baseline; gap: 10px;
-  padding: 14px 20px; border-bottom: 1px solid var(--border);
-  background: var(--panel);
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 18px; height: 52px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #171a21, #1b2838);
 }
-.app__title { margin: 0; font-size: 18px; font-weight: 700; }
-.app__tag { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.app__title { margin: 0; font-size: 17px; font-weight: 700; color: #fff; letter-spacing: .3px; }
+.app__tag { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
 .app__main { flex: 1; overflow: auto; padding: 18px 20px; }
-.app__nav { display: flex; gap: 4px; margin-left: auto; }
+.app__nav { display: flex; gap: 24px; margin-left: 22px; align-self: stretch; align-items: center; }
 .app__navbtn {
-  position: relative;
-  padding: 6px 14px; border: 1px solid transparent; border-radius: 8px;
-  background: transparent; color: var(--muted); cursor: pointer; font-size: 13px;
+  position: relative; height: 100%;
+  padding: 0 2px; border: 0; background: transparent;
+  color: #b8bcc0; cursor: pointer;
+  font-size: 13px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
 }
 .app__badge {
   margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 11px;
-  font-weight: 600; background: var(--accent); color: #fff; line-height: 18px;
+  font-weight: 600; background: var(--green); color: #fff; line-height: 18px;
   display: inline-block; min-width: 8px; text-align: center;
 }
-.app__navbtn:hover { color: var(--text); }
-.app__navbtn--active { background: var(--panel-2); color: var(--text); border-color: var(--border); }
+.app__navbtn:hover { color: #fff; }
+.app__navbtn--active { color: var(--accent); }
+.app__navbtn--active::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  background: var(--accent); border-radius: 2px; box-shadow: 0 0 8px var(--accent);
+}
 
 .app__account { display: flex; align-items: center; gap: 8px; margin-left: 12px; }
 .app__user { font-size: 13px; font-weight: 600; }
@@ -1397,3 +1407,137 @@ body {
 .groupcall__peer--failed { background: rgba(248,81,73,0.18); }
 .groupcall__peer-dot { font-size: 10px; }
 .groupcall__peer-muted { font-size: 10px; }
+
+/* ── Arcade Store tab (Steam-style storefront in the launcher) ───────────── */
+/* Green ownership toggle, shared by capsules, featured hero and detail. The
+   green is reserved for ownership/run per the palette. */
+.lib-toggle {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 0; border-radius: 3px; cursor: pointer; white-space: nowrap;
+  font-weight: 700; letter-spacing: .3px; color: #dbf2c0;
+  background: linear-gradient(to bottom, var(--green), var(--green-2));
+}
+.lib-toggle:hover:not(:disabled) { filter: brightness(1.12); color: #fff; }
+.lib-toggle:disabled { cursor: default; opacity: .5; filter: grayscale(.3); }
+.lib-toggle--sm { padding: 6px 10px; font-size: 12px; }
+.lib-toggle--lg { padding: 10px 18px; font-size: 14px; }
+.lib-toggle--owned {
+  background: linear-gradient(to bottom, var(--panel-3), #1f2a37);
+  color: var(--on);
+}
+.lib-toggle--owned:hover:not(:disabled) { color: #fff; filter: none; background: linear-gradient(to bottom, #37485c, #263340); }
+
+.astore { display: flex; flex-direction: column; gap: 20px; padding: 20px 28px 48px; }
+.astore__subnav {
+  display: flex; align-items: center; gap: 14px;
+  padding-bottom: 12px; border-bottom: 1px solid var(--border);
+}
+.astore__brand { font-size: 20px; font-weight: 800; letter-spacing: .4px; color: #fff; }
+.astore__search-wrap { flex: 1; }
+.astore__search {
+  width: 100%; max-width: 420px; padding: 8px 12px; border-radius: 3px;
+  border: 1px solid var(--border); background: #316282; color: #cfe6f7;
+}
+.astore__search::placeholder { color: #9fc4dc; }
+.astore__filter {
+  padding: 8px 10px; border-radius: 3px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text);
+}
+.astore__count {
+  min-width: 28px; text-align: center; padding: 3px 8px; border-radius: 10px;
+  background: var(--panel-2); color: var(--muted); font-size: 12px; font-weight: 700;
+}
+.astore__signin { color: var(--accent); font-size: 13px; margin: 0; }
+.astore__heading {
+  margin: 4px 0 0; font-size: 15px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: #d7e3ee;
+}
+
+.astore__grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+/* Featured & Recommended hero */
+.featured { display: flex; flex-direction: column; gap: 10px; }
+.featured__body {
+  display: grid; grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr); gap: 0;
+  border-radius: 4px; overflow: hidden; background: var(--panel-2);
+  box-shadow: 0 2px 10px rgba(0,0,0,.4);
+}
+.featured__hero {
+  border: 0; padding: 0; cursor: pointer; background: #0b131c; min-height: 260px;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.featured__hero img { width: 100%; height: 100%; object-fit: cover; }
+.featured__logo { color: var(--muted); font-size: 22px; font-weight: 800; padding: 24px; text-align: center; }
+.featured__rail {
+  display: flex; flex-direction: column; gap: 10px; padding: 18px 18px 20px;
+  background: linear-gradient(to bottom, #2a475e, #1b2838);
+}
+.featured__title { margin: 0; font-size: 20px; color: #fff; }
+.featured__sub { font-size: 12px; color: var(--accent); }
+.featured__summary {
+  margin: 0; font-size: 13px; line-height: 1.5; color: var(--text);
+  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
+}
+.featured__cta { margin-top: auto; display: flex; align-items: center; gap: 12px; }
+.featured__price { font-size: 14px; font-weight: 700; color: var(--on); }
+
+/* Portrait store capsule */
+.capsule {
+  display: flex; flex-direction: column; border-radius: 4px; overflow: hidden;
+  background: var(--panel-2); box-shadow: 0 1px 4px rgba(0,0,0,.4);
+  transition: transform .08s ease, box-shadow .08s ease;
+}
+.capsule:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+.capsule--owned { outline: 1px solid rgba(164,208,7,.35); }
+.capsule__art {
+  position: relative; border: 0; padding: 0; cursor: pointer; background: #0b131c;
+  aspect-ratio: 3 / 4; display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.capsule__art img { width: 100%; height: 100%; object-fit: cover; }
+.capsule__placeholder { color: var(--muted); font-size: 13px; font-weight: 700; padding: 12px; text-align: center; }
+.capsule__score {
+  position: absolute; top: 6px; right: 6px; padding: 2px 7px; border-radius: 3px;
+  font-size: 12px; font-weight: 800; color: #cdf0ff;
+  background: rgba(23,26,33,.85); border: 1px solid var(--accent-2);
+}
+.capsule__body { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+.capsule__title-btn { border: 0; background: none; padding: 0; text-align: left; cursor: pointer; color: inherit; }
+.capsule__title { font-size: 14px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capsule__platform { font-size: 12px; color: var(--muted); }
+
+/* Store detail overlay */
+.sdetail {
+  position: relative; width: min(920px, 92vw); max-height: 88vh; overflow-y: auto;
+  border-radius: 6px; background: var(--bg); border: 1px solid var(--border);
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+.sdetail__close {
+  position: absolute; top: 10px; right: 12px; z-index: 2; border: 0; cursor: pointer;
+  width: 30px; height: 30px; border-radius: 4px; font-size: 20px; line-height: 1;
+  background: rgba(0,0,0,.4); color: #cfe6f7;
+}
+.sdetail__banner { padding: 28px 28px 18px; background: linear-gradient(to bottom, #2a475e, var(--bg)); }
+.sdetail__title { margin: 0; font-size: 26px; color: #fff; }
+.sdetail__sub { margin-top: 6px; font-size: 13px; color: var(--accent); }
+.sdetail__body { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: 20px; padding: 20px 28px 28px; }
+.sdetail__media { display: flex; flex-direction: column; gap: 14px; }
+.sdetail__shot { border-radius: 4px; overflow: hidden; background: #0b131c; display: flex; align-items: center; justify-content: center; min-height: 200px; }
+.sdetail__shot img { width: 100%; height: auto; display: block; }
+.sdetail__summary { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text); }
+.sdetail__panel { display: flex; flex-direction: column; gap: 14px; }
+.sdetail__cta {
+  display: flex; flex-direction: column; gap: 8px; padding: 14px;
+  border-radius: 4px; background: var(--panel-2);
+}
+.sdetail__free { font-size: 12px; color: var(--muted); }
+.sdetail__meta { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text); }
+.sdetail__k { display: inline-block; min-width: 92px; color: var(--muted); }
+.sdetail__tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.sdetail__tag { font-size: 12px; padding: 3px 9px; border-radius: 10px; background: var(--panel-3); color: #cfe6f7; }
+
+@media (max-width: 720px) {
+  .featured__body, .sdetail__body { grid-template-columns: 1fr; }
+}

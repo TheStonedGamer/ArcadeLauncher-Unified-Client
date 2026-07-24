@@ -50,9 +50,14 @@ interface CatalogViewProps {
   /** Live per-game install progress, keyed by game id (from the download hook).
    *  Threaded down to the grid so in-flight tiles show a progress bar. */
   downloadProgress?: Record<string, CardProgress>;
+  /** The signed-in account's owned game ids. When provided (signed in and the
+   *  library has loaded), the Library tab shows ONLY these — everything else
+   *  lives in the Store tab, Steam-style. Undefined = show the whole catalog
+   *  (signed out, or ownership not yet resolved). */
+  ownedIds?: Set<string>;
 }
 
-export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
+export function CatalogView({ downloadProgress = {}, ownedIds }: CatalogViewProps) {
   const prefs = useCatalogPrefs();
   const { session } = useSession();
   const { draft: settings } = useSettings();
@@ -215,11 +220,12 @@ export function CatalogView({ downloadProgress = {} }: CatalogViewProps) {
   // events) on top so the Install button reflects what's on disk without a reload.
   const merged = useMemo(() => {
     const withPrefs = applyPrefs(games, prefs.prefs);
-    return withPrefs.map((g) => {
+    const owned = ownedIds ? withPrefs.filter((g) => ownedIds.has(g.id)) : withPrefs;
+    return owned.map((g) => {
       const state = effectiveInstallState(g.id, g.installState, installOverlay);
       return state === g.installState ? g : { ...g, installState: state };
     });
-  }, [games, prefs.prefs, installOverlay]);
+  }, [games, prefs.prefs, installOverlay, ownedIds]);
 
   // Restore the last sidebar filter + sort so the chosen scope (e.g. Installed)
   // survives a relaunch. Search text is intentionally not persisted — a stale

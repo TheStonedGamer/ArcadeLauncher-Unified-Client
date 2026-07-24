@@ -144,6 +144,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             catalog::commands::load_catalog,
             catalog::commands::fetch_catalog,
+            catalog::commands::fetch_owned_ids,
+            catalog::commands::library_add,
+            catalog::commands::library_remove,
             catalog::prefs_commands::load_catalog_prefs,
             catalog::prefs_commands::save_catalog_prefs,
             catalog::sessions_commands::load_play_sessions,

@@ -3,6 +3,7 @@
 // Kept DOM-free and unit-tested independently of AppShell rendering.
 
 export type View =
+  | "store"
   | "library"
   | "steam"
   | "epic"
@@ -11,8 +12,10 @@ export type View =
   | "downloads"
   | "settings";
 
-/** Tab order, left to right — also the controller cycle order. */
+/** Tab order, left to right — also the controller cycle order. Store leads, then
+ *  Library (owned games), mirroring Steam's STORE | LIBRARY ordering. */
 export const VIEW_ORDER: View[] = [
+  "store",
   "library",
   "steam",
   "epic",
