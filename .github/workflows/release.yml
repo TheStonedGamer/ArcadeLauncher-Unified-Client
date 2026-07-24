@@ -429,9 +429,74 @@ jobs:
               },
             });
 
+  # ---- Phase 2d: stage installers on the self-hosted download server -----
+  # After the desktop legs have uploaded to the draft, copy the per-platform
+  # installers onto the server that backs the website's Download page
+  # (GET /api/downloads/latest builds the manifest; /downloads/<file> serves the
+  # bytes via ServeDir). This is what makes "each platform on each update" land on
+  # the server automatically instead of by hand.
+  #
+  # Runs on a self-hosted LAN runner (`prox-pve`) because the target host is on the
+  # private homelab network — a GitHub-hosted runner cannot reach it. Desktop
+  # installers only: the server's classifier serves Windows/macOS/Linux; the
+  # Android APK is not part of the manifest and stays a GitHub-release asset. Only
+  # needs the desktop legs (not android), so it overlaps the ~14 min APK build.
+  #
+  # The destination is REPLACED in place (old installers removed first) so the
+  # manifest's derived `version` always reflects exactly this release. Connection
+  # details come from repo secrets so no internal host/path is committed to this
+  # public repo:
+  #   ARCADE_DOWNLOADS_SSH_KEY     ed25519 private key (restricted key on the host)
+  #   ARCADE_DOWNLOADS_KNOWN_HOSTS  the host's public key line (pinned, no TOFU)
+  #   ARCADE_DOWNLOADS_DEST         user@host of the download server
+  #   ARCADE_DOWNLOADS_PATH         absolute downloads dir (server's ARCADE_DOWNLOADS_DIR)
+  stage-downloads:
+    needs: [create-release, release-windows, release-linux]
+    runs-on: [self-hosted, prox-pve]
+    permissions:
+      contents: read
+    steps:
+      - name: Download desktop installers from the draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          rm -rf staging && mkdir -p staging
+          # Draft assets are visible to the token that owns the release. Patterns
+          # exclude the .sig updater sidecars, latest.json, and the .apk.
+          gh release download "${{ needs.create-release.outputs.tag }}" \
+            -R "${{ github.repository }}" --dir staging \
+            --pattern '*-setup.exe' --pattern '*.msi' --pattern '*.deb' \
+            --pattern '*.rpm' --pattern '*.AppImage' --pattern '*.dmg'
+          echo "Fetched:"; ls -l staging
+
+      - name: Stage the installers on the download server
+        env:
+          SSH_KEY: ${{ secrets.ARCADE_DOWNLOADS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.ARCADE_DOWNLOADS_KNOWN_HOSTS }}
+          DEST: ${{ secrets.ARCADE_DOWNLOADS_DEST }}
+          DLPATH: ${{ secrets.ARCADE_DOWNLOADS_PATH }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SSH_KEY:-}" ] || [ -z "${DEST:-}" ] || [ -z "${DLPATH:-}" ]; then
+            echo "::error::Download-server secrets are not configured; skipping cannot be silent." >&2
+            exit 1
+          fi
+          KF="$RUNNER_TEMP/dl_key"; KH="$RUNNER_TEMP/dl_known_hosts"
+          printf '%s\n' "$SSH_KEY" > "$KF"; chmod 600 "$KF"
+          printf '%s\n' "$KNOWN_HOSTS" > "$KH"
+          SSHOPTS=(-i "$KF" -o "UserKnownHostsFile=$KH" -o BatchMode=yes)
+          # Remove the previous release's installers so the manifest's derived
+          # version reflects only this release, then copy the new set in.
+          ssh "${SSHOPTS[@]}" "$DEST" \
+            "mkdir -p '$DLPATH' && rm -f '$DLPATH'/*.exe '$DLPATH'/*.msi '$DLPATH'/*.deb '$DLPATH'/*.rpm '$DLPATH'/*.AppImage '$DLPATH'/*.dmg"
+          scp "${SSHOPTS[@]}" staging/* "$DEST:$DLPATH/"
+          echo "Now on the server:"; ssh "${SSHOPTS[@]}" "$DEST" "ls -l '$DLPATH'"
+          rm -f "$KF" "$KH"
+
   # ---- Phase 3: publish the draft once every leg uploaded ----------------
   publish-release:
-    needs: [create-release, release-windows, release-linux, release-android]
+    needs: [create-release, release-windows, release-linux, release-android, stage-downloads]
     # Only flip to published when ALL build legs succeeded. If a leg failed the
     # release stays a draft (with whatever did upload) for inspection / re-run,
     # rather than publishing a half-complete release.
