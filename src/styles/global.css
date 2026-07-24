@@ -442,12 +442,15 @@ body {
 /* ── Layout: sidebar + content ─────────────────────────────────────────── */
 .catalog__layout { display: grid; grid-template-columns: 210px 1fr; gap: 16px; align-items: start; }
 
-/* Sidebar is a distinct darker panel, like the native client's C_SIDEBAR. */
+/* Sidebar is a distinct darker panel, like the native client's C_SIDEBAR. Now a
+   Steam-style scrollable list of every game, so it caps its height and scrolls. */
 .sidebar {
   display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0;
   background: var(--sidebar); border: 1px solid var(--border);
   border-radius: 8px; padding: 8px;
+  max-height: calc(100vh - 24px); overflow-y: auto;
 }
+.sidebar__empty { font-size: 13px; color: var(--muted); padding: 7px 10px; margin: 0; }
 .sidebar__item {
   display: flex; align-items: center; gap: 8px;
   padding: 7px 10px; border: none; border-radius: 6px;

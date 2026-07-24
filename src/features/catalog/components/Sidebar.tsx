@@ -1,34 +1,34 @@
-// Left navigation: All / Favorites / platforms / collections, each with a count.
-// Built from the loaded games via buildSidebar; selection drives the active
-// filter. Pure presentation.
+// Left navigation: the Steam-style library list — one row per game (variants
+// collapsed into their group), sorted/filtered by the active query just like the
+// grid. Clicking a row opens that game. Pure presentation.
 
-import type { Filter, SidebarEntry } from "../query";
+import type { VariantGroup } from "../variants";
 
 interface Props {
-  entries: SidebarEntry[];
-  active: Filter;
-  onSelect: (filter: Filter) => void;
+  groups: VariantGroup[];
+  selectedId: string | null;
+  onOpen: (group: VariantGroup) => void;
 }
 
-function sameFilter(a: Filter, b: Filter): boolean {
-  if (a.kind !== b.kind) return false;
-  if ("value" in a && "value" in b) return a.value === b.value;
-  return true;
-}
-
-export function Sidebar({ entries, active, onSelect }: Props) {
+export function Sidebar({ groups, selectedId, onOpen }: Props) {
   return (
     <nav className="sidebar">
-      {entries.map((e) => (
-        <button
-          key={e.id}
-          className={`sidebar__item${sameFilter(e.filter, active) ? " sidebar__item--active" : ""}`}
-          onClick={() => onSelect(e.filter)}
-        >
-          <span className="sidebar__label">{e.label}</span>
-          <span className="sidebar__count">{e.count}</span>
-        </button>
-      ))}
+      {groups.length === 0 && <p className="sidebar__empty">No games</p>}
+      {groups.map((g) => {
+        const game = g.representative;
+        const active = game.id === selectedId;
+        return (
+          <button
+            key={game.id}
+            className={`sidebar__item${active ? " sidebar__item--active" : ""}`}
+            onClick={() => onOpen(g)}
+            title={game.title}
+          >
+            <span className="sidebar__label">{game.title}</span>
+            {game.platform && <span className="sidebar__count">{game.platform}</span>}
+          </button>
+        );
+      })}
     </nav>
   );
 }

@@ -1,5 +1,5 @@
-// The catalog screen: sidebar (filters), a toolbar (search + sort), the
-// filtered/sorted grid, and a detail modal. The library.json location is
+// The catalog screen: sidebar (Steam-style game list), a toolbar (search +
+// sort), the filtered/sorted grid, and a detail modal. The library.json is
 // resolved in Rust (per-user default) and auto-loaded on mount — there is no
 // path bar. Query state lives here; the actual filtering/sorting is the pure
 // applyQuery from query.ts.
@@ -20,7 +20,7 @@ import { recentlyPlayed } from "./stats";
 import { CardContextMenu, type CardMenuTarget } from "./components/CardContextMenu";
 import { Sidebar } from "./components/Sidebar";
 import { GameDetail } from "./components/GameDetail";
-import { applyQuery, buildSidebar, DEFAULT_QUERY, SORT_LABELS, type Filter, type Query, type SortMode } from "./query";
+import { applyQuery, DEFAULT_QUERY, SORT_LABELS, type Query, type SortMode } from "./query";
 import { groupVariants, type VariantGroup } from "./variants";
 import { useCatalogPrefs } from "./useCatalogPrefs";
 import { applyPrefs } from "./prefs";
@@ -227,9 +227,10 @@ export function CatalogView({ downloadProgress = {}, ownedIds }: CatalogViewProp
     });
   }, [games, prefs.prefs, installOverlay, ownedIds]);
 
-  // Restore the last sidebar filter + sort so the chosen scope (e.g. Installed)
-  // survives a relaunch. Search text is intentionally not persisted — a stale
-  // query on startup is confusing.
+  // Restore the last sort so it survives a relaunch. (filter is retained in the
+  // query for applyQuery but no longer has a UI; it stays at its "all" default.)
+  // Search text is intentionally not persisted — a stale query on startup is
+  // confusing.
   const [query, setQuery] = useState<Query>(() => {
     try {
       const saved = localStorage.getItem("catalog.query");
@@ -284,13 +285,12 @@ export function CatalogView({ downloadProgress = {}, ownedIds }: CatalogViewProp
     setCardMenu({ game: group.representative, x: e.clientX, y: e.clientY });
   }, []);
 
-  const sidebar = useMemo(() => buildSidebar(merged), [merged]);
   const groups = useMemo(() => groupVariants(applyQuery(merged, query)), [merged, query]);
 
-  // "Continue Playing" strip: only when browsing All Games with no active search,
-  // so it doesn't fight a filtered/searched result set. Recomputed from the
-  // prefs-overlaid catalog (hidden games excluded inside recentlyPlayed).
-  const showContinue = query.filter.kind === "all" && query.search.trim() === "";
+  // "Continue Playing" strip: only when there's no active search, so it doesn't
+  // fight a searched result set. Recomputed from the prefs-overlaid catalog
+  // (hidden games excluded inside recentlyPlayed).
+  const showContinue = query.search.trim() === "";
   const continueGames = useMemo(
     () => (showContinue ? recentlyPlayed(merged) : []),
     [showContinue, merged],
@@ -299,8 +299,6 @@ export function CatalogView({ downloadProgress = {}, ownedIds }: CatalogViewProp
     () => merged.reduce((sum, g) => sum + Math.max(0, g.playtimeSeconds), 0),
     [merged],
   );
-
-  const setFilter = (filter: Filter) => setQuery((q) => ({ ...q, filter }));
 
   // --- Controller / Big Picture navigation (T7c) ---
   const [focusIndex, setFocusIndex] = useState(-1);
@@ -374,7 +372,7 @@ export function CatalogView({ downloadProgress = {}, ownedIds }: CatalogViewProp
       {!error && status && <p className="catalog__status">{status}</p>}
 
       <div className="catalog__layout">
-        <Sidebar entries={sidebar} active={query.filter} onSelect={setFilter} />
+        <Sidebar groups={groups} selectedId={selected?.representative.id ?? null} onOpen={setSelected} />
 
         <div className="catalog__content">
           <div className="catalog__toolbar">
