@@ -454,7 +454,11 @@ jobs:
     needs: [create-release, release-windows, release-linux]
     runs-on: [self-hosted, prox-pve]
     permissions:
-      contents: read
+      # write, not read: the release is still a DRAFT here, and GitHub only
+      # exposes a draft's assets to tokens with contents:write (the same reason
+      # the build legs use write). With read this 403s "Resource not accessible
+      # by integration" on listReleaseAssets.
+      contents: write
     steps:
       # Fetch the draft's desktop installers via the GitHub API using
       # actions/github-script (Node — always present) rather than the `gh` CLI,
