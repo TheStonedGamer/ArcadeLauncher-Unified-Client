@@ -26,6 +26,12 @@ name: Release
 #     tools (link.exe + Windows SDK) installed.
 #   * Linux leg    → self-hosted `prox-pve` (CT 130 `arcade-gh-runner`), building
 #     natively. CT 130 also hosts the Server repo's runner.
+#   * Android leg  → ALSO self-hosted `prox-pve` (a SEPARATE physical machine from
+#     the Windows host), so the ~14 min APK build runs in PARALLEL with the Windows
+#     desktop leg instead of serializing behind it. It queues after the ~5 min Linux
+#     desktop leg on that box; wall clock is max(windows, linux + android), not
+#     windows + android. Android on Linux also drops the Windows-only C:\rn
+#     short-path staging (no CMAKE_OBJECT_PATH_MAX limit on Linux).
 # The earlier BI1 cargo-xwin cross-compile on Linux (`prox-xwin`, CT 132) was
 # ABANDONED: $GITHUB_PATH never propagated cargo onto that runner's step PATH and
 # even an explicit PATH export failed to resolve cargo, so we reverted to a real
@@ -250,10 +256,18 @@ jobs:
           # bundled as a sidecar (externalBin in tauri.conf.json).
           releaseId: ${{ needs.create-release.outputs.release_id }}
 
-  # ---- Phase 2c: Android companion — signed APK --------------------------
+  # ---- Phase 2c: Android companion — signed APK (parallel with Windows) --
   # Builds the phone app as a RELEASE-signed APK and attaches it to the same
-  # draft. Runs on `arcade-win10` like the Windows leg, so the two serialize on
-  # that host rather than running in parallel; the APK build is ~14 min.
+  # draft. Runs on the self-hosted LINUX runner (`prox-pve`), NOT `arcade-win10`,
+  # so it runs in PARALLEL with the Windows desktop leg instead of serializing
+  # behind it on the one Windows box. The Linux desktop leg finishes in ~5 min and
+  # then that machine is otherwise idle, so the ~14 min APK build overlaps the
+  # Windows build almost entirely — the release's wall clock drops from
+  # (windows + android) to max(windows, linux + android).
+  #
+  # Building on Linux also removes the Windows-only C:\rn short-path staging: Linux
+  # has no 250-char object-file-path limit, so expo-modules-core's C++ compiles in
+  # place in the workspace. See android.yml for the full history of that hack.
   #
   # Signing comes from four repo secrets (ANDROID_KEYSTORE_BASE64,
   # ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD), decoded
@@ -264,12 +278,9 @@ jobs:
   # whose signature changed, so replacing this keystore forces every user to
   # uninstall and lose their app data. Treat it exactly like the WiX UpgradeCode:
   # it cannot be rotated after the first release ships.
-  #
-  # The C:\rn short-path staging is not optional — see android.yml for the full
-  # CMAKE_OBJECT_PATH_MAX explanation.
   release-android:
     needs: create-release
-    runs-on: [self-hosted, Windows, X64, arcade-win10]
+    runs-on: [self-hosted, prox-pve]
     permissions:
       contents: write
     steps:
@@ -287,15 +298,14 @@ jobs:
           java-version: "17"
 
       - name: Install the Android SDK
-        shell: bash
         run: |
           set -euo pipefail
-          SDK="C:/android-sdk"
+          SDK="$HOME/android-sdk"
           BIN="$SDK/cmdline-tools/latest/bin"
-          if [ ! -x "$BIN/sdkmanager.bat" ]; then
+          if [ ! -x "$BIN/sdkmanager" ]; then
             mkdir -p "$SDK/cmdline-tools"
             curl -sSLo /tmp/cmdline-tools.zip \
-              https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip
+              https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
             unzip -q -o /tmp/cmdline-tools.zip -d "$SDK/cmdline-tools"
             rm -rf "$SDK/cmdline-tools/latest"
             mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
@@ -304,22 +314,12 @@ jobs:
           echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
           echo "$BIN" >> "$GITHUB_PATH"
           echo "$SDK/platform-tools" >> "$GITHUB_PATH"
-          yes | "$BIN/sdkmanager.bat" --sdk_root="$SDK" --licenses > /dev/null || true
-          "$BIN/sdkmanager.bat" --sdk_root="$SDK" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-
-      - name: Stage the app at a short path
-        shell: bash
-        run: |
-          set -euo pipefail
-          powershell -NoProfile -Command "if (Test-Path 'C:\rn') { \$i = Get-Item 'C:\rn' -Force; if (\$i.Attributes -band [IO.FileAttributes]::ReparsePoint) { [IO.Directory]::Delete('C:\rn') } }"
-          rm -rf /c/rn
-          mkdir -p /c/rn
-          cp -r mobile/. /c/rn/
+          yes | "$BIN/sdkmanager" --sdk_root="$SDK" --licenses > /dev/null || true
+          "$BIN/sdkmanager" --sdk_root="$SDK" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       # Fail loudly and EARLY if the secrets are missing, rather than at the
       # very end with a debug-signed APK that looks like a release.
       - name: Decode the release keystore
-        shell: bash
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -333,9 +333,10 @@ jobs:
               exit 1
             fi
           done
-          # Outside the workspace so no cleanup step can sweep it into an
-          # artifact, and outside /c/rn so `expo prebuild --clean` cannot eat it.
-          KS="C:/android-signing/arcadelauncher-release.jks"
+          # In $HOME (persists on the self-hosted runner) rather than the
+          # workspace, so no cleanup step can sweep it into an artifact and
+          # `expo prebuild --clean` cannot eat it.
+          KS="$HOME/android-signing/arcadelauncher-release.jks"
           mkdir -p "$(dirname "$KS")"
           printf '%s' "$KEYSTORE_B64" | base64 -d > "$KS"
           # Gradle reads these; the file lives at an absolute path so the
@@ -345,20 +346,19 @@ jobs:
             echo "ARCADE_UPLOAD_STORE_PASSWORD=$STORE_PASSWORD"
             echo "ARCADE_UPLOAD_KEY_ALIAS=$KEY_ALIAS"
             echo "ARCADE_UPLOAD_KEY_PASSWORD=$KEY_PASSWORD"
-          } >> /c/rn/gradle.properties.signing
+          } >> "$RUNNER_TEMP/gradle.properties.signing"
 
       - name: Install npm deps
-        shell: bash
-        run: cd /c/rn && npm ci
+        working-directory: mobile
+        run: npm ci
 
       - name: Expo prebuild (generate android/)
-        shell: bash
-        run: cd /c/rn && npx expo prebuild --platform android --clean --no-install
+        working-directory: mobile
+        run: npx expo prebuild --platform android --clean --no-install
 
       # prebuild --clean rewrites android/gradle.properties, so the signing
       # properties are appended AFTER it has run, never before.
       - name: Apply the signing properties
-        shell: bash
         run: |
           set -euo pipefail
           # Expo's generated gradle.properties ends WITHOUT a trailing newline
@@ -368,30 +368,28 @@ jobs:
           # release build type would silently fall back to the debug key — which
           # is exactly what the apksigner step below then rejected. Guarantee the
           # separating newline first.
-          printf '\n' >> /c/rn/android/gradle.properties
-          cat /c/rn/gradle.properties.signing >> /c/rn/android/gradle.properties
-          rm -f /c/rn/gradle.properties.signing
+          printf '\n' >> mobile/android/gradle.properties
+          cat "$RUNNER_TEMP/gradle.properties.signing" >> mobile/android/gradle.properties
+          rm -f "$RUNNER_TEMP/gradle.properties.signing"
           # Confirm the plugin actually rewrote build.gradle. Without this the
           # only symptom of a failed injection is a debug-signed release.
-          grep -q ARCADE_UPLOAD_STORE_FILE /c/rn/android/app/build.gradle \
+          grep -q ARCADE_UPLOAD_STORE_FILE mobile/android/app/build.gradle \
             || { echo "::error::withReleaseSigning did not modify build.gradle" >&2; exit 1; }
 
       - name: Gradle assembleRelease
-        shell: bash
+        working-directory: mobile/android
         run: |
           set -euo pipefail
-          cd /c/rn/android
-          ./gradlew assembleRelease --no-daemon --stacktrace \
+          ./gradlew assembleRelease --no-daemon --build-cache --stacktrace \
             -PreactNativeArchitectures=arm64-v8a,x86_64
 
       # apksigner is the authority on what actually signed the APK. If this
       # reports the debug certificate, the release must not ship.
       - name: Verify the APK signature
-        shell: bash
         run: |
           set -euo pipefail
-          APK=$(ls /c/rn/android/app/build/outputs/apk/release/*.apk | head -1)
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner.bat" verify --print-certs "$APK" | tee /tmp/certs.txt
+          APK=$(ls mobile/android/app/build/outputs/apk/release/*.apk | head -1)
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK" | tee /tmp/certs.txt
           if grep -qi 'CN=Android Debug' /tmp/certs.txt; then
             echo "::error::APK is signed with the DEBUG certificate." >&2
             exit 1
@@ -401,13 +399,11 @@ jobs:
 
       - name: Name the APK after the tag
         id: apk
-        shell: bash
         run: |
           set -euo pipefail
           OUT=mobile/android/app/build/outputs/apk/release
-          mkdir -p "$OUT"
           NAME="ArcadeLauncher-Companion-${{ needs.create-release.outputs.tag }}.apk"
-          cp "$(ls /c/rn/android/app/build/outputs/apk/release/*.apk | head -1)" "$OUT/$NAME"
+          cp "$(ls "$OUT"/*.apk | head -1)" "$OUT/$NAME"
           echo "path=$OUT/$NAME" >> "$GITHUB_OUTPUT"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           ls -l "$OUT"
