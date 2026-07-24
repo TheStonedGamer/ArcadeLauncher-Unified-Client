@@ -456,19 +456,39 @@ jobs:
     permissions:
       contents: read
     steps:
+      # Fetch the draft's desktop installers via the GitHub API using
+      # actions/github-script (Node — always present) rather than the `gh` CLI,
+      # which is NOT installed on this self-hosted runner (exit 127). List assets
+      # by release_id (draft-visible; "get release by tag" never returns drafts)
+      # and download each matching one to staging/. Excludes the .sig updater
+      # sidecars, latest.json, and the .apk.
       - name: Download desktop installers from the draft release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          rm -rf staging && mkdir -p staging
-          # Draft assets are visible to the token that owns the release. Patterns
-          # exclude the .sig updater sidecars, latest.json, and the .apk.
-          gh release download "${{ needs.create-release.outputs.tag }}" \
-            -R "${{ github.repository }}" --dir staging \
-            --pattern '*-setup.exe' --pattern '*.msi' --pattern '*.deb' \
-            --pattern '*.rpm' --pattern '*.AppImage' --pattern '*.dmg'
-          echo "Fetched:"; ls -l staging
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            fs.rmSync('staging', { recursive: true, force: true });
+            fs.mkdirSync('staging', { recursive: true });
+            const releaseId = ${{ needs.create-release.outputs.release_id }};
+            const assets = await github.paginate(
+              github.rest.repos.listReleaseAssets,
+              { owner: context.repo.owner, repo: context.repo.repo, release_id: releaseId, per_page: 100 },
+            );
+            const want = /(-setup\.exe|\.msi|\.deb|\.rpm|\.AppImage|\.dmg)$/i;
+            const picked = assets.filter(a => want.test(a.name));
+            if (picked.length === 0) {
+              core.setFailed(`No desktop installers found on release ${releaseId}`);
+              return;
+            }
+            for (const a of picked) {
+              const res = await github.rest.repos.getReleaseAsset({
+                owner: context.repo.owner, repo: context.repo.repo, asset_id: a.id,
+                headers: { accept: 'application/octet-stream' },
+              });
+              fs.writeFileSync(path.join('staging', a.name), Buffer.from(res.data));
+              core.info(`Fetched ${a.name} (${a.size} bytes)`);
+            }
 
       - name: Stage the installers on the download server
         env:
