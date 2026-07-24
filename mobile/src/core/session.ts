@@ -3,10 +3,10 @@
 // no React Native, no storage. Mirrors the desktop client's rules
 // (src-tauri/src/session/commands.rs) so the same host string works in both.
 //
-// The companion uses the server's plain `POST /api/login` form endpoint rather
-// than the desktop's challenge-response path: replicating the AES challenge
-// crypto on-device would be a second implementation of a security-critical
-// routine, and the request is TLS-protected either way.
+// The companion signs in with the same challenge-response flow as the desktop
+// (the password is proven with a derived HMAC and never leaves the device — see
+// ../api.ts and ../core/crypto.ts), falling back to the plain `POST /api/login`
+// form only for accounts that have no challenge key.
 
 export interface MobileSession {
   /** Authority only — no scheme, no trailing slash. */

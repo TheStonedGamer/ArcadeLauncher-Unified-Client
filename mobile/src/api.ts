@@ -5,6 +5,7 @@
 import { attachmentBlocker, parsePresign, presignRequest } from "./core/attach";
 import { parseCatalog, type MobileGame } from "./core/catalog";
 import { challengeProof, decryptToken, deriveAuthKey } from "./core/crypto";
+import { parseFriends, type Friend } from "./core/friends";
 import { parseBoard, type MobileBoard } from "./core/requests";
 import {
   apiUrl,
@@ -144,6 +145,14 @@ export async function fetchRequests(session: MobileSession): Promise<MobileBoard
 export async function voteRequest(session: MobileSession, id: number): Promise<boolean> {
   const body = await authed(session, `/requests/api/requests/${id}/vote`, { method: "POST" });
   return !!body && typeof body === "object" && (body as { voted?: unknown }).voted === true;
+}
+
+/** The account's accepted friends, with the server's authoritative presence
+ *  snapshot. The gateway then streams presence *changes* on top of this; the
+ *  snapshot is what stops the DMs list reading as "nobody signed in" when a
+ *  friend was already online before the phone connected. */
+export async function fetchFriends(session: MobileSession): Promise<Friend[]> {
+  return parseFriends(await authed(session, "/api/social/friends"));
 }
 
 /** Confirm a stored token still works before showing the library. */

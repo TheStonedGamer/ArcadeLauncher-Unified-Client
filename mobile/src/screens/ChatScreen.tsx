@@ -11,7 +11,8 @@ import { ActivityIndicator, FlatList, Text, TextInput, TouchableOpacity, View } 
 import * as ImagePicker from "expo-image-picker";
 
 import { ApiError, uploadAttachment } from "../api";
-import { conversationOrder, isOnline, type Message, type RosterState } from "../core/roster";
+import { friendPresence, presenceOnline, type Friend } from "../core/friends";
+import { conversationOrder, type Message, type RosterState } from "../core/roster";
 import type { MobileSession } from "../core/session";
 import { outbound } from "../core/social";
 import { colors, styles } from "../theme";
@@ -28,17 +29,32 @@ export default function ChatScreen({
   roster: RosterState;
   online: boolean;
   send: (frame: string) => boolean;
-  /** userId -> display name, from the friends list. Ids with no name fall back
-   *  to the id itself so a conversation is never unreachable. */
-  friends: Record<number, string>;
+  /** The account's accepted friends, from `/api/social/friends`. Their names
+   *  and this snapshot presence seed the list; the gateway's live frames refine
+   *  presence on top. */
+  friends: Friend[];
   onCall: (peerId: number) => void;
 }) {
   const [peer, setPeer] = useState<number | null>(null);
 
-  const nameOf = (id: number) => friends[id] || `User ${id}`;
+  const names = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const f of friends) map[f.id] = f.username;
+    return map;
+  }, [friends]);
+  const nameOf = (id: number) => names[id] || `User ${id}`;
+
+  // The REST snapshot, then the gateway's live changes on top of it: a friend
+  // who was online at connect shows online from the snapshot, and anyone whose
+  // presence changes afterward is corrected by the frame.
+  const presence = useMemo(
+    () => ({ ...friendPresence(friends), ...roster.presence }),
+    [friends, roster.presence],
+  );
+  const online_ = (id: number) => presenceOnline(presence[id]);
 
   if (peer === null) {
-    return <ConversationList roster={roster} friends={friends} nameOf={nameOf} onOpen={setPeer} />;
+    return <ConversationList roster={roster} friends={friends} nameOf={nameOf} isOnline={online_} onOpen={setPeer} />;
   }
   return (
     <Conversation
@@ -58,19 +74,21 @@ function ConversationList({
   roster,
   friends,
   nameOf,
+  isOnline,
   onOpen,
 }: {
   roster: RosterState;
-  friends: Record<number, string>;
+  friends: Friend[];
   nameOf: (id: number) => string;
+  isOnline: (id: number) => boolean;
   onOpen: (id: number) => void;
 }) {
   // Everyone with history, then any remaining friend, so a first message can be
   // started without hunting for a separate "new chat" button.
   const rows = useMemo(() => {
     const withHistory = conversationOrder(roster);
-    const rest = Object.keys(friends)
-      .map(Number)
+    const rest = friends
+      .map((f) => f.id)
       .filter((id) => !withHistory.includes(id))
       .sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
     return [...withHistory, ...rest];
@@ -92,7 +110,7 @@ function ConversationList({
                 width: 10,
                 height: 10,
                 borderRadius: 5,
-                backgroundColor: isOnline(roster, item) ? colors.ok : colors.border,
+                backgroundColor: isOnline(item) ? colors.ok : colors.border,
               }}
             />
             <View style={{ flex: 1 }}>

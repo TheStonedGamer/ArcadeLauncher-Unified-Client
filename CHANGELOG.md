@@ -13,6 +13,18 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-07-23
+
+### Fixed
+- **The phone now shows who's signed in.** The companion's DMs tab was coming up
+  empty even when friends were online, because it never loaded your friend list —
+  it only noticed people whose status *changed* after the app opened. It now
+  loads the list on sign-in, so your friends and their online status appear right
+  away.
+
+### Changed
+- **The phone's "Friends" tab is now "DMs"** — same friends and chat, clearer name.
+
 ## [0.14.1] - 2026-07-23
 
 ### Fixed

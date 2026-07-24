@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, SafeAreaView, Text, TouchableOpacity, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 
+import { fetchFriends } from "./src/api";
+import { friendNames, type Friend } from "./src/core/friends";
 import type { MobileSession } from "./src/core/session";
 import { useGateway } from "./src/gateway";
 import { useCall } from "./src/useCall";
@@ -17,13 +19,14 @@ import { colors, styles } from "./src/theme";
 
 type Tab = "library" | "chat" | "requests";
 
-const TAB_LABELS: Record<Tab, string> = { library: "Library", chat: "Friends", requests: "Requests" };
+const TAB_LABELS: Record<Tab, string> = { library: "Library", chat: "DMs", requests: "Requests" };
 
 export default function App() {
   const [session, setSession] = useState<MobileSession | null>(null);
   const [restoring, setRestoring] = useState(true);
   const [tab, setTab] = useState<Tab>("library");
   const [showDevices, setShowDevices] = useState(false);
+  const [friendList, setFriendList] = useState<Friend[]>([]);
 
   // The socket is the app's, not a screen's: the sign-in approval push has to
   // arrive whichever tab is showing, and the device list has to already be
@@ -33,16 +36,11 @@ export default function App() {
   // Calls live at the app level for the same reason: an incoming call has to
   // ring on whichever tab is open, including none of them.
   const call = useCall(gateway.send, gateway.setFrameHandler);
-  const friends = useMemo(() => {
-    const map: Record<number, string> = {};
-    for (const id of Object.keys(gateway.roster.presence)) map[Number(id)] = "";
-    for (const id of Object.keys(gateway.roster.conversations)) map[Number(id)] = map[Number(id)] ?? "";
-    return map;
-  }, [gateway.roster.presence, gateway.roster.conversations]);
-
-  // A call can come from someone the friends map has no name for yet, so it
-  // falls back to the id rather than showing a blank caller.
-  const friendName = (id: number) => friends[id] || (id > 0 ? `User ${id}` : "");
+  // Names come from the authoritative friend list (fetched below); a call or a
+  // conversation can still reference an id the list has no name for, so both the
+  // caller name and the DMs screen fall back to "User N" rather than a blank.
+  const names = useMemo(() => friendNames(friendList), [friendList]);
+  const friendName = (id: number) => names[id] || (id > 0 ? `User ${id}` : "");
 
   useEffect(() => {
     void (async () => {
@@ -52,6 +50,29 @@ export default function App() {
       setRestoring(false);
     })();
   }, []);
+
+  // Load the friend roster whenever the session changes. This is the snapshot
+  // the DMs list is built from: gateway presence frames only report *changes*,
+  // so a friend already online at connect would otherwise never appear. A
+  // failure here leaves the list empty rather than blocking the app — the
+  // gateway still fills in anyone whose presence changes after connect.
+  useEffect(() => {
+    if (!session) {
+      setFriendList([]);
+      return;
+    }
+    let alive = true;
+    void fetchFriends(session)
+      .then((list) => {
+        if (alive) setFriendList(list);
+      })
+      .catch(() => {
+        /* offline or expired token; the library screen handles the 401 */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [session]);
 
   const signIn = (s: MobileSession) => {
     setSession(s);
@@ -116,7 +137,7 @@ export default function App() {
                 roster={gateway.roster}
                 online={online}
                 send={gateway.send}
-                friends={friends}
+                friends={friendList}
                 onCall={call.start}
               />
             ) : (
