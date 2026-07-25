@@ -164,6 +164,7 @@ pub fn run() {
             launch::commands::check_runnable,
             settings::commands::load_settings,
             settings::commands::save_settings,
+            settings::commands::get_server_version,
             social::commands::social_connect,
             social::commands::social_send,
             social::commands::social_disconnect,

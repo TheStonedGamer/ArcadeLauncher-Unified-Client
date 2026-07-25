@@ -7,6 +7,12 @@ use crate::settings::{model::General, store};
 use std::path::PathBuf;
 use tauri::Manager;
 
+/// Get the server version from Cargo.toml.
+#[tauri::command]
+pub fn get_server_version() -> AppResult<String> {
+    Ok(env!("CARGO_PKG_VERSION").to_string())
+}
+
 fn config_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
     let dir = app
         .path()
