@@ -13,6 +13,13 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.10] - 2026-07-26
+
+### Changed
+
+- Published a minimal client revision to exercise and verify the production
+  self-hosted incremental update path from version 0.15.9.
+
 ## [0.15.9] - 2026-07-26
 
 ### Added
