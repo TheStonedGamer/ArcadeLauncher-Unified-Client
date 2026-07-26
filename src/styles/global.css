@@ -180,6 +180,54 @@ body {
 .account-menu {
   position: relative;
 }
+.app-update {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  border: 1px solid #84d8ff;
+  border-radius: 50%;
+  color: #dff7ff;
+  background: #1479a8;
+  cursor: pointer;
+  animation: app-update-glow 1.7s ease-in-out infinite;
+}
+.app-update svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.app-update:hover,
+.app-update:focus-visible {
+  color: #fff;
+  background: #219bce;
+  outline: none;
+  animation-duration: 0.8s;
+}
+@keyframes app-update-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 4px rgba(89, 203, 255, 0.45);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow:
+      0 0 10px rgba(89, 203, 255, 0.95),
+      0 0 22px rgba(89, 203, 255, 0.58);
+    transform: scale(1.06);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-update {
+    animation: none;
+    box-shadow: 0 0 10px rgba(89, 203, 255, 0.9);
+  }
+}
 .account-menu__trigger {
   display: flex;
   align-items: center;

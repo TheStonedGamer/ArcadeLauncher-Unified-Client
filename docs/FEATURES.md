@@ -35,6 +35,8 @@ external runtime dependencies.
 - The upper-right Steam-style account control shows the username and synced
   profile picture, with Account Settings, Settings, Switch Account, and Log Out
   in its dropdown.
+- A glowing download arrow appears beside the account control when the
+  background release check finds a newer signed launcher version.
 - A single cover-art grid spanning **three sources** at once:
   - **Local emulator ROMs** (see Platform Support below).
   - **PC storefront installs** auto-discovered from **Steam**, **Epic Games**,

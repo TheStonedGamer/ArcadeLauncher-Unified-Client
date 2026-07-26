@@ -165,6 +165,7 @@ pub fn run() {
             settings::commands::load_settings,
             settings::commands::save_settings,
             settings::commands::get_server_version,
+            settings::commands::app_update_check,
             social::commands::social_connect,
             social::commands::social_send,
             social::commands::social_disconnect,

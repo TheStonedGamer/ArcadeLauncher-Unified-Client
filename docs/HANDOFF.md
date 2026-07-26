@@ -13,6 +13,10 @@
   webview network requests.
 - Dropdown closes on outside click, Escape, or action. Rust check, 661 frontend
   tests, and the production TypeScript/Vite build pass.
+- `app_update_check` polls the signed GitHub `latest.json` manifest at startup,
+  every 15 minutes, and on window focus. A newer semantic version produces a
+  glowing download arrow beside the identity control; clicking opens the
+  platform's signed installer URL. Network failures remain silent.
 
 ## 2026-07-26 - Unowned local-install marker (v0.15.8)
 

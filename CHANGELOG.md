@@ -20,6 +20,8 @@ Added / Changed / Fixed / Removed.
 - The upper-right account area now shows the signed-in username and
   server-synced profile picture in a Steam-style dropdown with Account Settings,
   Settings, Switch Account, and Log Out actions.
+- A background update check now shows a glowing download arrow beside the
+  account control whenever a newer signed release is available.
 
 ## [0.15.8] - 2026-07-26
 
