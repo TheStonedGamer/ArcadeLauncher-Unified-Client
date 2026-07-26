@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use base64::Engine;
 use serde::Deserialize;
+use sha2::Digest;
 
 use crate::Status;
 
@@ -43,7 +44,7 @@ struct StagedJob {
 
 /// The release manifest the app's bundler publishes (Tauri `latest.json`).
 const ENDPOINT: &str =
-    "https://github.com/TheStonedGamer/ArcadeLauncher-Unified-Client/releases/latest/download/latest.json";
+    "https://arcade.orlandoaio.net/downloads/latest.json";
 
 /// The same minisign public key baked into `tauri.conf.json` (base64 of the
 /// minisign `.pub` file). The signed update artifact is verified against it.
@@ -54,12 +55,22 @@ struct Manifest {
     version: String,
     #[serde(default)]
     platforms: std::collections::HashMap<String, PlatformEntry>,
+    #[serde(default)]
+    deltas: std::collections::HashMap<String, DeltaEntry>,
 }
 
 #[derive(Deserialize)]
 struct PlatformEntry {
     signature: String,
     url: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeltaEntry {
+    from: String,
+    url: String,
+    base_sha256: String,
 }
 
 /// The Tauri platform keys for the host we're running on, in preference order.
@@ -156,13 +167,60 @@ fn check_and_apply(status: &Arc<Mutex<Status>>) -> Result<Outcome, String> {
         .ok_or_else(|| format!("no artifact for {}", platform_keys()[0]))?;
 
     set(status, format!("Downloading update {}…", manifest.version));
-    let bytes = download(&entry.url)?;
+    let bytes = match delta_for_current_platform(&manifest)
+        .and_then(|delta| try_delta_update(status, delta))
+    {
+        Some(bytes) if verify(&bytes, &entry.signature).is_ok() => bytes,
+        _ => {
+            set(status, format!("Downloading update {}â€¦", manifest.version));
+            download(&entry.url)?
+        }
+    };
 
     set(status, "Verifying update…");
     verify(&bytes, &entry.signature)?;
 
     set(status, format!("Updating Arcade Launcher {}…", manifest.version));
     install(&bytes, &entry.url)
+}
+
+fn delta_for_current_platform(manifest: &Manifest) -> Option<&DeltaEntry> {
+    platform_keys()
+        .iter()
+        .find_map(|key| manifest.deltas.get(*key))
+        .filter(|delta| parse(&delta.from) == parse(env!("APP_VERSION")))
+}
+
+/// Reconstruct the full signed installer from a cached prior installer and a
+/// smaller bsdiff patch. Any problem returns None so the caller transparently
+/// falls back to downloading the full signed installer.
+fn try_delta_update(status: &Arc<Mutex<Status>>, delta: &DeltaEntry) -> Option<Vec<u8>> {
+    let base = std::fs::read(update_base_path()?).ok()?;
+    let actual_hash = hex::encode(sha2::Sha256::digest(&base));
+    if !actual_hash.eq_ignore_ascii_case(&delta.base_sha256) {
+        return None;
+    }
+    set(status, "Downloading incremental updateâ€¦");
+    let patch = download(&delta.url).ok()?;
+    set(status, "Applying incremental updateâ€¦");
+    apply_delta(&base, &patch).ok()
+}
+
+fn apply_delta(base: &[u8], patch: &[u8]) -> Result<Vec<u8>, String> {
+    let patcher = qbsdiff::Bspatch::new(patch).map_err(|e| format!("open delta: {e}"))?;
+    let mut target = Vec::with_capacity(patcher.hint_target_size() as usize);
+    patcher
+        .apply(base, std::io::Cursor::new(&mut target))
+        .map_err(|e| format!("apply delta: {e}"))?;
+    Ok(target)
+}
+
+fn update_base_path() -> Option<PathBuf> {
+    if cfg!(target_os = "windows") {
+        Some(exe_dir().join("update-cache").join("base-setup.exe"))
+    } else {
+        std::env::var("APPIMAGE").ok().map(PathBuf::from)
+    }
 }
 
 fn fetch_manifest() -> Result<Manifest, String> {
@@ -470,6 +528,18 @@ mod tests {
         assert_eq!(parse("0.9.4"), (0, 9, 4));
         assert_eq!(parse("1.2"), (1, 2, 0));
         assert_eq!(parse("garbage"), (0, 0, 0));
+    }
+
+    #[test]
+    fn incremental_patch_reconstructs_target() {
+        use qbsdiff::Bsdiff;
+        let base = b"old signed installer payload";
+        let target = b"new signed installer payload with a changed suffix";
+        let mut patch = Vec::new();
+        Bsdiff::new(base, target)
+            .compare(std::io::Cursor::new(&mut patch))
+            .unwrap();
+        assert_eq!(apply_delta(base, &patch).unwrap(), target);
     }
 
     #[test]

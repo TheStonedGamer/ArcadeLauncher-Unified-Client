@@ -37,6 +37,9 @@ external runtime dependencies.
   in its dropdown.
 - A glowing download arrow appears beside the account control when the
   background release check finds a newer signed launcher version.
+- Update manifests and payloads are served by the ArcadeLauncher server.
+  Consecutive compatible releases can use signed-result incremental patches,
+  with the full installer retained as an automatic fallback.
 - A single cover-art grid spanning **three sources** at once:
   - **Local emulator ROMs** (see Platform Support below).
   - **PC storefront installs** auto-discovered from **Steam**, **Epic Games**,

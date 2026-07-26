@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use tauri::Manager;
 
 const UPDATE_MANIFEST_URL: &str =
-    "https://github.com/TheStonedGamer/ArcadeLauncher-Unified-Client/releases/latest/download/latest.json";
+    "https://arcade.orlandoaio.net/downloads/latest.json";
 
 #[derive(Deserialize)]
 struct UpdateManifest {

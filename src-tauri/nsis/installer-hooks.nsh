@@ -16,4 +16,9 @@
   ; Re-point the desktop shortcut only if the user chose to create one.
   IfFileExists "$DESKTOP\${PRODUCTNAME}.lnk" 0 +2
     CreateShortcut "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\updater.exe"
+
+  ; Cache the exact signed installer as the base for the next release's
+  ; incremental patch. The updater validates its SHA-256 before using it.
+  CreateDirectory "$INSTDIR\update-cache"
+  CopyFiles /SILENT "$EXEPATH" "$INSTDIR\update-cache\base-setup.exe"
 !macroend

@@ -13,10 +13,21 @@
   webview network requests.
 - Dropdown closes on outside click, Escape, or action. Rust check, 661 frontend
   tests, and the production TypeScript/Vite build pass.
-- `app_update_check` polls the signed GitHub `latest.json` manifest at startup,
+- `app_update_check` polls the self-hosted `latest.json` manifest at startup,
   every 15 minutes, and on window focus. A newer semantic version produces a
   glowing download arrow beside the identity control; clicking opens the
   platform's signed installer URL. Network failures remain silent.
+- Updater origin is
+  `https://arcade.orlandoaio.net/downloads/latest.json`; `stage-downloads`
+  rewrites every platform payload URL to the same self-hosted origin.
+- Windows NSIS caches its exact installer at
+  `$INSTDIR/update-cache/base-setup.exe`. The staging job uses qbsdiff against
+  the prior server payload and adds a delta only when it is under 85% of the
+  full payload. The updater requires a matching source version and SHA-256,
+  reconstructs the installer, then verifies the existing minisign signature.
+  Missing cache, skipped version, bad hash, patch failure, or inefficient patch
+  all fall back to the full signed installer. Linux uses its current AppImage as
+  the delta base.
 
 ## 2026-07-26 - Unowned local-install marker (v0.15.8)
 

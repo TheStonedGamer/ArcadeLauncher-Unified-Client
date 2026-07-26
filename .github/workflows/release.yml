@@ -478,8 +478,8 @@ jobs:
       # actions/github-script (Node — always present) rather than the `gh` CLI,
       # which is NOT installed on this self-hosted runner (exit 127). List assets
       # by release_id (draft-visible; "get release by tag" never returns drafts)
-      # and download each matching one to staging/. Excludes the .sig updater
-      # sidecars, latest.json, and the .apk.
+      # and download each matching one to staging/. Includes latest.json so its
+      # payload URLs can be rewritten to the self-hosted download origin.
       - name: Download desktop installers from the draft release
         uses: actions/github-script@v7
         with:
@@ -493,7 +493,7 @@ jobs:
               github.rest.repos.listReleaseAssets,
               { owner: context.repo.owner, repo: context.repo.repo, release_id: releaseId, per_page: 100 },
             );
-            const want = /(-setup\.exe|\.msi|\.deb|\.rpm|\.AppImage|\.dmg)$/i;
+            const want = /(-setup\.exe|\.msi|\.deb|\.rpm|\.AppImage|\.dmg|latest\.json)$/i;
             const picked = assets.filter(a => want.test(a.name));
             if (picked.length === 0) {
               core.setFailed(`No desktop installers found on release ${releaseId}`);
@@ -524,10 +524,70 @@ jobs:
           printf '%s\n' "$SSH_KEY" > "$KF"; chmod 600 "$KF"
           printf '%s\n' "$KNOWN_HOSTS" > "$KH"
           SSHOPTS=(-i "$KF" -o "UserKnownHostsFile=$KH" -o BatchMode=yes)
+          # Fetch the currently-served Windows/Linux payloads before replacing
+          # them. A useful qbsdiff patch is published alongside the full
+          # installer; first installs and skipped versions use the full payload.
+          mkdir -p previous
+          scp "${SSHOPTS[@]}" "$DEST:$DLPATH/*-setup.exe" previous/ 2>/dev/null || true
+          scp "${SSHOPTS[@]}" "$DEST:$DLPATH/*.AppImage" previous/ 2>/dev/null || true
+          if ! command -v qbsdiff >/dev/null 2>&1; then
+            cargo install qbsdiff --version 1.4.4 --features cmd --locked
+          fi
+          node <<'NODE'
+          const crypto = require('crypto');
+          const fs = require('fs');
+          const path = require('path');
+          const { execFileSync } = require('child_process');
+          const baseUrl = 'https://arcade.orlandoaio.net/downloads';
+          const manifestPath = path.join('staging', 'latest.json');
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+          manifest.deltas = {};
+          for (const entry of Object.values(manifest.platforms || {})) {
+            const filename = decodeURIComponent(new URL(entry.url).pathname.split('/').pop());
+            entry.url = `${baseUrl}/${filename}`;
+          }
+          const specs = [
+            { key: 'windows-x86_64-nsis', suffix: '-setup.exe' },
+            { key: 'linux-x86_64-appimage', suffix: '.AppImage' },
+          ];
+          const files = dir => fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+          const sha256 = file =>
+            crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          for (const spec of specs) {
+            const currentName = files('staging').find(name => name.endsWith(spec.suffix));
+            const previousName = files('previous').find(name => name.endsWith(spec.suffix));
+            if (!currentName || !previousName || currentName === previousName) continue;
+            const current = path.join('staging', currentName);
+            const previous = path.join('previous', previousName);
+            const from = (previousName.match(/(\d+\.\d+\.\d+)/) || [])[1];
+            if (!from) continue;
+            const patchName =
+              `ArcadeLauncher_${from}_to_${manifest.version}_${spec.key}.patch`;
+            const patch = path.join('staging', patchName);
+            execFileSync('qbsdiff', [previous, current, patch], { stdio: 'inherit' });
+            const patchSize = fs.statSync(patch).size;
+            const fullSize = fs.statSync(current).size;
+            if (patchSize >= fullSize * 0.85) {
+              fs.rmSync(patch);
+              console.log(`Skipping inefficient ${spec.key} delta (${patchSize}/${fullSize})`);
+              continue;
+            }
+            manifest.deltas[spec.key] = {
+              from,
+              url: `${baseUrl}/${patchName}`,
+              baseSha256: sha256(previous),
+              size: patchSize,
+            };
+            console.log(
+              `Built ${spec.key} delta ${from} -> ${manifest.version}: ${patchSize} bytes`,
+            );
+          }
+          fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+          NODE
           # Remove the previous release's installers so the manifest's derived
           # version reflects only this release, then copy the new set in.
           ssh "${SSHOPTS[@]}" "$DEST" \
-            "mkdir -p '$DLPATH' && rm -f '$DLPATH'/*.exe '$DLPATH'/*.msi '$DLPATH'/*.deb '$DLPATH'/*.rpm '$DLPATH'/*.AppImage '$DLPATH'/*.dmg"
+            "mkdir -p '$DLPATH' && rm -f '$DLPATH'/*.exe '$DLPATH'/*.msi '$DLPATH'/*.deb '$DLPATH'/*.rpm '$DLPATH'/*.AppImage '$DLPATH'/*.dmg '$DLPATH'/*.patch '$DLPATH'/latest.json"
           scp "${SSHOPTS[@]}" staging/* "$DEST:$DLPATH/"
           echo "Now on the server:"; ssh "${SSHOPTS[@]}" "$DEST" "ls -l '$DLPATH'"
           rm -f "$KF" "$KH"

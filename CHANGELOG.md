@@ -22,6 +22,9 @@ Added / Changed / Fixed / Removed.
   Settings, Switch Account, and Log Out actions.
 - A background update check now shows a glowing download arrow beside the
   account control whenever a newer signed release is available.
+- Launcher update manifests and payloads now come from the ArcadeLauncher
+  server. Compatible consecutive releases use verified incremental patches,
+  with an automatic full-installer fallback.
 
 ## [0.15.8] - 2026-07-26
 
