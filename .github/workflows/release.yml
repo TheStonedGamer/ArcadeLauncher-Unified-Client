@@ -534,7 +534,10 @@ jobs:
           scp "${SSHOPTS[@]}" "$DEST:$DLPATH/*-setup.exe" previous/ 2>/dev/null || true
           scp "${SSHOPTS[@]}" "$DEST:$DLPATH/*.AppImage" previous/ 2>/dev/null || true
           if ! command -v qbsdiff >/dev/null 2>&1; then
-            cargo install qbsdiff --version 1.4.4 --features cmd --locked
+            # qbsdiff 1.4.4's published Cargo.lock pins its test helper to
+            # qbsdiff 1.4.3, which makes `cargo install --locked` unsatisfiable.
+            # Keep the executable itself pinned while resolving its dependencies.
+            cargo install qbsdiff --version 1.4.4 --features cmd
           fi
           node <<'NODE'
           const crypto = require('crypto');
