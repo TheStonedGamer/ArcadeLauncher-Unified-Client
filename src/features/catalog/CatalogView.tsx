@@ -55,9 +55,14 @@ interface CatalogViewProps {
    *  lives in the Store tab, Steam-style. Undefined = show the whole catalog
    *  (signed out, or ownership not yet resolved). */
   ownedIds?: Set<string>;
+  onRemoveFromLibrary?: (id: string) => Promise<void>;
 }
 
-export function CatalogView({ downloadProgress = {}, ownedIds }: CatalogViewProps) {
+export function CatalogView({
+  downloadProgress = {},
+  ownedIds,
+  onRemoveFromLibrary,
+}: CatalogViewProps) {
   const prefs = useCatalogPrefs();
   const { session } = useSession();
   const { draft: settings } = useSettings();
@@ -458,6 +463,11 @@ export function CatalogView({ downloadProgress = {}, ownedIds }: CatalogViewProp
           onVerify={(g) => void startVerify(g)}
           onOpenFolder={(g) => void openFolder(g)}
           onMove={(g) => void startMove(g)}
+          onRemoveFromLibrary={
+            onRemoveFromLibrary
+              ? (g) => void onRemoveFromLibrary(g.id).catch(() => {})
+              : undefined
+          }
           onToggleFavorite={prefs.toggleFavorite}
           onToggleHidden={prefs.toggleHidden}
           onClose={() => setCardMenu(null)}

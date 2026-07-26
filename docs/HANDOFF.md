@@ -1,5 +1,11 @@
 # ArcadeLauncher Unified Client — Session Handoff
 
+## 2026-07-26 - Desktop Library context ownership (v0.15.6)
+
+- Right-clicking a game in the desktop Library now offers **Remove from Library**.
+- The action uses the shared optimistic ownership hook, immediately removes the
+  card from the Library, persists through `/api/library/:id`, and rolls back on failure.
+
 ## 2026-07-26 - Mobile Store/Library + compact Android packages (v0.15.5)
 
 - The mobile Games tab mirrors the storefront ownership model with Store and

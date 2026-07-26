@@ -1,5 +1,5 @@
 // Right-click context menu for a game tile: the Steam-style per-game actions
-// (Launch / Install / Verify files / Favorite / Hide) anchored at the cursor.
+// (Launch / Install / Verify files / Library / Favorite / Hide) anchored at the cursor.
 // Pure presentation — every action is a callback supplied by CatalogView; the
 // menu just decides which entries make sense for the game's install state. The
 // "Verify files" entry mirrors the native launcher's Validate & Repair: it
@@ -22,6 +22,7 @@ interface Props {
   onVerify: (game: Game) => void;
   onOpenFolder: (game: Game) => void;
   onMove: (game: Game) => void;
+  onRemoveFromLibrary?: (game: Game) => void;
   onToggleFavorite: (game: Game) => void;
   onToggleHidden: (game: Game) => void;
   onClose: () => void;
@@ -35,6 +36,7 @@ export function CardContextMenu({
   onVerify,
   onOpenFolder,
   onMove,
+  onRemoveFromLibrary,
   onToggleFavorite,
   onToggleHidden,
   onClose,
@@ -100,6 +102,15 @@ export function CardContextMenu({
       {onDisk && (
         <button className="card-menu__item" role="menuitem" onClick={run(() => onMove(game))}>
           Move install folder…
+        </button>
+      )}
+      {onRemoveFromLibrary && (
+        <button
+          className="card-menu__item"
+          role="menuitem"
+          onClick={run(() => onRemoveFromLibrary(game))}
+        >
+          Remove from Library
         </button>
       )}
       <div className="card-menu__sep" />
