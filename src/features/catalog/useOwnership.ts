@@ -30,39 +30,71 @@ export function useOwnership(session: Session | null): Ownership {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const fetchedFor = useRef<string | null>(null);
+  const host = session?.host ?? null;
+  const token = session?.token ?? null;
+  const sessionKey =
+    host && token ? JSON.stringify([host, token]) : null;
+  const activeSessionKey = useRef<string | null>(sessionKey);
+  const requestSequence = useRef(0);
+  activeSessionKey.current = sessionKey;
 
   const refresh = useCallback(async () => {
-    if (!session) {
+    if (!host || !token || !sessionKey) {
+      requestSequence.current += 1;
       setOwnedIds(new Set());
       setLoaded(false);
+      setLoading(false);
       return;
     }
+    const expectedSessionKey = sessionKey;
+    const request = ++requestSequence.current;
     setLoading(true);
     setError(null);
     try {
-      const ids = await fetchOwnedIds(session.host, session.token);
+      const ids = await fetchOwnedIds(host, token);
+      if (
+        activeSessionKey.current !== expectedSessionKey ||
+        requestSequence.current !== request
+      ) {
+        return;
+      }
       setOwnedIds(new Set(ids));
       setLoaded(true);
     } catch (e) {
+      if (
+        activeSessionKey.current !== expectedSessionKey ||
+        requestSequence.current !== request
+      ) {
+        return;
+      }
+      // Ownership is an account boundary. Never retain another session's ids or
+      // fall back to treating the whole catalog as owned when this request fails.
+      setOwnedIds(new Set());
+      setLoaded(true);
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      if (
+        activeSessionKey.current === expectedSessionKey &&
+        requestSequence.current === request
+      ) {
+        setLoading(false);
+      }
     }
-  }, [session]);
+  }, [host, token, sessionKey]);
 
-  // Pull once per session token (not on every render).
+  // Reset synchronously for every account boundary, then pull that account's
+  // ids. A late response from the previous account is rejected by refresh().
   useEffect(() => {
-    if (!session) {
-      setOwnedIds(new Set());
-      setLoaded(false);
-      fetchedFor.current = null;
+    requestSequence.current += 1;
+    setOwnedIds(new Set());
+    setLoaded(false);
+    setError(null);
+    if (!sessionKey) {
+      setLoading(false);
       return;
     }
-    if (fetchedFor.current === session.token) return;
-    fetchedFor.current = session.token;
     void refresh();
-  }, [session, refresh]);
+  }, [sessionKey, refresh]);
 
   const isOwned = useCallback((id: string) => ownedIds.has(id), [ownedIds]);
 

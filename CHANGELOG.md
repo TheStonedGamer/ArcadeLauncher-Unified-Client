@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.11] - 2026-07-26
+
+### Fixed
+
+- Switching accounts now clears the previous account's library immediately,
+  rejects stale ownership responses, and no longer exposes the full catalog as
+  owned when an ownership refresh fails.
+
 ## [0.15.10] - 2026-07-26
 
 ### Changed
