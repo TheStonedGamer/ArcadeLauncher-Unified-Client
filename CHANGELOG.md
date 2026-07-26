@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.9] - 2026-07-26
+
+### Added
+
+- The upper-right account area now shows the signed-in username and
+  server-synced profile picture in a Steam-style dropdown with Account Settings,
+  Settings, Switch Account, and Log Out actions.
+
 ## [0.15.8] - 2026-07-26
 
 ### Added

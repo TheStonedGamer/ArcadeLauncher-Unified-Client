@@ -1,6 +1,6 @@
 [package]
 name = "arcade_launcher"
-version = "0.15.8"
+version = "0.15.9"
 description = "ArcadeLauncher Unified Client"
 authors = ["TheStonedGamer"]
 edition = "2021"
@@ -37,6 +37,7 @@ sha2 = "0.10"
 # decrypt, mirroring the server's auth.rs exactly. hex for wire encoding.
 hmac = "0.12"
 hex = "0.4"
+base64 = "0.22"
 
 # Free/total disk space per library folder (multi-drive Storage manager). Tiny,
 # pure-Rust, no system-service deps — identical on Windows + Linux, consistent

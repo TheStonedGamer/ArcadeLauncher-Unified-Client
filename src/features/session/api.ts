@@ -14,6 +14,11 @@ export function sessionLogin(
   return call<Session>("session_login", { host, username, password, totpCode });
 }
 
+/** Load the current account's server-synced profile picture, if one exists. */
+export function sessionAvatar(host: string, token: string): Promise<string | null> {
+  return call<string | null>("session_avatar", { host, token });
+}
+
 export interface QrSigninStart {
   challengeId: string;
   scanSecret: string;

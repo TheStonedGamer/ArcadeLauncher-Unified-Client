@@ -160,11 +160,8 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: 12px;
-}
-.app__user {
-  font-size: 13px;
-  font-weight: 600;
+  margin-left: auto;
+  position: relative;
 }
 .app__signbtn {
   padding: 6px 12px;
@@ -177,6 +174,137 @@ body {
 }
 .app__signbtn:hover {
   border-color: var(--accent);
+}
+
+/* Steam-style identity control pinned to the upper-right corner. */
+.account-menu {
+  position: relative;
+}
+.account-menu__trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 148px;
+  padding: 4px 8px 4px 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #d6d7d8;
+  background: rgba(0, 0, 0, 0.24);
+  cursor: pointer;
+}
+.account-menu__trigger:hover,
+.account-menu__trigger--open {
+  color: #fff;
+  border-color: #4f6577;
+  background: #25384a;
+}
+.account-menu__avatar {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 2px;
+  color: #e8f6ff;
+  background: linear-gradient(145deg, #4c91c7, #244b70);
+  border: 2px solid #6fb7e9;
+  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.08);
+  font-size: 14px;
+  font-weight: 900;
+  overflow: hidden;
+}
+.account-menu__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.account-menu__username {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+}
+.account-menu__chevron {
+  color: #8fa7ba;
+  font-size: 11px;
+}
+.account-menu__dropdown {
+  position: absolute;
+  z-index: 1000;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 270px;
+  padding: 7px;
+  border: 1px solid #42566a;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #24384a, #182838);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.58);
+}
+.account-menu__identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 10px;
+  min-width: 0;
+}
+.account-menu__identity > span:last-child {
+  min-width: 0;
+}
+.account-menu__identity strong,
+.account-menu__identity small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-menu__identity strong {
+  color: #fff;
+  font-size: 14px;
+}
+.account-menu__identity small {
+  margin-top: 2px;
+  color: #91a4b5;
+  font-size: 10px;
+}
+.account-menu__avatar--large {
+  width: 40px;
+  height: 40px;
+  flex-basis: 40px;
+  font-size: 17px;
+}
+.account-menu__dropdown > button {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 2px;
+  color: #d7e2eb;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+}
+.account-menu__dropdown > button:hover,
+.account-menu__dropdown > button:focus-visible {
+  color: #fff;
+  background: #3b6483;
+  outline: none;
+}
+.account-menu__separator {
+  height: 1px;
+  margin: 5px 3px;
+  background: rgba(122, 151, 174, 0.3);
+}
+.account-menu__dropdown > .account-menu__logout {
+  color: #ffb3b3;
+}
+.account-menu__dropdown > .account-menu__logout:hover,
+.account-menu__dropdown > .account-menu__logout:focus-visible {
+  background: #6d3035;
 }
 
 /* Sign-in modal (reuses .detail-backdrop). */

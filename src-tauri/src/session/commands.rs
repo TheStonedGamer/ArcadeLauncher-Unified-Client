@@ -9,6 +9,7 @@
 
 use crate::error::{AppError, AppResult};
 use crate::session::crypto;
+use base64::Engine;
 use serde::{Deserialize, Serialize};
 
 /// A signed-in session handed back to the frontend.
@@ -30,6 +31,45 @@ fn normalize_host(host: &str) -> String {
         .or_else(|| host.strip_prefix("http://"))
         .unwrap_or(host);
     s.trim_end_matches('/').to_string()
+}
+
+/// Load the signed-in account's server-synced profile picture as a data URL.
+/// A missing avatar is not an error; the UI falls back to the username initial.
+#[tauri::command]
+pub async fn session_avatar(host: String, token: String) -> AppResult<Option<String>> {
+    let host = normalize_host(&host);
+    let resp = reqwest::Client::new()
+        .get(format!("https://{host}/api/account/avatar"))
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("avatar request failed: {e}")))?;
+    if resp.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(AppError::msg(format!(
+            "avatar request failed (HTTP {status})"
+        )));
+    }
+    let mime = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(';').next())
+        .unwrap_or("image/png")
+        .trim()
+        .to_string();
+    if !mime.starts_with("image/") {
+        return Err(AppError::msg("avatar response was not an image"));
+    }
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| AppError::msg(format!("read avatar: {e}")))?;
+    let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+    Ok(Some(format!("data:{mime};base64,{encoded}")))
 }
 
 #[derive(Deserialize)]

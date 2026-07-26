@@ -1,5 +1,19 @@
 # ArcadeLauncher Unified Client — Session Handoff
 
+## 2026-07-26 - Steam-style header account menu (v0.15.9)
+
+- Replaced the separate upper-right username/sign-out controls with an identity
+  trigger containing the server-synced profile picture (username initial
+  fallback), username, and dropdown chevron.
+- Dropdown actions: Account Settings opens the existing editable self-profile;
+  Settings changes tabs; Switch Account clears the remembered session and opens
+  sign-in; Log Out clears the session without prompting for another account.
+- Added native authenticated `session_avatar` IPC for
+  `GET /api/account/avatar`, keeping the bearer token out of image URLs and
+  webview network requests.
+- Dropdown closes on outside click, Escape, or action. Rust check, 661 frontend
+  tests, and the production TypeScript/Vite build pass.
+
 ## 2026-07-26 - Unowned local-install marker (v0.15.8)
 
 - Library now retains games that are installed locally after ownership is

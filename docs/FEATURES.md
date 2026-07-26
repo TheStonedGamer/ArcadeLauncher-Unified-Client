@@ -31,6 +31,10 @@ external runtime dependencies.
 > launcher product regardless of which client renders them.
 
 ### 1.1 Unified game library
+
+- The upper-right Steam-style account control shows the username and synced
+  profile picture, with Account Settings, Settings, Switch Account, and Log Out
+  in its dropdown.
 - A single cover-art grid spanning **three sources** at once:
   - **Local emulator ROMs** (see Platform Support below).
   - **PC storefront installs** auto-discovered from **Steam**, **Epic Games**,
