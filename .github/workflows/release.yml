@@ -474,6 +474,9 @@ jobs:
       # by integration" on listReleaseAssets.
       contents: write
     steps:
+      - name: Initialize Rust toolchain for incremental patch generation
+        uses: dtolnay/rust-toolchain@stable
+
       # Fetch the draft's desktop installers via the GitHub API using
       # actions/github-script (Node — always present) rather than the `gh` CLI,
       # which is NOT installed on this self-hosted runner (exit 127). List assets
