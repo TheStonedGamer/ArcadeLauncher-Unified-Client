@@ -84,6 +84,45 @@ pub fn get_server_version() -> AppResult<String> {
     Ok(env!("CARGO_PKG_VERSION").to_string())
 }
 
+/// Spawn the bootstrap updater and exit the launcher. The updater handles
+/// downloading, verifying, and installing the update, then relaunches the app.
+#[tauri::command]
+pub fn trigger_app_update(app: tauri::AppHandle) -> AppResult<()> {
+    use std::process::Command;
+
+    let exe = std::env::current_exe()
+        .map_err(|e| AppError::msg(format!("cannot locate executable: {e}")))?;
+    let dir = exe
+        .parent()
+        .ok_or_else(|| AppError::msg("cannot resolve install directory"))?;
+
+    let updater_name = if cfg!(target_os = "windows") {
+        "updater.exe"
+    } else {
+        "updater"
+    };
+    let updater = dir.join(updater_name);
+    if !updater.exists() {
+        return Err(AppError::msg(format!(
+            "updater not found at {}",
+            updater.display()
+        )));
+    }
+
+    Command::new(&updater)
+        .spawn()
+        .map_err(|e| AppError::msg(format!("failed to start updater: {e}")))?;
+
+    // Give the updater a moment to launch, then exit so it's no longer detected
+    // as running and can proceed with the install.
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        app.exit(0);
+    });
+
+    Ok(())
+}
+
 fn config_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
     let dir = app
         .path()
