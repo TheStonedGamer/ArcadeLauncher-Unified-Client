@@ -2,7 +2,7 @@
   "expo": {
     "name": "ArcadeLauncher",
     "slug": "arcadelauncher-companion",
-    "version": "0.15.6",
+    "version": "0.15.12",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "scheme": "arcadelauncher",
@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "net.orlandoaio.arcadelauncher.companion",
-      "versionCode": 8,
+      "versionCode": 15012,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0e0f13"

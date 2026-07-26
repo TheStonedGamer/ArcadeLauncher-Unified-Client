@@ -13,6 +13,13 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.12] - 2026-07-26
+
+### Added
+
+- Android Companion updates now check the self-hosted ArcadeLauncher update
+  feed, verify the downloaded APK, and open Android's installer when ready.
+
 ## [0.15.11] - 2026-07-26
 
 ### Fixed
