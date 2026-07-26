@@ -52,6 +52,10 @@ import {
 } from "../saves/api";
 import type { CardProgress } from "../download/selectors";
 import type { Game } from "./types";
+import {
+  isInstalledWithoutOwnership,
+  shouldShowInLibrary,
+} from "./ownershipDisplay";
 
 interface CatalogViewProps {
   /** Live per-game install progress, keyed by game id (from the download hook).
@@ -276,11 +280,11 @@ export function CatalogView({
   // events) on top so the Install button reflects what's on disk without a reload.
   const merged = useMemo(() => {
     const withPrefs = applyPrefs(games, prefs.prefs);
-    const owned = ownedIds ? withPrefs.filter((g) => ownedIds.has(g.id)) : withPrefs;
-    return owned.map((g) => {
+    const withInstallState = withPrefs.map((g) => {
       const state = effectiveInstallState(g.id, g.installState, installOverlay);
       return state === g.installState ? g : { ...g, installState: state };
     });
+    return withInstallState.filter((g) => shouldShowInLibrary(g, ownedIds));
   }, [games, prefs.prefs, installOverlay, ownedIds]);
 
   // Restore the last sort so it survives a relaunch. (filter is retained in the
@@ -501,6 +505,10 @@ export function CatalogView({
             onColumns={(c) => (columns.current = c)}
             progress={downloadProgress}
             onContextMenu={openCardMenu}
+            installedNotOwned={(group) =>
+              group.members.some((g) => isInstalledWithoutOwnership(g, ownedIds)) &&
+              !group.members.some((g) => ownedIds?.has(g.id))
+            }
           />
         </div>
       </div>
@@ -515,7 +523,11 @@ export function CatalogView({
           onOpenFolder={(g) => void openFolder(g)}
           onMove={(g) => void startMove(g)}
           onUninstall={(g) => void uninstall(g)}
-          onRemoveFromLibrary={onRemoveFromLibrary ? (g) => void removeOwnedGame(g) : undefined}
+          onRemoveFromLibrary={
+            onRemoveFromLibrary && ownedIds?.has(cardMenu.game.id)
+              ? (g) => void removeOwnedGame(g)
+              : undefined
+          }
           onToggleFavorite={prefs.toggleFavorite}
           onToggleHidden={prefs.toggleHidden}
           onClose={() => setCardMenu(null)}
@@ -574,6 +586,10 @@ export function CatalogView({
           onRestoreVersion={restoreVersion}
           onFindArtwork={apiKey ? findArtwork : undefined}
           onPickArtwork={apiKey ? pickArtwork : undefined}
+          installedNotOwned={
+            selected.members.some((g) => isInstalledWithoutOwnership(g, ownedIds)) &&
+            !selected.members.some((g) => ownedIds?.has(g.id))
+          }
         />
       )}
 

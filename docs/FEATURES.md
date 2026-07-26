@@ -44,6 +44,8 @@ external runtime dependencies.
 - The Library card right-click menu keeps local files and account ownership
   explicit: **Uninstall** safely deletes the recorded local install while
   **Remove from Library** changes ownership without silently deleting files.
+- Installed games remain visible after ownership is removed and carry an amber
+  **Installed · not in library** marker in both Library and Store.
 - Cover art and metadata are **IGDB-enriched** with art pulled from SteamGridDB.
 
 ### 1.2 Library navigation & presentation

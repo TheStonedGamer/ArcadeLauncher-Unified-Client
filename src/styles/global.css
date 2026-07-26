@@ -620,6 +620,28 @@ body {
 .game-card__state--off {
   background: var(--off);
 }
+.installed-not-owned {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  padding: 3px 7px;
+  border-radius: 3px;
+  color: #ffe6ad;
+  background: rgba(88, 55, 13, 0.92);
+  border: 1px solid rgba(255, 183, 66, 0.72);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+.game-card__art > .installed-not-owned,
+.capsule__art > .installed-not-owned {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  z-index: 2;
+  max-width: calc(100% - 12px);
+}
 /* Download progress overlay at the top of an in-flight tile's art. */
 .game-card__progress {
   position: absolute;

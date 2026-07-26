@@ -1,5 +1,16 @@
 # ArcadeLauncher Unified Client — Session Handoff
 
+## 2026-07-26 - Unowned local-install marker (v0.15.8)
+
+- Library now retains games that are installed locally after ownership is
+  removed, instead of making their files invisible to the user.
+- An amber `Installed · not in library` marker appears on Library cards, Store
+  cards/featured/detail, and the Library detail view once ownership has loaded.
+- The unowned game's context menu keeps local file actions, including Uninstall,
+  but correctly omits Remove from Library.
+- Ownership-display behavior is covered by unit tests; 659 frontend tests and
+  the production TypeScript/Vite build pass.
+
 ## 2026-07-26 - Desktop uninstall and safe library removal (v0.15.7)
 
 - Installed/update-available games now offer **Uninstall** in the Library

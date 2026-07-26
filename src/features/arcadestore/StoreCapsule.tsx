@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Game } from "../catalog/types";
 import { coverSrc, ratingBadge } from "./cover";
 import { LibraryToggle } from "./LibraryToggle";
+import { InstalledNotOwnedBadge } from "../catalog/components/InstalledNotOwnedBadge";
 
 interface Props {
   game: Game;
@@ -12,9 +13,17 @@ interface Props {
   canModify: boolean;
   onOpen: () => void;
   onToggle: () => void;
+  installedNotOwned?: boolean;
 }
 
-export function StoreCapsule({ game, owned, canModify, onOpen, onToggle }: Props) {
+export function StoreCapsule({
+  game,
+  owned,
+  canModify,
+  onOpen,
+  onToggle,
+  installedNotOwned = false,
+}: Props) {
   const [src, setSrc] = useState(coverSrc(game));
   const score = ratingBadge(game);
   return (
@@ -26,6 +35,7 @@ export function StoreCapsule({ game, owned, canModify, onOpen, onToggle }: Props
           <span className="capsule__placeholder">{game.title}</span>
         )}
         {score != null && <span className="capsule__score">{score}</span>}
+        {installedNotOwned && <InstalledNotOwnedBadge />}
       </button>
       <div className="capsule__body">
         <button className="capsule__title-btn" onClick={onOpen}>

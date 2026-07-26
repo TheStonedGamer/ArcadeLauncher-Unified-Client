@@ -21,6 +21,8 @@ interface Props {
   /** Right-click on a tile, with the group it represents and the mouse event
    *  (for positioning the per-game context menu). */
   onContextMenu?: (group: VariantGroup, e: React.MouseEvent) => void;
+  /** Whether a group is installed locally but absent from account ownership. */
+  installedNotOwned?: (group: VariantGroup) => boolean;
 }
 
 /** Progress for a variant group: the first member with an in-flight install. */
@@ -48,6 +50,7 @@ export function CatalogGrid({
   onColumns,
   progress = {},
   onContextMenu,
+  installedNotOwned,
 }: Props) {
   const gridRef = useRef<HTMLDivElement>(null);
   const focusedRef = useRef<HTMLButtonElement>(null);
@@ -83,6 +86,7 @@ export function CatalogGrid({
           onOpen={() => onOpen(grp)}
           onContextMenu={onContextMenu ? (_g, e) => onContextMenu(grp, e) : undefined}
           progress={groupProgress(grp, progress)}
+          installedNotOwned={installedNotOwned?.(grp)}
         />
       ))}
     </div>

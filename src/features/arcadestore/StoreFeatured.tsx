@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { Game } from "../catalog/types";
 import { coverSrc, ratingBadge } from "./cover";
 import { LibraryToggle } from "./LibraryToggle";
+import { InstalledNotOwnedBadge } from "../catalog/components/InstalledNotOwnedBadge";
 
 interface Props {
   game: Game;
@@ -13,9 +14,17 @@ interface Props {
   canModify: boolean;
   onOpen: () => void;
   onToggle: () => void;
+  installedNotOwned?: boolean;
 }
 
-export function StoreFeatured({ game, owned, canModify, onOpen, onToggle }: Props) {
+export function StoreFeatured({
+  game,
+  owned,
+  canModify,
+  onOpen,
+  onToggle,
+  installedNotOwned = false,
+}: Props) {
   const [src, setSrc] = useState(coverSrc(game));
   const score = ratingBadge(game);
   return (
@@ -36,6 +45,7 @@ export function StoreFeatured({ game, owned, canModify, onOpen, onToggle }: Prop
             {score != null ? ` · Critic score ${score}/100` : ""}
           </div>
           {game.summary && <p className="featured__summary">{game.summary}</p>}
+          {installedNotOwned && <InstalledNotOwnedBadge />}
           <div className="featured__cta">
             <LibraryToggle owned={owned} canModify={canModify} onToggle={onToggle} size="lg" />
             <span className="featured__price">Free</span>

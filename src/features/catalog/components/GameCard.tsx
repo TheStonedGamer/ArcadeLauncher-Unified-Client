@@ -5,6 +5,7 @@ import { forwardRef } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Game } from "../types";
 import type { CardProgress } from "../../download/selectors";
+import { InstalledNotOwnedBadge } from "./InstalledNotOwnedBadge";
 
 interface Props {
   game: Game;
@@ -14,6 +15,8 @@ interface Props {
   focused?: boolean;
   /** Live install progress while this game is downloading (absent = not in-flight). */
   progress?: CardProgress;
+  /** Installed on disk after account ownership has been removed. */
+  installedNotOwned?: boolean;
   onOpen: (game: Game) => void;
   /** Right-click on the tile (for the per-game context menu). */
   onContextMenu?: (game: Game, e: React.MouseEvent) => void;
@@ -36,7 +39,15 @@ function phaseLabel(p: CardProgress): string {
 }
 
 export const GameCard = forwardRef<HTMLButtonElement, Props>(function GameCard(
-  { game, variantCount = 1, focused = false, progress, onOpen, onContextMenu },
+  {
+    game,
+    variantCount = 1,
+    focused = false,
+    progress,
+    installedNotOwned = false,
+    onOpen,
+    onContextMenu,
+  },
   ref,
 ) {
   const cover = game.coverArtPath ? convertFileSrc(game.coverArtPath) : game.coverArtUrl;
@@ -78,6 +89,7 @@ export const GameCard = forwardRef<HTMLButtonElement, Props>(function GameCard(
             ×{variantCount}
           </span>
         )}
+        {installedNotOwned && <InstalledNotOwnedBadge />}
       </div>
       <div className="game-card__title">{game.title}</div>
       {game.platform && <div className="game-card__platform">{game.platform}</div>}

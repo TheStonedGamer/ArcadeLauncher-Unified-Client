@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.8] - 2026-07-26
+
+### Added
+
+- Installed games that are not in the signed-in account's library now remain
+  visible and carry an `Installed · not in library` marker in Library, Store,
+  and game details.
+
 ## [0.15.7] - 2026-07-26
 
 ### Added

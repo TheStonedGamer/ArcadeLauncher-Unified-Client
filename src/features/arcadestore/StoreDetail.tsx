@@ -7,6 +7,7 @@ import { useState } from "react";
 import type { Game } from "../catalog/types";
 import { coverSrc, ratingBadge } from "./cover";
 import { LibraryToggle } from "./LibraryToggle";
+import { InstalledNotOwnedBadge } from "../catalog/components/InstalledNotOwnedBadge";
 
 interface Props {
   game: Game;
@@ -14,6 +15,7 @@ interface Props {
   canModify: boolean;
   onToggle: () => void;
   onClose: () => void;
+  installedNotOwned?: boolean;
 }
 
 function splitGenres(raw: string): string[] {
@@ -23,7 +25,14 @@ function splitGenres(raw: string): string[] {
     .filter(Boolean);
 }
 
-export function StoreDetail({ game, owned, canModify, onToggle, onClose }: Props) {
+export function StoreDetail({
+  game,
+  owned,
+  canModify,
+  onToggle,
+  onClose,
+  installedNotOwned = false,
+}: Props) {
   const [src, setSrc] = useState(coverSrc(game));
   const score = ratingBadge(game);
   const genres = splitGenres(game.genres);
@@ -53,6 +62,7 @@ export function StoreDetail({ game, owned, canModify, onToggle, onClose }: Props
           <aside className="sdetail__panel">
             <div className="sdetail__cta">
               <LibraryToggle owned={owned} canModify={canModify} onToggle={onToggle} size="lg" stop={false} />
+              {installedNotOwned && <InstalledNotOwnedBadge />}
               <div className="sdetail__free">
                 {owned ? "In your library · install from the Library tab" : "Free · adds to your library"}
               </div>

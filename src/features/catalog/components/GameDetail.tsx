@@ -10,6 +10,7 @@ import type { ConflictPolicy, SyncReport, SaveVersion } from "../../saves/api";
 import { sortVersions, versionLabel, formatVersionTime } from "../../saves/saves";
 import { yearOf, collectionsOf } from "../query";
 import { variantLabel, type VariantGroup } from "../variants";
+import { InstalledNotOwnedBadge } from "./InstalledNotOwnedBadge";
 
 interface Props {
   group: VariantGroup;
@@ -48,6 +49,8 @@ interface Props {
   onFindArtwork?: (game: Game) => Promise<ArtCandidate[]>;
   /** Apply a chosen cover URL; resolves to the saved local cover path. */
   onPickArtwork?: (game: Game, url: string) => Promise<string>;
+  /** The selected group is installed locally but absent from account ownership. */
+  installedNotOwned?: boolean;
 }
 
 function playtimeStr(seconds: number): string {
@@ -87,6 +90,7 @@ export function GameDetail({
   onRestoreVersion,
   onFindArtwork,
   onPickArtwork,
+  installedNotOwned = false,
 }: Props) {
   const [pick, setPick] = useState<Game>(group.representative);
   const [installing, setInstalling] = useState(false);
@@ -303,6 +307,7 @@ export function GameDetail({
         </div>
         <div className="detail__body">
           <h2 className="detail__title">{game.title}</h2>
+          {installedNotOwned && <InstalledNotOwnedBadge />}
 
           {(onToggleFavorite || onToggleHidden) && (
             <div className="detail__actions">

@@ -12,10 +12,14 @@ import type { Game } from "../catalog/types";
 import { StoreCapsule } from "./StoreCapsule";
 import { StoreFeatured } from "./StoreFeatured";
 import { StoreDetail } from "./StoreDetail";
+import { useInstallOverlay } from "../download/useInstallOverlay";
+import { effectiveInstallState } from "../download/installState";
+import { isInstalledWithoutOwnership } from "../catalog/ownershipDisplay";
 
 export function ArcadeStoreView({ ownership }: { ownership: Ownership }) {
   const { session } = useSession();
   const { games, loading, error, load, syncFromServer } = useCatalog();
+  const { states: installOverlay } = useInstallOverlay(session);
   const [query, setQuery] = useState("");
   const [platform, setPlatform] = useState("all");
   const [selected, setSelected] = useState<Game | null>(null);
@@ -35,25 +39,34 @@ export function ArcadeStoreView({ ownership }: { ownership: Ownership }) {
     void syncFromServer(session.host, session.token);
   }, [session, syncFromServer]);
 
+  const liveGames = useMemo(
+    () =>
+      games.map((g) => {
+        const state = effectiveInstallState(g.id, g.installState, installOverlay);
+        return state === g.installState ? g : { ...g, installState: state };
+      }),
+    [games, installOverlay],
+  );
+
   const platforms = useMemo(
-    () => [...new Set(games.map((g) => g.platform).filter(Boolean))].sort(),
-    [games],
+    () => [...new Set(liveGames.map((g) => g.platform).filter(Boolean))].sort(),
+    [liveGames],
   );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return games.filter((g) => {
+    return liveGames.filter((g) => {
       if (platform !== "all" && g.platform !== platform) return false;
       if (q && !g.title.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [games, query, platform]);
+  }, [liveGames, query, platform]);
 
   // Featured = a stable pick (highest-rated), shown only when browsing unfiltered.
   const featured = useMemo(() => {
-    if (query || platform !== "all" || games.length === 0) return null;
-    return [...games].sort((a, b) => b.igdbRating - a.igdbRating)[0] ?? null;
-  }, [games, query, platform]);
+    if (query || platform !== "all" || liveGames.length === 0) return null;
+    return [...liveGames].sort((a, b) => b.igdbRating - a.igdbRating)[0] ?? null;
+  }, [liveGames, query, platform]);
 
   return (
     <section className="astore">
@@ -97,6 +110,10 @@ export function ArcadeStoreView({ ownership }: { ownership: Ownership }) {
           canModify={!!session}
           onOpen={() => setSelected(featured)}
           onToggle={() => toggle(featured, ownership)}
+          installedNotOwned={isInstalledWithoutOwnership(
+            featured,
+            ownership.loaded ? ownership.ownedIds : undefined,
+          )}
         />
       )}
 
@@ -110,6 +127,10 @@ export function ArcadeStoreView({ ownership }: { ownership: Ownership }) {
             canModify={!!session}
             onOpen={() => setSelected(g)}
             onToggle={() => toggle(g, ownership)}
+            installedNotOwned={isInstalledWithoutOwnership(
+              g,
+              ownership.loaded ? ownership.ownedIds : undefined,
+            )}
           />
         ))}
       </div>
@@ -121,6 +142,10 @@ export function ArcadeStoreView({ ownership }: { ownership: Ownership }) {
           canModify={!!session}
           onToggle={() => toggle(selected, ownership)}
           onClose={() => setSelected(null)}
+          installedNotOwned={isInstalledWithoutOwnership(
+            selected,
+            ownership.loaded ? ownership.ownedIds : undefined,
+          )}
         />
       )}
     </section>
