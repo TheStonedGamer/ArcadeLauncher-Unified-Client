@@ -1,5 +1,15 @@
 # ArcadeLauncher Unified Client — Session Handoff
 
+## 2026-07-26 - Desktop uninstall and safe library removal (v0.15.7)
+
+- Installed/update-available games now offer **Uninstall** in the Library
+  right-click menu. The native command refuses active transfers, canonicalizes
+  the recorded path, and deletes only a child of a configured library root.
+- **Remove from Library** remains a separate ownership action. Both destructive
+  choices use native confirmation dialogs; removal warns when local files remain.
+- Successful uninstall clears `install_records.json` and immediately changes the
+  card to `notInstalled` without a launcher restart.
+
 ## 2026-07-26 - Desktop Library context ownership (v0.15.6)
 
 - Right-clicking a game in the desktop Library now offers **Remove from Library**.

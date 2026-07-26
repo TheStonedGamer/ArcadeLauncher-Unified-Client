@@ -41,6 +41,9 @@ external runtime dependencies.
   available*. Launch always runs the local installed copy through the correct
   emulator or directly as an exe — nothing streams off a network share at play
   time.
+- The Library card right-click menu keeps local files and account ownership
+  explicit: **Uninstall** safely deletes the recorded local install while
+  **Remove from Library** changes ownership without silently deleting files.
 - Cover art and metadata are **IGDB-enriched** with art pulled from SteamGridDB.
 
 ### 1.2 Library navigation & presentation

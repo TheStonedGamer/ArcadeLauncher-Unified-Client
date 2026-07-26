@@ -13,6 +13,17 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.7] - 2026-07-26
+
+### Added
+- **Uninstall from the Library right-click menu.** A confirmation protects the
+  destructive action, deletion is constrained to configured library folders,
+  and the game remains owned so it can be installed again later.
+
+### Changed
+- **Remove from Library now asks for confirmation** and warns when installed
+  files will remain on the PC.
+
 ## [0.14.3] - 2026-07-23
 
 ### Added

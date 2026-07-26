@@ -291,6 +291,102 @@ pub fn open_install_dir(app: tauri::AppHandle, game_id: String) -> AppResult<()>
         .map_err(|e| AppError::msg(format!("failed to open folder: {e}")))
 }
 
+/// True when a canonical install directory is a child of one of the canonical
+/// library roots. Equality is deliberately rejected: uninstall must never
+/// remove an entire library root.
+fn is_safe_uninstall_target(target: &std::path::Path, roots: &[PathBuf]) -> bool {
+    roots
+        .iter()
+        .any(|root| target != root && target.starts_with(root))
+}
+
+/// Delete one installed game's local directory and remove its install record.
+/// The account's server-side library ownership is intentionally unchanged.
+#[tauri::command]
+pub fn uninstall_game(
+    app: tauri::AppHandle,
+    manager: State<'_, DownloadManager>,
+    game_id: String,
+) -> AppResult<()> {
+    use crate::download::records::{self, InstallState};
+
+    if !manager.try_reserve_game(&game_id) {
+        return Err(AppError::msg(
+            "can't uninstall while this game is downloading or verifying",
+        ));
+    }
+
+    // Keep reservation cleanup outside the fallible closure so every error path
+    // releases it and a later install is never wedged.
+    let result = (|| -> AppResult<()> {
+        let config_dir = app
+            .path()
+            .app_config_dir()
+            .map_err(|e| AppError::msg(format!("no config dir: {e}")))?;
+        let data_dir = app
+            .path()
+            .app_data_dir()
+            .map_err(|e| AppError::msg(format!("no data dir: {e}")))?;
+        let records_path = config_dir.join("install_records.json");
+
+        let record = manager.with_record_io(|| {
+            let records = records::load(&records_path)?;
+            records
+                .get(&game_id)
+                .cloned()
+                .ok_or_else(|| AppError::msg("game is not installed"))
+        })?;
+        if !matches!(
+            record.state,
+            InstallState::Installed | InstallState::UpdateAvailable
+        ) {
+            return Err(AppError::msg("game is not fully installed"));
+        }
+
+        let install_dir = if record.install_dir.trim().is_empty() {
+            data_dir.join("games").join(&game_id)
+        } else {
+            PathBuf::from(&record.install_dir)
+        };
+
+        if install_dir.exists() {
+            let metadata = std::fs::symlink_metadata(&install_dir)?;
+            if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                return Err(AppError::msg(
+                    "refusing to uninstall: recorded install path is not a normal directory",
+                ));
+            }
+
+            let target = std::fs::canonicalize(&install_dir)?;
+            let mut folders =
+                crate::library::store::load(&config_dir.join("library_folders.json"))?;
+            folders.ensure_default(&data_dir.join("games").to_string_lossy());
+            let roots: Vec<PathBuf> = folders
+                .folders
+                .iter()
+                .filter_map(|folder| std::fs::canonicalize(&folder.path).ok())
+                .collect();
+            if !is_safe_uninstall_target(&target, &roots) {
+                return Err(AppError::msg(
+                    "refusing to uninstall: install path is outside configured library folders",
+                ));
+            }
+            std::fs::remove_dir_all(&target)?;
+        }
+
+        // Reload while holding the engine's record lock so installs of other
+        // games that finished during deletion are preserved.
+        manager.with_record_io(|| {
+            let mut records = records::load(&records_path)?;
+            records.remove(&game_id);
+            records::save(&records_path, &records)
+        })
+    })();
+
+    manager.release_game_reservation(&game_id);
+    result
+}
+
 /// Pause an active install (its `.part` files are kept for resume).
 #[tauri::command]
 pub fn download_pause(manager: State<'_, DownloadManager>, game_id: String) {
@@ -307,4 +403,24 @@ pub fn download_resume(manager: State<'_, DownloadManager>, game_id: String) {
 #[tauri::command]
 pub fn download_cancel(manager: State<'_, DownloadManager>, game_id: String) {
     manager.cancel(&game_id);
+}
+
+#[cfg(test)]
+mod uninstall_tests {
+    use super::is_safe_uninstall_target;
+    use std::path::PathBuf;
+
+    #[test]
+    fn uninstall_target_must_be_below_a_library_root() {
+        let roots = vec![PathBuf::from("/library")];
+        assert!(is_safe_uninstall_target(
+            &PathBuf::from("/library/Bakery Cafe Simulator"),
+            &roots
+        ));
+        assert!(!is_safe_uninstall_target(&PathBuf::from("/library"), &roots));
+        assert!(!is_safe_uninstall_target(
+            &PathBuf::from("/library-other/game"),
+            &roots
+        ));
+    }
 }

@@ -195,6 +195,7 @@ pub fn run() {
             download::commands::load_install_records,
             download::commands::check_updates,
             download::commands::open_install_dir,
+            download::commands::uninstall_game,
             library::commands::list_library_folders,
             library::commands::add_library_folder,
             library::commands::remove_library_folder,

@@ -56,6 +56,12 @@ export function openInstallDir(gameId: string): Promise<void> {
   return call("open_install_dir", { gameId });
 }
 
+/** Delete the game's recorded local install directory and clear its install
+ * record. Server-side library ownership is intentionally left unchanged. */
+export function uninstallGame(gameId: string): Promise<void> {
+  return call("uninstall_game", { gameId });
+}
+
 export function pauseDownload(gameId: string): Promise<void> {
   return call("download_pause", { gameId });
 }

@@ -119,6 +119,35 @@ impl DownloadManager {
         self.active.lock().unwrap().contains_key(game_id)
     }
 
+    /// Reserve a game id for an exclusive local-file operation such as
+    /// uninstall. While reserved, a concurrent install/start for the same game
+    /// is ignored and move/verify commands see it as busy.
+    pub fn try_reserve_game(&self, game_id: &str) -> bool {
+        let mut active = self.active.lock().unwrap();
+        if active.contains_key(game_id) {
+            return false;
+        }
+        active.insert(
+            game_id.to_string(),
+            Arc::new(DownloadHandle {
+                control: AtomicU8::new(CANCELLED),
+            }),
+        );
+        true
+    }
+
+    /// Release a reservation created by [`Self::try_reserve_game`].
+    pub fn release_game_reservation(&self, game_id: &str) {
+        self.active.lock().unwrap().remove(game_id);
+    }
+
+    /// Serialize a short load/modify/save operation on install_records.json
+    /// with the download engine's own record updates.
+    pub fn with_record_io<T>(&self, operation: impl FnOnce() -> T) -> T {
+        let _guard = self.record_io.lock().unwrap();
+        operation()
+    }
+
     /// Write `state` for this install into the client-local records file
     /// (load-modify-save under the record lock). Non-destructive: it only
     /// touches `install_records.json`, never the catalog.

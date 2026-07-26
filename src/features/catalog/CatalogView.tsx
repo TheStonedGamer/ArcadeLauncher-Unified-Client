@@ -5,6 +5,7 @@
 // applyQuery from query.ts.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { confirm, message } from "@tauri-apps/plugin-dialog";
 import { useCatalog } from "./useCatalog";
 import { useGamepad } from "../gamepad/useGamepad";
 import { useControllerConfig } from "../gamepad/ControllerConfigContext";
@@ -27,7 +28,13 @@ import { applyPrefs } from "./prefs";
 import { useSession } from "../session/SessionContext";
 import { useSettings } from "../settings/useSettings";
 import { searchArtwork, applyCover } from "./api";
-import { installGame, updateGame, verifyGame, openInstallDir } from "../download/api";
+import {
+  installGame,
+  updateGame,
+  verifyGame,
+  openInstallDir,
+  uninstallGame,
+} from "../download/api";
 import { useInstallOverlay } from "../download/useInstallOverlay";
 import { effectiveInstallState } from "../download/installState";
 import { listLibraryFolders, moveInstall } from "../library/api";
@@ -73,7 +80,8 @@ export function CatalogView({
     autoSync: settings.autoSync,
     savePathById: (id) => prefs.prefs.savePaths[id] ?? "",
   });
-  const installOverlay = useInstallOverlay(session);
+  const { states: installOverlay, setGameState: setInstallState } =
+    useInstallOverlay(session);
   const { moves, clear: clearMove } = useMoveProgress();
 
   // Steam-style install-location prompt: only shown when more than one library
@@ -167,6 +175,49 @@ export function CatalogView({
   const openFolder = useCallback(async (game: Game) => {
     await openInstallDir(game.id);
   }, []);
+
+  const uninstall = useCallback(
+    async (game: Game) => {
+      const approved = await confirm(
+        `Uninstall ${game.title}?\n\nThis permanently deletes its local game files. The game will remain in your library and can be installed again later.`,
+        { title: `Uninstall ${game.title}`, kind: "warning" },
+      );
+      if (!approved) return;
+      try {
+        await uninstallGame(game.id);
+        setInstallState(game.id, "notInstalled");
+      } catch (e) {
+        await message(e instanceof Error ? e.message : String(e), {
+          title: "Uninstall failed",
+          kind: "error",
+        });
+      }
+    },
+    [setInstallState],
+  );
+
+  const removeOwnedGame = useCallback(
+    async (game: Game) => {
+      if (!onRemoveFromLibrary) return;
+      const onDisk =
+        game.installState === "installed" ||
+        game.installState === "updateAvailable";
+      const approved = await confirm(
+        `Remove ${game.title} from your library?${onDisk ? "\n\nIts installed files will remain on this PC. Uninstall it first if you also want to delete them." : ""}`,
+        { title: "Remove from Library", kind: "warning" },
+      );
+      if (!approved) return;
+      try {
+        await onRemoveFromLibrary(game.id);
+      } catch (e) {
+        await message(e instanceof Error ? e.message : String(e), {
+          title: "Remove from Library failed",
+          kind: "error",
+        });
+      }
+    },
+    [onRemoveFromLibrary],
+  );
 
   // Apply an available update (T12c): re-pull only the changed files via the
   // verify engine pass, which finalizes the record at the new version.
@@ -463,11 +514,8 @@ export function CatalogView({
           onVerify={(g) => void startVerify(g)}
           onOpenFolder={(g) => void openFolder(g)}
           onMove={(g) => void startMove(g)}
-          onRemoveFromLibrary={
-            onRemoveFromLibrary
-              ? (g) => void onRemoveFromLibrary(g.id).catch(() => {})
-              : undefined
-          }
+          onUninstall={(g) => void uninstall(g)}
+          onRemoveFromLibrary={onRemoveFromLibrary ? (g) => void removeOwnedGame(g) : undefined}
           onToggleFavorite={prefs.toggleFavorite}
           onToggleHidden={prefs.toggleHidden}
           onClose={() => setCardMenu(null)}

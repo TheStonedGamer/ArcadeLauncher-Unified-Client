@@ -22,6 +22,7 @@ interface Props {
   onVerify: (game: Game) => void;
   onOpenFolder: (game: Game) => void;
   onMove: (game: Game) => void;
+  onUninstall: (game: Game) => void;
   onRemoveFromLibrary?: (game: Game) => void;
   onToggleFavorite: (game: Game) => void;
   onToggleHidden: (game: Game) => void;
@@ -36,6 +37,7 @@ export function CardContextMenu({
   onVerify,
   onOpenFolder,
   onMove,
+  onUninstall,
   onRemoveFromLibrary,
   onToggleFavorite,
   onToggleHidden,
@@ -68,8 +70,8 @@ export function CardContextMenu({
 
   // Keep the menu inside the viewport when opened near an edge.
   const style: React.CSSProperties = {
-    left: Math.min(target.x, window.innerWidth - 200),
-    top: Math.min(target.y, window.innerHeight - 220),
+    left: Math.max(8, Math.min(target.x, window.innerWidth - 200)),
+    top: Math.max(8, Math.min(target.y, window.innerHeight - 300)),
   };
 
   const run = (fn: () => void) => () => {
@@ -104,9 +106,18 @@ export function CardContextMenu({
           Move install folder…
         </button>
       )}
+      {onDisk && (
+        <button
+          className="card-menu__item card-menu__item--danger"
+          role="menuitem"
+          onClick={run(() => onUninstall(game))}
+        >
+          Uninstall
+        </button>
+      )}
       {onRemoveFromLibrary && (
         <button
-          className="card-menu__item"
+          className="card-menu__item card-menu__item--danger"
           role="menuitem"
           onClick={run(() => onRemoveFromLibrary(game))}
         >

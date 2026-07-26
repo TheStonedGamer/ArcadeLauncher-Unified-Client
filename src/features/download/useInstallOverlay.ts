@@ -7,7 +7,7 @@
 // In a plain browser (no Tauri runtime) the load + listeners are no-ops, so the
 // overlay stays empty and the catalog shows library.json's own install state.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { checkUpdates, loadInstallRecords } from "./api";
 import { applyInstallStatus, mergeUpdateCheck, type InstallStateMap } from "./installState";
@@ -15,11 +15,18 @@ import type { StatusEvent } from "./types";
 
 const STATUS_EVENT = "download://status";
 
+export interface InstallOverlayController {
+  states: InstallStateMap;
+  setGameState: (gameId: string, state: string) => void;
+}
+
 /** Loads the install overlay and, when a `session` is supplied, runs a one-shot
  *  update check (T12c) that flips on-disk records to `updateAvailable` when the
  *  server advertises a newer build. The check re-runs whenever the session
  *  identity changes (sign-in/out). */
-export function useInstallOverlay(session?: { host: string; token: string } | null): InstallStateMap {
+export function useInstallOverlay(
+  session?: { host: string; token: string } | null,
+): InstallOverlayController {
   const [map, setMap] = useState<InstallStateMap>({});
   const host = session?.host ?? null;
   const token = session?.token ?? null;
@@ -68,5 +75,9 @@ export function useInstallOverlay(session?: { host: string; token: string } | nu
     };
   }, [host, token]);
 
-  return map;
+  const setGameState = useCallback((gameId: string, state: string) => {
+    setMap((current) => ({ ...current, [gameId]: state }));
+  }, []);
+
+  return { states: map, setGameState };
 }

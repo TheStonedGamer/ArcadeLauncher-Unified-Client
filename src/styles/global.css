@@ -960,6 +960,13 @@ body {
   background: var(--accent);
   color: #fff;
 }
+.card-menu__item--danger {
+  color: #ff8f8f;
+}
+.card-menu__item--danger:hover {
+  background: #a52a2a;
+  color: #fff;
+}
 .card-menu__sep {
   height: 1px;
   margin: 4px 6px;
