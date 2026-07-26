@@ -9,6 +9,7 @@ import { friendNames, type Friend } from "./src/core/friends";
 import type { MobileSession } from "./src/core/session";
 import { useGateway } from "./src/gateway";
 import { useCall } from "./src/useCall";
+import { useAndroidUpdate } from "./src/useAndroidUpdate";
 import CallOverlay from "./src/screens/CallOverlay";
 import ChatScreen from "./src/screens/ChatScreen";
 import GuardPrompt from "./src/screens/GuardPrompt";
@@ -30,6 +31,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("library");
   const [showDevices, setShowDevices] = useState(false);
   const [friendList, setFriendList] = useState<Friend[]>([]);
+  const update = useAndroidUpdate();
 
   // The socket is the app's, not a screen's: the sign-in approval push has to
   // arrive whichever tab is showing, and the device list has to already be
@@ -116,6 +118,22 @@ export default function App() {
               </View>
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+              {update.phase === "available" ? (
+                <TouchableOpacity onPress={() => void update.install()}>
+                  <Text style={{ color: colors.accent, fontSize: 13 }}>Update {update.version}</Text>
+                </TouchableOpacity>
+              ) : update.phase === "downloading" || update.phase === "installing" ? (
+                <Text style={{ color: colors.accent, fontSize: 13 }}>Updating…</Text>
+              ) : update.phase === "error" ? (
+                <>
+                  <TouchableOpacity onPress={() => void update.openInstallSettings()}>
+                    <Text style={{ color: colors.dim, fontSize: 13 }}>Allow installs</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => void update.check()}>
+                    <Text style={{ color: colors.dim, fontSize: 13 }}>Retry update</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
               <TouchableOpacity onPress={() => setShowDevices(true)}>
                 <Text style={{ color: online ? colors.ok : colors.dim, fontSize: 13 }}>
                   {online ? `Devices (${gateway.roster.devices.length})` : gateway.state}

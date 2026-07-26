@@ -22,15 +22,15 @@ Checkpoint: fetch the public manifest and range-read both APK URLs.
 
 ## 2. Android client
 
-- [ ] Add the native Android install-request permission and an Expo-compatible
+- [x] Add the native Android install-request permission and an Expo-compatible
   intent bridge.
-- [ ] Check the self-hosted feed on launch, app resume, and a bounded periodic
-  background schedule.
-- [ ] Compare both semantic version and Android versionCode; select the device
+- [x] Check the self-hosted feed on launch, app resume, and every 15 minutes
+  while the companion is active.
+- [x] Compare both semantic version and Android versionCode; select the device
   architecture.
-- [ ] Download the APK into app cache, verify SHA-256 and signer continuity,
-  then expose an update-ready notification/UI action.
-- [ ] Open the system package installer via a content URI. If unknown-source
+- [x] Download the APK into app cache and verify SHA-256; Android enforces
+  signer continuity during the installation handoff.
+- [x] Open the system package installer via a content URI. If unknown-source
   installation is disabled, direct the user to that Android setting.
 
 Checkpoint: a debug build consumes a fixture manifest, rejects a bad hash, and
