@@ -1,28 +1,25 @@
 # ArcadeLauncher companion (mobile)
 
-A small React Native / Expo app for browsing the library and the request board
-from a phone. It is a *companion* to the desktop launcher, not a replacement.
+A React Native / Expo companion for managing the ArcadeLauncher store, library,
+social features, requests, and desktop installs from a phone.
 
 ## What it does
 
 - Sign in against your ArcadeLauncher server (`POST /api/login`), with the token
   held in the platform keystore via `expo-secure-store`.
-- Browse the catalogue: search across title / platform / genre / developer,
-  filter by platform, open a game for cover art, summary and download size.
+- Browse the full Store or switch to the signed-in account's personal Library.
+  Add/remove games, search/filter either view, and remotely install owned games
+  to a connected desktop.
 - Browse the request board and upvote rows.
 - Approve pushed sign-in requests and scan short-lived QR codes shown by the
   desktop launcher or website. QR approval only works for the same server that
   issued the phone's stored session.
 
-## What it deliberately does not do
+## Android release size
 
-- **Install / launch / download control.** Those act on a specific PC, and the
-  server has no relay to push a command to a running desktop client. Adding
-  that is server-side work, not a client change; until it exists, the companion
-  stays read-only for the library.
-- **Filing new requests.** The create flow is IGDB-search-driven and lives on
-  the desktop, where the metadata picker is.
-- **Voice / video calls.** The WebRTC stack is desktop-only.
+Release builds use R8 minification and resource shrinking. The release workflow
+publishes separate `arm64` (physical phones) and `x86_64` (emulators) APKs so
+each download contains only one architecture's native libraries.
 
 ## Layout
 
@@ -35,7 +32,7 @@ mobile/
     requests.ts        board parsing, status vocabulary, sort, optimistic votes
   src/api.ts           fetch glue over the cores
   src/storage.ts       keystore-backed session persistence
-  src/screens/         sign-in, library, requests, chat/calls, QR login
+  src/screens/         sign-in, store/library, requests, chat/calls, QR login
 ```
 
 `src/core/*.test.ts` runs under the **repository root** vitest config, so

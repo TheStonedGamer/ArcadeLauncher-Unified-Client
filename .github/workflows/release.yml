@@ -381,31 +381,36 @@ jobs:
         run: |
           set -euo pipefail
           ./gradlew assembleRelease --no-daemon --build-cache --stacktrace \
-            -PreactNativeArchitectures=arm64-v8a,x86_64
+            -PreactNativeArchitectures=arm64-v8a,x86_64 \
+            -Pandroid.enableProguardInReleaseBuilds=true \
+            -Pandroid.enableShrinkResourcesInReleaseBuilds=true
 
       # apksigner is the authority on what actually signed the APK. If this
       # reports the debug certificate, the release must not ship.
       - name: Verify the APK signature
         run: |
           set -euo pipefail
-          APK=$(ls mobile/android/app/build/outputs/apk/release/*.apk | head -1)
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK" | tee /tmp/certs.txt
-          if grep -qi 'CN=Android Debug' /tmp/certs.txt; then
-            echo "::error::APK is signed with the DEBUG certificate." >&2
-            exit 1
-          fi
-          grep -q 'CN=ArcadeLauncher Companion' /tmp/certs.txt \
-            || { echo "::error::APK is not signed by the expected release key." >&2; exit 1; }
+          for APK in mobile/android/app/build/outputs/apk/release/*.apk; do
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK" | tee /tmp/certs.txt
+            if grep -qi 'CN=Android Debug' /tmp/certs.txt; then
+              echo "::error::$APK is signed with the DEBUG certificate." >&2
+              exit 1
+            fi
+            grep -q 'CN=ArcadeLauncher Companion' /tmp/certs.txt \
+              || { echo "::error::$APK is not signed by the expected release key." >&2; exit 1; }
+          done
 
       - name: Name the APK after the tag
         id: apk
         run: |
           set -euo pipefail
           OUT=mobile/android/app/build/outputs/apk/release
-          NAME="ArcadeLauncher-Companion-${{ needs.create-release.outputs.tag }}.apk"
-          cp "$(ls "$OUT"/*.apk | head -1)" "$OUT/$NAME"
-          echo "path=$OUT/$NAME" >> "$GITHUB_OUTPUT"
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          ARM=$(find "$OUT" -maxdepth 1 -name '*arm64-v8a*.apk' | head -1)
+          X86=$(find "$OUT" -maxdepth 1 -name '*x86_64*.apk' | head -1)
+          test -n "$ARM" && test -n "$X86"
+          cp "$ARM" "$OUT/ArcadeLauncher-Companion-${{ needs.create-release.outputs.tag }}-arm64.apk"
+          cp "$X86" "$OUT/ArcadeLauncher-Companion-${{ needs.create-release.outputs.tag }}-x86_64.apk"
+          echo "path=$OUT" >> "$GITHUB_OUTPUT"
           ls -l "$OUT"
 
       # Uploaded by release_id, not by tag: the release is still a DRAFT at this
@@ -416,18 +421,27 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const path = '${{ steps.apk.outputs.path }}';
-            await github.rest.repos.uploadReleaseAsset({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: ${{ needs.create-release.outputs.release_id }},
-              name: '${{ steps.apk.outputs.name }}',
-              data: fs.readFileSync(path),
-              headers: {
-                'content-type': 'application/vnd.android.package-archive',
-                'content-length': fs.statSync(path).size,
-              },
-            });
+            const dir = '${{ steps.apk.outputs.path }}';
+            const files = fs.readdirSync(dir)
+              .filter(name => /^ArcadeLauncher-Companion-.*-(arm64|x86_64)\.apk$/.test(name));
+            if (files.length !== 2) {
+              core.setFailed(`Expected two architecture APKs, found: ${files.join(', ')}`);
+              return;
+            }
+            for (const name of files) {
+              const path = `${dir}/${name}`;
+              await github.rest.repos.uploadReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: ${{ needs.create-release.outputs.release_id }},
+                name,
+                data: fs.readFileSync(path),
+                headers: {
+                  'content-type': 'application/vnd.android.package-archive',
+                  'content-length': fs.statSync(path).size,
+                },
+              });
+            }
 
   # ---- Phase 2d: stage installers on the self-hosted download server -----
   # After the desktop legs have uploaded to the draft, copy the per-platform

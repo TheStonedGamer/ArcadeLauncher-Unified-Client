@@ -12,8 +12,15 @@ import {
   View,
 } from "react-native";
 
-import { ApiError, fetchCatalog } from "../api";
-import { filterGames, formatSize, gameSubtitle, platformsOf, type MobileGame } from "../core/catalog";
+import { addToLibrary, ApiError, fetchCatalog, fetchLibrary, removeFromLibrary } from "../api";
+import {
+  filterGames,
+  formatSize,
+  gameSubtitle,
+  gamesInLibrary,
+  platformsOf,
+  type MobileGame,
+} from "../core/catalog";
 import type { RosterState } from "../core/roster";
 import type { MobileSession } from "../core/session";
 import { colors, styles } from "../theme";
@@ -32,17 +39,22 @@ export default function LibraryScreen({
   online: boolean;
   send: (frame: string) => boolean;
 }) {
+  const [section, setSection] = useState<"store" | "library">("store");
   const [games, setGames] = useState<MobileGame[]>([]);
+  const [ownedIds, setOwnedIds] = useState<Set<string>>(() => new Set());
   const [query, setQuery] = useState("");
   const [platform, setPlatform] = useState("");
   const [selected, setSelected] = useState<MobileGame | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [changing, setChanging] = useState("");
 
   const load = async () => {
     setError("");
     try {
-      setGames(await fetchCatalog(session));
+      const [catalog, library] = await Promise.all([fetchCatalog(session), fetchLibrary(session)]);
+      setGames(catalog);
+      setOwnedIds(new Set(library.gameIds));
     } catch (err) {
       if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
         onExpired();
@@ -59,8 +71,41 @@ export default function LibraryScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.host, session.token]);
 
-  const platforms = useMemo(() => platformsOf(games), [games]);
-  const shown = useMemo(() => filterGames(games, query, platform), [games, query, platform]);
+  const sectionGames = useMemo(
+    () => (section === "library" ? gamesInLibrary(games, ownedIds) : games),
+    [games, ownedIds, section],
+  );
+  const platforms = useMemo(() => platformsOf(sectionGames), [sectionGames]);
+  const shown = useMemo(
+    () => filterGames(sectionGames, query, platform),
+    [sectionGames, query, platform],
+  );
+
+  const changeOwnership = async (game: MobileGame, owned: boolean) => {
+    setChanging(game.id);
+    setError("");
+    try {
+      if (owned) {
+        await removeFromLibrary(session, game.id);
+        setOwnedIds((ids) => {
+          const next = new Set(ids);
+          next.delete(game.id);
+          return next;
+        });
+      } else {
+        await addToLibrary(session, game.id);
+        setOwnedIds((ids) => new Set(ids).add(game.id));
+      }
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        onExpired();
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : "Could not update your library");
+    } finally {
+      setChanging("");
+    }
+  };
 
   if (loading) {
     return (
@@ -72,10 +117,26 @@ export default function LibraryScreen({
 
   return (
     <View style={styles.screen}>
+      <View style={styles.sectionTabs}>
+        {(["store", "library"] as const).map((item) => (
+          <TouchableOpacity
+            key={item}
+            style={[styles.sectionTab, section === item && styles.sectionTabOn]}
+            onPress={() => {
+              setSection(item);
+              setPlatform("");
+            }}
+          >
+            <Text style={[styles.sectionTabText, section === item && styles.sectionTabTextOn]}>
+              {item === "store" ? "Store" : `Library (${ownedIds.size})`}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
       <View style={styles.pad}>
         <TextInput
           style={[styles.input, { marginTop: 0 }]}
-          placeholder={`Search ${games.length} games`}
+          placeholder={`Search ${sectionGames.length} games`}
           placeholderTextColor={colors.dim}
           autoCapitalize="none"
           autoCorrect={false}
@@ -105,7 +166,13 @@ export default function LibraryScreen({
         data={shown}
         keyExtractor={(g) => g.id}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.dim} />}
-        ListEmptyComponent={<Text style={styles.empty}>Nothing matches that search.</Text>}
+        ListEmptyComponent={
+          <Text style={styles.empty}>
+            {section === "library" && ownedIds.size === 0
+              ? "Your library is empty. Add games from the Store."
+              : "Nothing matches that search."}
+          </Text>
+        }
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.row} onPress={() => setSelected(item)}>
             {item.coverArtUrl ? (
@@ -144,13 +211,28 @@ export default function LibraryScreen({
               {selected.summary ? (
                 <Text style={{ color: colors.text, marginTop: 16, lineHeight: 21 }}>{selected.summary}</Text>
               ) : null}
-              <InstallSheet
-                game={selected}
-                roster={roster}
-                online={online}
-                send={send}
-                onClose={() => setSelected(null)}
-              />
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: ownedIds.has(selected.id) ? colors.panelAlt : colors.accent }]}
+                disabled={changing === selected.id}
+                onPress={() => void changeOwnership(selected, ownedIds.has(selected.id))}
+              >
+                <Text style={[styles.buttonText, ownedIds.has(selected.id) && { color: colors.text }]}>
+                  {changing === selected.id
+                    ? "Updating…"
+                    : ownedIds.has(selected.id)
+                      ? "Remove from Library"
+                      : "Add to Library"}
+                </Text>
+              </TouchableOpacity>
+              {ownedIds.has(selected.id) ? (
+                <InstallSheet
+                  game={selected}
+                  roster={roster}
+                  online={online}
+                  send={send}
+                  onClose={() => setSelected(null)}
+                />
+              ) : null}
             </>
           )}
         </ScrollView>

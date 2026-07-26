@@ -83,5 +83,17 @@ export const styles = StyleSheet.create({
   tab: { flex: 1, alignItems: "center", paddingVertical: 12 },
   tabText: { color: colors.dim, fontSize: 13, fontWeight: "600" },
   tabTextOn: { color: colors.accent },
+  sectionTabs: {
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 3,
+    borderRadius: 12,
+    backgroundColor: colors.panel,
+  },
+  sectionTab: { flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 9 },
+  sectionTabOn: { backgroundColor: colors.panelAlt },
+  sectionTabText: { color: colors.dim, fontSize: 14, fontWeight: "600" },
+  sectionTabTextOn: { color: colors.text },
   empty: { color: colors.dim, textAlign: "center", marginTop: 48, paddingHorizontal: 24 },
 });

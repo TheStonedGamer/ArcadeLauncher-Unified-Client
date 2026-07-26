@@ -43,6 +43,19 @@ const RELEASE_SIGNING_CHOICE =
   `signingConfig project.hasProperty('${MARKER}') ` +
   `? signingConfigs.release : signingConfigs.debug`;
 
+const ABI_SPLITS = `
+    // Publish one compact APK per supported architecture instead of a single
+    // universal APK containing two copies of every native library.
+    splits {
+        abi {
+            reset()
+            enable true
+            universalApk false
+            include "arm64-v8a", "x86_64"
+        }
+    }
+`;
+
 /**
  * Rewrite an Expo-generated `android/app/build.gradle` so the release build
  * type signs with a real keystore when one is supplied.
@@ -95,16 +108,21 @@ function injectReleaseSigning(gradle) {
     );
   }
 
-  // Apply the later edit first so the earlier one does not shift its index.
+  // Apply later edits first so earlier inserts do not shift their indexes.
   const withChoice =
     gradle.slice(0, debugSigningAt) +
     RELEASE_SIGNING_CHOICE +
     gradle.slice(debugSigningAt + "signingConfig signingConfigs.debug".length);
 
+  const withSplits =
+    withChoice.slice(0, buildTypesAt) +
+    ABI_SPLITS +
+    withChoice.slice(buildTypesAt);
+
   return (
-    withChoice.slice(0, afterConfigs) +
+    withSplits.slice(0, afterConfigs) +
     RELEASE_SIGNING_CONFIG +
-    withChoice.slice(afterConfigs)
+    withSplits.slice(afterConfigs)
   );
 }
 

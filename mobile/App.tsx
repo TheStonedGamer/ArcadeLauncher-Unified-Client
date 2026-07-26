@@ -22,7 +22,7 @@ import { colors, styles } from "./src/theme";
 
 type Tab = "library" | "chat" | "requests" | "qr";
 
-const TAB_LABELS: Record<Tab, string> = { library: "Library", chat: "DMs", requests: "Requests", qr: "QR Login" };
+const TAB_LABELS: Record<Tab, string> = { library: "Games", chat: "DMs", requests: "Requests", qr: "QR Login" };
 
 export default function App() {
   const [session, setSession] = useState<MobileSession | null>(null);

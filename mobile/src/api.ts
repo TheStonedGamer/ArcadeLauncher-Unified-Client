@@ -3,7 +3,7 @@
 // body back to a parser.
 
 import { attachmentBlocker, parsePresign, presignRequest } from "./core/attach";
-import { parseCatalog, type MobileGame } from "./core/catalog";
+import { parseCatalog, parseLibrary, type MobileGame, type MobileLibrary } from "./core/catalog";
 import { challengeProof, decryptToken, deriveAuthKey } from "./core/crypto";
 import { parseFriends, type Friend } from "./core/friends";
 import {
@@ -139,6 +139,18 @@ async function authed(session: MobileSession, path: string, init: RequestInit = 
 
 export async function fetchCatalog(session: MobileSession): Promise<MobileGame[]> {
   return parseCatalog(await authed(session, "/api/catalog"));
+}
+
+export async function fetchLibrary(session: MobileSession): Promise<MobileLibrary> {
+  return parseLibrary(await authed(session, "/api/library"));
+}
+
+export async function addToLibrary(session: MobileSession, gameId: string): Promise<void> {
+  await authed(session, `/api/library/${encodeURIComponent(gameId)}`, { method: "POST" });
+}
+
+export async function removeFromLibrary(session: MobileSession, gameId: string): Promise<void> {
+  await authed(session, `/api/library/${encodeURIComponent(gameId)}`, { method: "DELETE" });
 }
 
 export async function fetchRequests(session: MobileSession): Promise<MobileBoard> {

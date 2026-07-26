@@ -1,5 +1,15 @@
 # ArcadeLauncher Unified Client — Session Handoff
 
+## 2026-07-26 - Mobile Store/Library + compact Android packages (v0.15.5)
+
+- The mobile Games tab mirrors the storefront ownership model with Store and
+  Library sections backed by `/api/catalog` and bearer-auth `/api/library`.
+- Users can add/remove games on mobile; remote install is shown only for owned games.
+- Android releases enable R8/resource shrinking and publish separate ARM64 phone
+  and x86_64 emulator APKs instead of one universal package.
+- Validation: 656 unit tests, desktop production build, mobile typecheck, and
+  generated Expo/Gradle split configuration all pass.
+
 ## 2026-07-26 - QR sign-in (v0.15.4)
 
 - Desktop `LoginPanel` can create and render a short-lived QR request, poll it

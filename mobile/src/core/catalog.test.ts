@@ -3,9 +3,11 @@ import {
   filterGames,
   formatSize,
   gameSubtitle,
+  gamesInLibrary,
   matchesSearch,
   parseCatalog,
   parseGame,
+  parseLibrary,
   platformsOf,
   releaseYear,
   type MobileGame,
@@ -62,6 +64,30 @@ describe("parseCatalog", () => {
     for (const bad of [null, "", 7, {}, { games: "nope" }]) {
       expect(parseCatalog(bad)).toEqual([]);
     }
+  });
+});
+
+describe("library ownership", () => {
+  it("parses unique string ids and the admin flag", () => {
+    expect(parseLibrary({ gameIds: ["a", "b", "a", 7, ""], isAdmin: true })).toEqual({
+      gameIds: ["a", "b"],
+      isAdmin: true,
+    });
+  });
+
+  it("defaults malformed envelopes safely", () => {
+    expect(parseLibrary(null)).toEqual({ gameIds: [], isAdmin: false });
+    expect(parseLibrary({ gameIds: "a", isAdmin: "yes" })).toEqual({ gameIds: [], isAdmin: false });
+  });
+
+  it("filters the catalog without changing catalog order", () => {
+    const games = [
+      game({ id: "a", title: "A" }),
+      game({ id: "b", title: "B" }),
+      game({ id: "c", title: "C" }),
+    ];
+    expect(gamesInLibrary(games, ["c", "a"]).map((item) => item.id)).toEqual(["a", "c"]);
+    expect(games).toHaveLength(3);
   });
 });
 

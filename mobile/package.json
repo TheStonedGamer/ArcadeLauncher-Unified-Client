@@ -1,6 +1,6 @@
 {
   "name": "arcadelauncher-companion",
-  "version": "0.15.4",
+  "version": "0.15.5",
   "private": true,
   "description": "ArcadeLauncher mobile companion (Expo / React Native) — library, friends, chat, calls, remote install and sign-in approval.",
   "main": "index.js",

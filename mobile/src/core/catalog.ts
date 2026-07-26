@@ -16,6 +16,11 @@ export interface MobileGame {
   sizeBytes: number;
 }
 
+export interface MobileLibrary {
+  gameIds: string[];
+  isAdmin: boolean;
+}
+
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 
@@ -50,6 +55,21 @@ export function parseCatalog(body: unknown): MobileGame[] {
       ? ((body as { games: unknown[] }).games)
       : [];
   return rows.map(parseGame).filter((g): g is MobileGame => g !== null);
+}
+
+/** Parse the bearer-authenticated `/api/library` ownership envelope. */
+export function parseLibrary(body: unknown): MobileLibrary {
+  if (!body || typeof body !== "object") return { gameIds: [], isAdmin: false };
+  const value = body as { gameIds?: unknown; isAdmin?: unknown };
+  const gameIds = Array.isArray(value.gameIds)
+    ? [...new Set(value.gameIds.filter((id): id is string => typeof id === "string" && id.length > 0))]
+    : [];
+  return { gameIds, isAdmin: value.isAdmin === true };
+}
+
+export function gamesInLibrary(games: MobileGame[], gameIds: Iterable<string>): MobileGame[] {
+  const owned = new Set(gameIds);
+  return games.filter((game) => owned.has(game.id));
 }
 
 /** Case/diacritic-insensitive substring match across the fields a user would

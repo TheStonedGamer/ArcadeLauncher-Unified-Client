@@ -77,6 +77,12 @@ describe("injectReleaseSigning", () => {
     );
   });
 
+  it("creates compact ARM64 phone and x86_64 emulator APKs", () => {
+    const out = injectReleaseSigning(TEMPLATE);
+    expect(out).toContain('include "arm64-v8a", "x86_64"');
+    expect(out).toContain("universalApk false");
+  });
+
   it("leaves the debug build type signing with the debug key", () => {
     const out = injectReleaseSigning(TEMPLATE);
     // The debug build type's own line survives verbatim: exactly one plain
