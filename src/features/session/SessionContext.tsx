@@ -24,6 +24,7 @@ interface SessionContextValue {
   lastHost: string;
   lastUsername: string;
   login: (host: string, username: string, password: string, totpCode: string) => Promise<void>;
+  acceptSession: (session: Session) => void;
   logout: () => void;
 }
 
@@ -76,22 +77,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     void configureFromServer(session.host);
   }, [session?.host]);
 
+  const acceptSession = useCallback((s: Session) => {
+    setSession(s);
+    setLastHost(s.host);
+    setLastUsername(s.username);
+    try {
+      localStorage.setItem(HOST_KEY, s.host);
+      localStorage.setItem(USER_KEY, s.username);
+    } catch {
+      /* non-fatal */
+    }
+    // Remember the session for next launch (best-effort; token obfuscated).
+    void sessionSave(s).catch(() => {});
+  }, []);
+
   const login = useCallback(
     async (host: string, username: string, password: string, totpCode: string) => {
       const s = await sessionLogin(host, username, password, totpCode);
-      setSession(s);
-      setLastHost(s.host);
-      setLastUsername(s.username);
-      try {
-        localStorage.setItem(HOST_KEY, s.host);
-        localStorage.setItem(USER_KEY, s.username);
-      } catch {
-        /* non-fatal */
-      }
-      // Remember the session for next launch (best-effort; token obfuscated).
-      void sessionSave(s).catch(() => {});
+      acceptSession(s);
     },
-    [],
+    [acceptSession],
   );
 
   const logout = useCallback(() => {
@@ -100,8 +105,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<SessionContextValue>(
-    () => ({ session, restoring, lastHost, lastUsername, login, logout }),
-    [session, restoring, lastHost, lastUsername, login, logout],
+    () => ({ session, restoring, lastHost, lastUsername, login, acceptSession, logout }),
+    [session, restoring, lastHost, lastUsername, login, acceptSession, logout],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

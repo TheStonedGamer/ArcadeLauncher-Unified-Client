@@ -1,5 +1,17 @@
 # ArcadeLauncher Unified Client — Session Handoff
 
+## 2026-07-26 - QR sign-in (v0.15.4)
+
+- Desktop `LoginPanel` can create and render a short-lived QR request, poll it
+  through Rust-side IPC, and adopt/persist the returned launcher session.
+- Mobile now has a fourth **QR Login** tab using `expo-camera`. It inspects the
+  request before approval and will not send its bearer token unless the scanned
+  server exactly matches the signed-in session host.
+- Server/store counterpart is in `ArcadeLauncher-Server` 0.14.2:
+  `/api/auth/qr/{start,inspect,decide,poll}` plus website QR login.
+- Validation: root vitest 652/652, desktop Vite build, mobile typecheck + Expo
+  config, and Tauri `cargo check` all pass.
+
 Working handoff for the next session. The single source of truth for *what's
 left* is [`ROADMAP.md`](ROADMAP.md); this file captures *current state*, the
 *hard rules*, and the *next concrete step* so a cold start can resume safely.

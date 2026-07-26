@@ -7,11 +7,13 @@ import { useState, type FormEvent } from "react";
 import { useSession } from "./SessionContext";
 import { RegisterPanel } from "./RegisterPanel";
 import { ForgotPanel } from "./ForgotPanel";
+import { QrLoginPanel } from "./QrLoginPanel";
 
 export function LoginPanel({ onClose }: { onClose?: () => void }) {
   const { login, lastHost, lastUsername } = useSession();
   const [registering, setRegistering] = useState(false);
   const [forgetting, setForgetting] = useState(false);
+  const [qrLogin, setQrLogin] = useState(false);
   const [host, setHost] = useState(lastHost || "arcade.orlandoaio.net");
   const [username, setUsername] = useState(lastUsername);
   const [password, setPassword] = useState("");
@@ -40,6 +42,10 @@ export function LoginPanel({ onClose }: { onClose?: () => void }) {
 
   if (forgetting) {
     return <ForgotPanel onBack={() => setForgetting(false)} onClose={onClose} />;
+  }
+
+  if (qrLogin) {
+    return <QrLoginPanel initialHost={host} onBack={() => setQrLogin(false)} onClose={onClose} />;
   }
 
   return (
@@ -97,6 +103,11 @@ export function LoginPanel({ onClose }: { onClose?: () => void }) {
             </button>
           )}
         </div>
+        <p className="login__alt">
+          <button type="button" className="login__altbtn" onClick={() => setQrLogin(true)}>
+            Sign in with QR code
+          </button>
+        </p>
         <p className="login__alt">
           Need an account?{" "}
           <button type="button" className="login__altbtn" onClick={() => setRegistering(true)}>

@@ -15,13 +15,14 @@ import GuardPrompt from "./src/screens/GuardPrompt";
 import { DevicesModal } from "./src/screens/InstallSheet";
 import LibraryScreen from "./src/screens/LibraryScreen";
 import RequestsScreen from "./src/screens/RequestsScreen";
+import QrLoginScreen from "./src/screens/QrLoginScreen";
 import SignInScreen from "./src/screens/SignInScreen";
 import { clearSession, loadSession, saveSession } from "./src/storage";
 import { colors, styles } from "./src/theme";
 
-type Tab = "library" | "chat" | "requests";
+type Tab = "library" | "chat" | "requests" | "qr";
 
-const TAB_LABELS: Record<Tab, string> = { library: "Library", chat: "DMs", requests: "Requests" };
+const TAB_LABELS: Record<Tab, string> = { library: "Library", chat: "DMs", requests: "Requests", qr: "QR Login" };
 
 export default function App() {
   const [session, setSession] = useState<MobileSession | null>(null);
@@ -144,13 +145,15 @@ export default function App() {
                 friends={friendList}
                 onCall={call.start}
               />
-            ) : (
+            ) : tab === "requests" ? (
               <RequestsScreen session={session} onExpired={signOut} />
+            ) : (
+              <QrLoginScreen session={session} />
             )}
           </View>
 
           <View style={styles.tabbar}>
-            {(["library", "chat", "requests"] as Tab[]).map((t) => (
+            {(["library", "chat", "requests", "qr"] as Tab[]).map((t) => (
               <TouchableOpacity key={t} style={styles.tab} onPress={() => setTab(t)}>
                 <Text style={[styles.tabText, tab === t && styles.tabTextOn]}>{TAB_LABELS[t]}</Text>
               </TouchableOpacity>

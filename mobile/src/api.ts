@@ -6,6 +6,11 @@ import { attachmentBlocker, parsePresign, presignRequest } from "./core/attach";
 import { parseCatalog, type MobileGame } from "./core/catalog";
 import { challengeProof, decryptToken, deriveAuthKey } from "./core/crypto";
 import { parseFriends, type Friend } from "./core/friends";
+import {
+  parseQrSigninDetails,
+  type QrSigninChallenge,
+  type QrSigninDetails,
+} from "./core/qr";
 import { parseBoard, type MobileBoard } from "./core/requests";
 import {
   apiUrl,
@@ -164,6 +169,39 @@ export async function checkSession(session: MobileSession): Promise<boolean> {
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) return false;
     throw err;
   }
+}
+
+export async function inspectQrSignin(
+  session: MobileSession,
+  challenge: QrSigninChallenge,
+): Promise<QrSigninDetails> {
+  const form =
+    `challengeId=${encodeURIComponent(challenge.challengeId)}` +
+    `&scanSecret=${encodeURIComponent(challenge.scanSecret)}`;
+  const { status, body } = await request(session.host, "/api/auth/qr/inspect", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+    body: form,
+  });
+  const details = status >= 200 && status < 300 ? parseQrSigninDetails(body) : null;
+  if (!details) throw new ApiError(loginError(body, status), status);
+  return details;
+}
+
+export async function decideQrSignin(
+  session: MobileSession,
+  challenge: QrSigninChallenge,
+  approve: boolean,
+): Promise<void> {
+  const form =
+    `challengeId=${encodeURIComponent(challenge.challengeId)}` +
+    `&scanSecret=${encodeURIComponent(challenge.scanSecret)}` +
+    `&action=${approve ? "approve" : "deny"}`;
+  await authed(session, "/api/auth/qr/decide", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form,
+  });
 }
 
 /** Upload one picked file and return its attachment id, ready to hang off a

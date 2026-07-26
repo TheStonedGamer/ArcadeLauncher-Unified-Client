@@ -225,6 +225,20 @@ body {
   font-size: 12px;
   text-decoration: underline;
 }
+
+.login__qr {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.login__qr-code {
+  padding: 10px;
+  border-radius: 12px;
+  background: #fff;
+  line-height: 0;
+}
 .login__forgot {
   margin: -6px 0 2px;
   text-align: right;

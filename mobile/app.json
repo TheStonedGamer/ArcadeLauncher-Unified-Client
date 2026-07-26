@@ -2,7 +2,7 @@
   "expo": {
     "name": "ArcadeLauncher",
     "slug": "arcadelauncher-companion",
-    "version": "0.15.2",
+    "version": "0.15.4",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "scheme": "arcadelauncher",
@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "net.orlandoaio.arcadelauncher.companion",
-      "versionCode": 5,
+      "versionCode": 6,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0e0f13"
@@ -47,7 +47,13 @@
           }
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Arcade Launcher to scan QR sign-in codes."
+        }
+      ]
     ]
   }
 }

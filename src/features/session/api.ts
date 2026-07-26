@@ -14,6 +14,25 @@ export function sessionLogin(
   return call<Session>("session_login", { host, username, password, totpCode });
 }
 
+export interface QrSigninStart {
+  challengeId: string;
+  scanSecret: string;
+  pollToken: string;
+  expiresIn: number;
+}
+
+export function sessionQrStart(host: string): Promise<QrSigninStart> {
+  return call<QrSigninStart>("session_qr_start", { host });
+}
+
+export function sessionQrPoll(
+  host: string,
+  challengeId: string,
+  pollToken: string,
+): Promise<Session | null> {
+  return call<Session | null>("session_qr_poll", { host, challengeId, pollToken });
+}
+
 /** Result of a self-registration request (account left pending admin approval). */
 export interface RegisterOutcome {
   status: string;

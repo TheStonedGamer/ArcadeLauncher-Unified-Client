@@ -214,6 +214,8 @@ pub fn run() {
             window::commands::set_fullscreen,
             window::commands::is_fullscreen,
             session::commands::session_login,
+            session::commands::session_qr_start,
+            session::commands::session_qr_poll,
             session::commands::session_register,
             session::commands::session_forgot,
             session::store::session_save,

@@ -10,6 +10,9 @@ from a phone. It is a *companion* to the desktop launcher, not a replacement.
 - Browse the catalogue: search across title / platform / genre / developer,
   filter by platform, open a game for cover art, summary and download size.
 - Browse the request board and upvote rows.
+- Approve pushed sign-in requests and scan short-lived QR codes shown by the
+  desktop launcher or website. QR approval only works for the same server that
+  issued the phone's stored session.
 
 ## What it deliberately does not do
 
@@ -32,7 +35,7 @@ mobile/
     requests.ts        board parsing, status vocabulary, sort, optimistic votes
   src/api.ts           fetch glue over the cores
   src/storage.ts       keystore-backed session persistence
-  src/screens/         sign-in, library, requests
+  src/screens/         sign-in, library, requests, chat/calls, QR login
 ```
 
 `src/core/*.test.ts` runs under the **repository root** vitest config, so

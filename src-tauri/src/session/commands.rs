@@ -60,6 +60,106 @@ struct LoginResp {
     must_change_password: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QrSigninStart {
+    pub challenge_id: String,
+    pub scan_secret: String,
+    pub poll_token: String,
+    pub expires_in: i64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct QrPollResp {
+    status: String,
+    #[serde(default)]
+    token: String,
+    #[serde(default)]
+    username: String,
+    #[serde(default)]
+    is_admin: bool,
+    #[serde(default)]
+    must_change_password: bool,
+}
+
+/// Create a short-lived launcher QR sign-in request. The scan secret is safe to
+/// render; the distinct poll token must remain on this desktop.
+#[tauri::command]
+pub async fn session_qr_start(host: String) -> AppResult<QrSigninStart> {
+    let host = normalize_host(&host);
+    let resp = reqwest::Client::new()
+        .post(format!("https://{host}/api/auth/qr/start"))
+        .form(&[
+            ("target", "launcher"),
+            ("deviceName", "Arcade Launcher desktop"),
+        ])
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("QR sign-in request failed: {e}")))?;
+    let status = resp.status();
+    if !status.is_success() {
+        let msg = resp
+            .json::<serde_json::Value>()
+            .await
+            .ok()
+            .and_then(|j| j.get("error").and_then(|e| e.as_str()).map(str::to_string))
+            .unwrap_or_else(|| format!("QR sign-in failed (HTTP {status})"));
+        return Err(AppError::msg(msg));
+    }
+    resp.json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid QR sign-in response: {e}")))
+}
+
+/// Poll once for a QR sign-in result. Pending returns `None`; approval returns a
+/// normal Session that the existing store persists exactly like password login.
+#[tauri::command]
+pub async fn session_qr_poll(
+    host: String,
+    challenge_id: String,
+    poll_token: String,
+) -> AppResult<Option<Session>> {
+    let host = normalize_host(&host);
+    let resp = reqwest::Client::new()
+        .post(format!("https://{host}/api/auth/qr/poll"))
+        .form(&[
+            ("challengeId", challenge_id.as_str()),
+            ("pollToken", poll_token.as_str()),
+        ])
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("QR sign-in poll failed: {e}")))?;
+    let status = resp.status();
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid QR sign-in poll response: {e}")))?;
+    if status == reqwest::StatusCode::ACCEPTED {
+        return Ok(None);
+    }
+    if !status.is_success() {
+        let msg = body
+            .get("error")
+            .and_then(|e| e.as_str())
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("QR sign-in failed (HTTP {status})"));
+        return Err(AppError::msg(msg));
+    }
+    let completed: QrPollResp = serde_json::from_value(body)
+        .map_err(|e| AppError::msg(format!("invalid QR sign-in completion: {e}")))?;
+    if completed.status != "complete" || completed.token.is_empty() {
+        return Err(AppError::msg("server returned an incomplete QR sign-in"));
+    }
+    Ok(Some(Session {
+        host,
+        username: completed.username,
+        token: completed.token,
+        is_admin: completed.is_admin,
+        must_change_password: completed.must_change_password,
+    }))
+}
+
 /// Log in to `host` with `username`/`password` (+ optional `totp_code`).
 #[tauri::command]
 pub async fn session_login(

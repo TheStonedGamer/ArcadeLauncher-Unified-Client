@@ -628,6 +628,11 @@ from scratch.
           device and IP, plus a rolling TOTP for when the phone is offline
           (`mobile/src/core/guard.ts`, 31 KATs). An unanswered prompt expires and
           degrades to "type your code" rather than locking the owner out.
+    - [x] **QR sign-in (v0.15.4)**: the website and desktop render a short-lived
+          sign-in QR; the mobile app's dedicated QR Login tab scans and confirms
+          the destination/device/IP. The QR scan capability is separate from the
+          requester's poll capability, approval is bearer-authenticated, and the
+          phone refuses codes for any server other than its active session host.
     - [ ] _Still open:_ push while the app is **closed**. WS delivery covers an
           open app; background delivery needs FCM credentials, which is an
           account the owner has to create.
