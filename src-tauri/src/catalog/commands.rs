@@ -85,8 +85,13 @@ pub async fn fetch_catalog(
     // Everything from `/api/catalog` is server-owned and installable on demand.
     // The server doesn't emit `serverBacked`, so flag it here — the UI gates the
     // Install button (and cloud-save sync) on it.
+    // The response is also where the server's nested `launch.arguments` template
+    // arrives; fold it into the flat field the launch plan reads, or emulators
+    // needing a flagged argument (xemu's `-dvd_path {rom}`) would be handed the
+    // ROM as a bare positional arg.
     for g in &mut games {
         g.server_backed = true;
+        crate::emulators::launch::absorb_server_arguments(g);
     }
 
     // Cache to the per-user library.json (bare array, the on-disk format) with an

@@ -162,6 +162,23 @@ fn find_rom(install_dir: &Path) -> Option<PathBuf> {
     best.map(|(_, p)| p)
 }
 
+/// Fold the server's nested `launch.arguments` template into the flat
+/// `arguments` field the launch plan reads. Called once per game on catalog
+/// sync, before the entry is cached.
+///
+/// Only emulated platforms take the template. The server stores `"{rom}"` as the
+/// arguments for *every* game with no explicit ones — harmless for an emulator
+/// (it's exactly the ROM placeholder) but actively wrong for a PC game, where it
+/// would be passed to the game's own exe as the literal argument `{rom}`. An
+/// argument the user already has set locally always wins.
+pub fn absorb_server_arguments(game: &mut Game) {
+    let Some(launch) = game.launch.take() else { return };
+    if !game.arguments.is_empty() || exe_candidates(&game.platform).is_empty() {
+        return;
+    }
+    game.arguments = launch.arguments;
+}
+
 /// Why `enrich` did (or didn't) fill in an emulator-ROM launch target. The
 /// distinct skip reasons let the caller surface a precise "why it can't run"
 /// instead of a blanket "no runnable target" (see `launch::target::diagnose`).
@@ -324,6 +341,47 @@ mod tests {
         assert!(is_pc_content_platform("Epic"));
         assert!(!is_pc_content_platform("NES"));
         assert!(!is_pc_content_platform("GameCube"));
+    }
+
+    #[test]
+    fn absorb_server_arguments_takes_emulator_template() {
+        let mut g = Game {
+            platform: "Xbox".into(),
+            launch: Some(crate::catalog::model::ServerLaunch {
+                arguments: "-dvd_path {rom}".into(),
+            }),
+            ..Default::default()
+        };
+        absorb_server_arguments(&mut g);
+        assert_eq!(g.arguments, "-dvd_path {rom}");
+        // Consumed, so it never round-trips into library.json.
+        assert!(g.launch.is_none());
+    }
+
+    #[test]
+    fn absorb_server_arguments_skips_pc_games() {
+        // The server hands every argument-less game "{rom}"; a PC exe must not
+        // be launched with that as a literal argument.
+        let mut g = Game {
+            platform: "PC".into(),
+            launch: Some(crate::catalog::model::ServerLaunch { arguments: "{rom}".into() }),
+            ..Default::default()
+        };
+        absorb_server_arguments(&mut g);
+        assert_eq!(g.arguments, "");
+        assert!(g.launch.is_none());
+    }
+
+    #[test]
+    fn absorb_server_arguments_keeps_existing_local_arguments() {
+        let mut g = Game {
+            platform: "NES".into(),
+            arguments: "--fullscreen {rom}".into(),
+            launch: Some(crate::catalog::model::ServerLaunch { arguments: "{rom}".into() }),
+            ..Default::default()
+        };
+        absorb_server_arguments(&mut g);
+        assert_eq!(g.arguments, "--fullscreen {rom}");
     }
 
     #[test]

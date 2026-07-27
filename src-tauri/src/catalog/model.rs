@@ -44,11 +44,27 @@ pub struct Game {
     pub emulator_path: String,
     pub rom_path: String,
     pub arguments: String,
+    /// The server's nested launch block from `/api/catalog`
+    /// (`"launch": {"target", "arguments"}`). Read-only on the way in: the
+    /// sync folds its `arguments` into the flat field above (see
+    /// `emulators::launch::absorb_server_arguments`) and it is never written
+    /// back to `library.json`, so the cache keeps the flat on-disk shape.
+    #[serde(skip_serializing)]
+    pub launch: Option<ServerLaunch>,
 
     // ── Launch hooks (Playnite-style; run hidden, failures ignored) ──────────
     pub launch_options: String,
     pub pre_launch_cmd: String,
     pub post_exit_cmd: String,
+}
+
+/// The server's launch block. Only `arguments` matters to us — `target` is a
+/// server-side path (or a `{exe}`/`{rom}` placeholder) that this machine can't
+/// use, so the runnable program is always resolved locally.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ServerLaunch {
+    #[serde(default)]
+    pub arguments: String,
 }
 
 /// What to run, resolved with the same precedence as the C++ client:
