@@ -122,11 +122,15 @@ jobs:
 
       - name: Install Linux Tauri deps
         run: |
-          # Remove broken Microsoft apt sources that 403 on some hosts.
+          # Drop the third-party apt sources the image ships with. They 403
+          # on some hosts, and apt-get update treats that as fatal, failing
+          # this job over a repository none of the packages below come from.
+          # Node arrives via actions/setup-node, not nodesource.
           sudo rm -f /etc/apt/sources.list.d/azure-cli.list \
                      /etc/apt/sources.list.d/microsoft-prod.list \
                      /etc/apt/sources.list.d/dotnetdev.list \
-                     /etc/apt/sources.list.d/microsoft.list
+                     /etc/apt/sources.list.d/microsoft.list \
+                     /etc/apt/sources.list.d/nodesource.list
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
             libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev lld
