@@ -4,13 +4,16 @@
 //! policy, then execute — GET each download into the local folder, PUT each
 //! upload to the server. Both calls carry the session Bearer token.
 //!
-//! The local save folder is per-user, per-game: `app_data/saves/<game_id>`.
-//! (Mapping a game's real on-disk save location is a later refinement; v1 syncs
-//! this managed folder so it never touches arbitrary user directories.)
+//! Where we sync from is a [`SaveScope`]: the user's configured `save_path` when
+//! set — which may be a directory *or* a single file, for emulators that keep one
+//! memory-card image — else the managed per-user folder `app_data/saves/<id>`.
+//! `saves_default_path` supplies the real on-disk location for a game so the UI
+//! can offer it instead of the empty managed folder; see `saves::defaults`.
 
 use crate::download::paths::resolve_target;
 use crate::error::{AppError, AppResult};
-use crate::saves::scan::scan_save_dir;
+use crate::saves::defaults::{self, SaveRoots};
+use crate::saves::scan::{scan_save_dir, scan_save_file};
 use crate::saves::sync::{
     apply_conflict_policy, plan_sync, ConflictPolicy, SaveFile, SyncAction, SyncSummary,
 };
@@ -49,22 +52,102 @@ fn normalize_host(host: &str) -> String {
     s.trim_end_matches('/').to_string()
 }
 
-/// The local save folder for a game. When the user has configured a real save
-/// directory (`save_path`, an absolute path) we use it; otherwise we fall back
-/// to the managed per-user folder `app_data/saves/<id>`, which is always safe.
-fn save_base(app: &tauri::AppHandle, game_id: &str, save_path: Option<&str>) -> AppResult<PathBuf> {
+/// What a sync run covers. `base` is the directory we scan and resolve wire
+/// paths against; `only` names a single file within it when the user pointed at
+/// a file rather than a folder. Restricting to one file matters: a chosen file
+/// usually sits in a directory full of things that must never be synced (an
+/// emulator's config folder, a game's install dir), so every list — local *and*
+/// remote — is filtered down to it.
+struct SaveScope {
+    base: PathBuf,
+    only: Option<String>,
+}
+
+impl SaveScope {
+    /// The local files in scope.
+    fn scan(&self) -> AppResult<Vec<SaveFile>> {
+        let r = match &self.only {
+            Some(name) => scan_save_file(&self.base, name),
+            None => scan_save_dir(&self.base),
+        };
+        r.map_err(|e| AppError::msg(format!("save scan failed: {e}")))
+    }
+
+    /// Drop anything the scope excludes — used on the server's file list, which
+    /// knows nothing about a single-file scope.
+    fn retain(&self, mut files: Vec<SaveFile>) -> Vec<SaveFile> {
+        if let Some(name) = &self.only {
+            files.retain(|f| &f.path == name);
+        }
+        files
+    }
+}
+
+/// Resolve a game's save scope. An explicit `save_path` wins and may name a
+/// directory or a file; otherwise we use the managed per-user folder
+/// `app_data/saves/<id>`, which is always safe.
+fn save_scope(app: &tauri::AppHandle, game_id: &str, save_path: Option<&str>) -> AppResult<SaveScope> {
     if let Some(p) = save_path.map(str::trim).filter(|p| !p.is_empty()) {
         let path = PathBuf::from(p);
         if !path.is_absolute() {
-            return Err(AppError::msg("save folder must be an absolute path"));
+            return Err(AppError::msg("save path must be absolute"));
         }
-        return Ok(path);
+        // Only an existing file gets file scope; anything else (a directory, or
+        // a path not yet created) is treated as the folder to sync.
+        if path.is_file() {
+            let (Some(parent), Some(name)) = (path.parent(), path.file_name().and_then(|s| s.to_str()))
+            else {
+                return Err(AppError::msg("save file has no parent directory"));
+            };
+            return Ok(SaveScope { base: parent.to_path_buf(), only: Some(name.to_string()) });
+        }
+        return Ok(SaveScope { base: path, only: None });
     }
     let dir = app
         .path()
         .app_data_dir()
         .map_err(|e| AppError::msg(format!("no data dir: {e}")))?;
-    Ok(dir.join("saves").join(game_id))
+    Ok(SaveScope { base: dir.join("saves").join(game_id), only: None })
+}
+
+/// The well-known save roots on this machine, for `game_id` on `platform`.
+fn machine_roots(app: &tauri::AppHandle, game_id: &str, platform: &str) -> SaveRoots {
+    let home = app.path().home_dir().ok();
+    SaveRoots {
+        // The emulator's own directory is the parent of the exe we'd launch, so
+        // portable layouts resolve wherever the runtime happens to be unpacked.
+        emulator_root: crate::emulators::launch::emulators_dir(app).and_then(|d| {
+            crate::emulators::launch::find_exe(
+                &d.join("_runtimes"),
+                crate::emulators::launch::exe_candidates(platform),
+            )
+            .and_then(|exe| exe.parent().map(Path::to_path_buf))
+        }),
+        documents: app.path().document_dir().ok(),
+        roaming: std::env::var_os("APPDATA").map(PathBuf::from),
+        local: std::env::var_os("LOCALAPPDATA").map(PathBuf::from),
+        saved_games: home.map(|h| h.join("Saved Games")),
+        install_dir: crate::emulators::launch::resolve_install_dir(app, game_id),
+    }
+}
+
+/// The detected real save location for a game, or `None` when we can't find one
+/// that exists. The UI offers this as the default so cloud saves cover the files
+/// the game actually writes instead of an empty managed folder.
+#[tauri::command]
+pub async fn saves_default_path(
+    app: tauri::AppHandle,
+    game_id: String,
+    platform: String,
+    title: String,
+) -> AppResult<Option<String>> {
+    let roots = machine_roots(&app, &game_id, &platform);
+    let mut candidates = defaults::emulator_candidates(&platform, &roots);
+    if candidates.is_empty() {
+        // Not an emulated platform — fall back to the PC heuristics.
+        candidates = defaults::pc_candidates(&title, &roots);
+    }
+    Ok(defaults::pick_existing(&candidates, |p| p.exists()).map(|p| p.to_string_lossy().into_owned()))
 }
 
 async fn list_remote(client: &reqwest::Client, host: &str, token: &str, game_id: &str) -> AppResult<Vec<SaveFile>> {
@@ -98,9 +181,9 @@ pub async fn saves_plan(
 ) -> AppResult<SyncSummary> {
     let host = normalize_host(&host);
     let client = reqwest::Client::new();
-    let remote = list_remote(&client, &host, &token, &game_id).await?;
-    let base = save_base(&app, &game_id, save_path.as_deref())?;
-    let local = scan_save_dir(&base).map_err(|e| AppError::msg(format!("save scan failed: {e}")))?;
+    let scope = save_scope(&app, &game_id, save_path.as_deref())?;
+    let remote = scope.retain(list_remote(&client, &host, &token, &game_id).await?);
+    let local = scope.scan()?;
     let plan = plan_sync(&local, &remote);
     Ok(SyncSummary::of(&plan))
 }
@@ -124,10 +207,11 @@ pub async fn saves_sync(
         _ => ConflictPolicy::Skip,
     };
     let client = reqwest::Client::new();
-    let base = save_base(&app, &game_id, save_path.as_deref())?;
+    let scope = save_scope(&app, &game_id, save_path.as_deref())?;
+    let base = scope.base.clone();
 
-    let remote = list_remote(&client, &host, &token, &game_id).await?;
-    let local = scan_save_dir(&base).map_err(|e| AppError::msg(format!("save scan failed: {e}")))?;
+    let remote = scope.retain(list_remote(&client, &host, &token, &game_id).await?);
+    let local = scope.scan()?;
     let plan = apply_conflict_policy(plan_sync(&local, &remote), policy);
 
     let mut report = SyncReport::default();
@@ -239,8 +323,8 @@ pub async fn saves_snapshot(
     keep: Option<usize>,
     save_path: Option<String>,
 ) -> AppResult<Vec<SaveVersion>> {
-    let base = save_base(&app, &game_id, save_path.as_deref())?;
-    let current = scan_save_dir(&base).map_err(|e| AppError::msg(format!("save scan failed: {e}")))?;
+    let scope = save_scope(&app, &game_id, save_path.as_deref())?;
+    let current = scope.scan()?;
     let root = versions_base(&app, &game_id)?;
     let existing = read_versions(&root);
 
@@ -251,7 +335,15 @@ pub async fn saves_snapshot(
 
     let id = versions::next_version_id(now_unix(), &existing);
     let dest = root.join(&id);
-    copy_tree(&base, &dest)?;
+    match &scope.only {
+        // File scope: snapshot just that file, never its neighbours.
+        Some(name) => {
+            std::fs::create_dir_all(&dest).map_err(|e| AppError::msg(format!("mkdir failed: {e}")))?;
+            std::fs::copy(scope.base.join(name), dest.join(name))
+                .map_err(|e| AppError::msg(format!("copy failed: {e}")))?;
+        }
+        None => copy_tree(&scope.base, &dest)?,
+    }
 
     // Prune overflow beyond the retention count.
     let mut all = read_versions(&root);
@@ -284,16 +376,31 @@ pub async fn saves_restore_version(
     if !src.is_dir() {
         return Err(AppError::msg("version not found"));
     }
-    let base = save_base(&app, &game_id, save_path.as_deref())?;
+    let scope = save_scope(&app, &game_id, save_path.as_deref())?;
 
     // Safety snapshot of the current state before we overwrite it.
     let _ = saves_snapshot(app.clone(), game_id.clone(), None, save_path.clone()).await;
 
-    // Replace the live folder atomically-ish: write to a temp sibling, then swap.
-    if base.exists() {
-        std::fs::remove_dir_all(&base).map_err(|e| AppError::msg(format!("clear failed: {e}")))?;
+    match &scope.only {
+        // File scope: put back only that file. Clearing the directory here would
+        // wipe whatever else lives beside it, which is not ours to delete.
+        Some(name) => {
+            let from = src.join(name);
+            if !from.is_file() {
+                return Err(AppError::msg("version does not contain that save file"));
+            }
+            std::fs::copy(&from, scope.base.join(name))
+                .map_err(|e| AppError::msg(format!("restore failed: {e}")))?;
+        }
+        None => {
+            // Replace the live folder wholesale — the snapshot above is the undo.
+            if scope.base.exists() {
+                std::fs::remove_dir_all(&scope.base)
+                    .map_err(|e| AppError::msg(format!("clear failed: {e}")))?;
+            }
+            copy_tree(&src, &scope.base)?;
+        }
     }
-    copy_tree(&src, &base)?;
     Ok(true)
 }
 

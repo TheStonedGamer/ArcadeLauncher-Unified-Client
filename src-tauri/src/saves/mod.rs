@@ -10,6 +10,7 @@
 #![allow(dead_code)]
 
 pub mod commands;
+pub mod defaults;
 pub mod paths;
 pub mod scan;
 pub mod sync;

@@ -252,7 +252,7 @@ pub fn enrich_status(app: &tauri::AppHandle, game: &mut Game) -> EnrichOutcome {
 
 /// The install dir for `game_id` from `install_records.json`, or the conventional
 /// `<app_data>/games/<id>` path when unrecorded.
-fn resolve_install_dir(app: &tauri::AppHandle, game_id: &str) -> Option<PathBuf> {
+pub(crate) fn resolve_install_dir(app: &tauri::AppHandle, game_id: &str) -> Option<PathBuf> {
     if let Ok(config_dir) = app.path().app_config_dir() {
         let recs = crate::download::records::load(&config_dir.join("install_records.json"))
             .unwrap_or_default();

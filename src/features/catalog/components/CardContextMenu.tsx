@@ -22,6 +22,11 @@ interface Props {
   onVerify: (game: Game) => void;
   onOpenFolder: (game: Game) => void;
   onMove: (game: Game) => void;
+  /** Point cloud saves at a folder, a single file, or (null) back at the
+   *  detected default. */
+  onSetSaveLocation: (game: Game, pick: "folder" | "file" | "default") => void;
+  /** The configured cloud-save path, so the menu can offer to reset it. */
+  saveLocation?: string;
   onUninstall: (game: Game) => void;
   onRemoveFromLibrary?: (game: Game) => void;
   onToggleFavorite: (game: Game) => void;
@@ -37,6 +42,8 @@ export function CardContextMenu({
   onVerify,
   onOpenFolder,
   onMove,
+  onSetSaveLocation,
+  saveLocation,
   onUninstall,
   onRemoveFromLibrary,
   onToggleFavorite,
@@ -106,6 +113,27 @@ export function CardContextMenu({
           Move install folder…
         </button>
       )}
+      {/* Cloud saves aren't gated on install state — the saves outlive the
+          install, so the location stays configurable after an uninstall. The
+          file variant is for emulators that keep one memory-card image. */}
+      <div className="card-menu__sep" />
+      <button
+        className="card-menu__item"
+        role="menuitem"
+        title={saveLocation || "Detected automatically"}
+        onClick={run(() => onSetSaveLocation(game, "folder"))}
+      >
+        Set cloud save folder…
+      </button>
+      <button className="card-menu__item" role="menuitem" onClick={run(() => onSetSaveLocation(game, "file"))}>
+        Set cloud save file…
+      </button>
+      {!!saveLocation && (
+        <button className="card-menu__item" role="menuitem" onClick={run(() => onSetSaveLocation(game, "default"))}>
+          Use detected save location
+        </button>
+      )}
+      {onDisk && <div className="card-menu__sep" />}
       {onDisk && (
         <button
           className="card-menu__item card-menu__item--danger"

@@ -5,7 +5,7 @@
 // applyQuery from query.ts.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { confirm, message } from "@tauri-apps/plugin-dialog";
+import { confirm, message, open } from "@tauri-apps/plugin-dialog";
 import { useCatalog } from "./useCatalog";
 import { useGamepad } from "../gamepad/useGamepad";
 import { useControllerConfig } from "../gamepad/ControllerConfigContext";
@@ -55,6 +55,7 @@ import {
   listSaveVersions,
   snapshotSaves,
   restoreSaveVersion,
+  defaultSavePath,
   type ConflictPolicy,
   type SyncReport,
 } from "../saves/api";
@@ -275,6 +276,59 @@ export function CatalogView({
       return syncSaves(session.host, session.token, game.id, policy, savePath);
     },
     [session, prefs],
+  );
+
+  // Fill in each installed game's real save location once, so cloud saves cover
+  // the files the emulator (or the game) actually writes rather than the empty
+  // managed folder. Detection only ever returns a path that exists, the result is
+  // stored as an ordinary override the user can see and change, and a game that
+  // already has one is skipped — so this never silently redirects a sync the user
+  // has configured. Installed games only: detection stats the disk, and an
+  // uninstalled game has nothing to sync.
+  const detectedFor = useRef(new Set<string>());
+  useEffect(() => {
+    const pending = games.filter(
+      (g) =>
+        (g.installState === "installed" || g.installState === "updateAvailable") &&
+        !prefs.prefs.savePaths[g.id] &&
+        !detectedFor.current.has(g.id),
+    );
+    if (pending.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      for (const game of pending) {
+        detectedFor.current.add(game.id);
+        const found = await defaultSavePath(game.id, game.platform, game.title).catch(() => null);
+        if (cancelled) return;
+        if (found) prefs.setSavePath(game, found);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [games, prefs]);
+
+  // Point cloud saves at a real location. "folder" and "file" open the native
+  // picker (a file for emulators that keep a single memory-card image); "default"
+  // clears the override so the detected location — or the managed folder, when
+  // nothing is detected — takes over again. Cancelling the picker changes nothing.
+  const setSaveLocation = useCallback(
+    async (game: Game, pick: "folder" | "file" | "default") => {
+      if (pick === "default") {
+        prefs.setSavePath(game, "");
+        return;
+      }
+      const current = prefs.prefs.savePaths[game.id] ?? "";
+      const detected = current || (await defaultSavePath(game.id, game.platform, game.title).catch(() => null));
+      const chosen = await open({
+        directory: pick === "folder",
+        multiple: false,
+        title: pick === "folder" ? `Cloud save folder for ${game.title}` : `Cloud save file for ${game.title}`,
+        defaultPath: detected || undefined,
+      });
+      if (typeof chosen === "string") prefs.setSavePath(game, chosen);
+    },
+    [prefs],
   );
 
   // Save version-history (T12i): snapshots live under a managed per-game folder,
@@ -595,6 +649,8 @@ export function CatalogView({
           onVerify={(g) => void startVerify(g)}
           onOpenFolder={(g) => void openFolder(g)}
           onMove={(g) => void startMove(g)}
+          onSetSaveLocation={(g, pick) => void setSaveLocation(g, pick)}
+          saveLocation={prefs.prefs.savePaths[cardMenu.game.id] ?? ""}
           onUninstall={(g) => void uninstall(g)}
           onRemoveFromLibrary={
             onRemoveFromLibrary && ownedIds?.has(cardMenu.game.id)

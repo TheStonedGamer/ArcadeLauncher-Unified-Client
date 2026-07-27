@@ -528,13 +528,15 @@ export function GameDetail({
             <div className="detail__saves">
               {onSetSavePath && (
                 <div className="detail__saves-folder">
-                  <span className="settings__label">Save folder</span>
+                  <span className="settings__label">Save location</span>
                   <input
                     className="settings__input"
                     value={savePath}
                     onChange={(e) => setSavePathState(e.target.value)}
                     onBlur={() => onSetSavePath(game, savePath)}
-                    placeholder="Leave blank to use the managed folder"
+                    // Filled in automatically when we can find the game's real
+                    // save location; right-click the game to pick one instead.
+                    placeholder="Detected automatically — a folder or a single save file"
                     spellCheck={false}
                   />
                 </div>

@@ -23,6 +23,33 @@ pub fn scan_save_dir(base: &Path) -> std::io::Result<Vec<SaveFile>> {
     Ok(out)
 }
 
+/// Scan a single file under `base` — the save location the user picked is a
+/// file, not a directory. Walking the whole parent would be wrong (it may be an
+/// emulator config folder holding megabytes we must never sync) and slow, so we
+/// stat just this one entry. A missing file yields an empty list, exactly as a
+/// missing directory does.
+pub fn scan_save_file(base: &Path, name: &str) -> std::io::Result<Vec<SaveFile>> {
+    let path = base.join(name);
+    let Ok(meta) = std::fs::metadata(&path) else { return Ok(Vec::new()) };
+    if !meta.is_file() {
+        return Ok(Vec::new());
+    }
+    Ok(entry_of(base, &path, &meta).into_iter().collect())
+}
+
+/// Describe one file relative to `base`, or `None` if its path isn't expressible
+/// as a save path.
+fn entry_of(base: &Path, path: &Path, meta: &std::fs::Metadata) -> Option<SaveFile> {
+    let rel = to_rel_save_path(base, path)?;
+    let mtime = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    Some(SaveFile { path: rel, mtime, size: meta.len() })
+}
+
 fn walk(base: &Path, dir: &Path, out: &mut Vec<SaveFile>) -> std::io::Result<()> {
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
@@ -31,14 +58,7 @@ fn walk(base: &Path, dir: &Path, out: &mut Vec<SaveFile>) -> std::io::Result<()>
         if meta.is_dir() {
             walk(base, &path, out)?;
         } else if meta.is_file() {
-            let Some(rel) = to_rel_save_path(base, &path) else { continue };
-            let mtime = meta
-                .modified()
-                .ok()
-                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-                .map(|d| d.as_secs() as i64)
-                .unwrap_or(0);
-            out.push(SaveFile { path: rel, mtime, size: meta.len() });
+            out.extend(entry_of(base, &path, &meta));
         }
     }
     Ok(())
@@ -76,6 +96,27 @@ mod tests {
         let by = |p: &str| files.iter().find(|f| f.path == p).unwrap().size;
         assert_eq!(by("top.sav"), 3);
         assert_eq!(by("slot1/player.sav"), 5);
+
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn single_file_scope_sees_only_that_file() {
+        let d = tmp_dir("onefile");
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join("memcard.mcd"), b"save").unwrap();
+        std::fs::write(d.join("unrelated.log"), b"noise").unwrap();
+
+        let files = scan_save_file(&d, "memcard.mcd").unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "memcard.mcd");
+        assert_eq!(files[0].size, 4);
+
+        // Absent and non-file targets are empty, never an error.
+        assert!(scan_save_file(&d, "nope.mcd").unwrap().is_empty());
+        std::fs::create_dir_all(d.join("adir")).unwrap();
+        assert!(scan_save_file(&d, "adir").unwrap().is_empty());
 
         let _ = std::fs::remove_dir_all(&d);
     }

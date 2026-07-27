@@ -44,6 +44,14 @@ export function syncSaves(
   return call("saves_sync", { host, token, gameId, policy, savePath: savePath || null });
 }
 
+/** The game's real save location on this machine, detected from the emulator we
+ *  launch for its platform (or, for PC games, the conventional Windows save
+ *  folders). Returns null when nothing matching exists on disk, in which case
+ *  cloud saves stay on the managed folder. */
+export function defaultSavePath(gameId: string, platform: string, title: string): Promise<string | null> {
+  return call("saves_default_path", { gameId, platform, title });
+}
+
 /** One restorable snapshot of a game's save folder (version history, T12i). */
 export interface SaveVersion {
   id: string;

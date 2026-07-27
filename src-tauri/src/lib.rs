@@ -231,6 +231,7 @@ pub fn run() {
             saves::commands::saves_versions,
             saves::commands::saves_snapshot,
             saves::commands::saves_restore_version,
+            saves::commands::saves_default_path,
             controller::commands::controller_host_buttons,
             controller::commands::controller_sdl_tokens,
             controller::commands::controller_targets,
