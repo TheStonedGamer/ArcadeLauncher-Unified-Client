@@ -11,7 +11,7 @@ extracts this version's section verbatim and posts it to Discord — so this fil
 _is_ the announcement. Keep entries short, user-facing, and grouped under
 Added / Changed / Fixed / Removed.
 
-## [Unreleased]
+## [0.15.19] - 2026-07-27
 
 ### Added
 
