@@ -20,6 +20,7 @@ const DEFAULTS: GeneralSettings = {
   controllerEnabled: true,
   controllerDeadZone: 0.6,
   steamgriddbApiKey: "",
+  tenorApiKey: "",
   retroachievementsUsername: "",
   retroachievementsApiKey: "",
   autoSync: DEFAULT_AUTO_SYNC,

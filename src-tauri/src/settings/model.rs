@@ -56,6 +56,10 @@ pub struct General {
     /// SteamGridDB API key for the cover-art picker (user-supplied; empty
     /// disables the feature). https://www.steamgriddb.com/profile/preferences/api
     pub steamgriddb_api_key: String,
+    /// Tenor v2 API key for the chat GIF picker (user-supplied; empty disables
+    /// GIF search). https://developers.google.com/tenor/guides/quickstart
+    #[serde(default)]
+    pub tenor_api_key: String,
     /// RetroAchievements username for the RA progress panel (empty disables it).
     pub retroachievements_username: String,
     /// RetroAchievements Web API key (user-supplied). https://retroachievements.org/settings
@@ -80,6 +84,7 @@ impl Default for General {
             controller_enabled: true,
             controller_dead_zone: 0.6,
             steamgriddb_api_key: String::new(),
+            tenor_api_key: String::new(),
             retroachievements_username: String::new(),
             retroachievements_api_key: String::new(),
             auto_sync: AutoSync::default(),

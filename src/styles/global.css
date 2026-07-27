@@ -3563,6 +3563,153 @@ body {
   cursor: default;
 }
 
+/* ── Emoji / GIF pickers ──────────────────────────────────────────────────── */
+/* The anchor is the positioning context; the popover opens upward from the
+   composer, which sits at the bottom of the chat window. */
+.composer__picker-anchor {
+  position: relative;
+  display: inline-flex;
+}
+.composer__icon {
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+.composer__icon:hover:not(:disabled) {
+  background: var(--card-hover);
+}
+.composer__icon--on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.composer__icon:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.picker {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 320px;
+  height: 320px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+.picker--gif {
+  width: 360px;
+  height: 380px;
+}
+.picker__search {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.picker__tabs {
+  display: flex;
+  gap: 4px;
+}
+.picker__tab {
+  flex: 1;
+  padding: 5px 0;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.picker__tab:hover {
+  background: var(--card-hover);
+}
+.picker__tab--active {
+  border-color: var(--accent);
+  background: var(--selected);
+}
+.picker__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.picker__heading {
+  margin: 4px 2px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.picker__grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+.picker__emoji {
+  padding: 4px 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.picker__emoji:hover {
+  background: var(--card-hover);
+}
+.picker__empty {
+  margin: 12px 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+/* Two columns of GIFs; each keeps its own aspect ratio so the grid stays
+   readable without us knowing the dimensions up front. */
+.picker__gifs {
+  columns: 2;
+  column-gap: 6px;
+}
+.picker__gif {
+  display: block;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+  cursor: pointer;
+  break-inside: avoid;
+}
+.picker__gif img {
+  display: block;
+  width: 100%;
+}
+
+/* A GIF sent into chat renders as the image itself. */
+.msg__media {
+  display: block;
+  max-width: 260px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.msg__media img {
+  display: block;
+  width: 100%;
+}
+
 /* ── Profile panel (T9d) ──────────────────────────────────────────────────── */
 .chatpane__name--link {
   background: none;

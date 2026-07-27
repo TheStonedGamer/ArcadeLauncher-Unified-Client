@@ -228,6 +228,20 @@ export function SettingsView() {
                 autoComplete="off"
               />
             </label>
+
+            <h2 className="settings__heading">Chat</h2>
+            <label className="settings__field">
+              <span className="settings__label">Tenor API key (for the GIF picker in chat)</span>
+              <input
+                className="settings__input"
+                type="password"
+                value={draft.tenorApiKey}
+                onChange={(e) => set("tenorApiKey", e.target.value)}
+                placeholder="Paste your key from developers.google.com/tenor"
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </label>
           </>
         )}
 

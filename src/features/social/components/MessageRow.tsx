@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import type { ChatMessage } from "../types";
+import { inlineMediaUrl } from "../gifs";
 
 interface Props {
   message: ChatMessage;
@@ -28,7 +29,10 @@ interface Props {
 
 function clockTime(epochSecs: number): string {
   if (!epochSecs) return "";
-  return new Date(epochSecs * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(epochSecs * 1000).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 /** The small fixed palette offered by the "＋" reaction picker. */
@@ -51,18 +55,39 @@ function groupReactions(message: ChatMessage, selfId: number) {
   return order.map((emoji) => ({ emoji, ...by.get(emoji)! }));
 }
 
-export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onReact, onReply, replyPreview, onOpenAttachment }: Props) {
+export function MessageRow({
+  message,
+  mine,
+  read,
+  selfId,
+  onEdit,
+  onDelete,
+  onReact,
+  onReply,
+  replyPreview,
+  onOpenAttachment,
+}: Props) {
   const [editing, setEditing] = useState(false);
   const [picking, setPicking] = useState(false);
   const [draft, setDraft] = useState(message.text);
 
   const cls = `msg${mine ? " msg--mine" : ""}${message.pending ? " msg--pending" : ""}`;
   // Only my own saved (id != 0), non-deleted messages can be mutated.
-  const canMutate = mine && !message.pending && !message.deleted && message.messageId !== 0;
+  const canMutate =
+    mine && !message.pending && !message.deleted && message.messageId !== 0;
   // Any saved, non-deleted message can be reacted to / replied to (mine or peer's).
-  const reactable = !!onReact && !message.pending && !message.deleted && message.messageId !== 0;
-  const replyable = !!onReply && !message.pending && !message.deleted && message.messageId !== 0;
+  const reactable =
+    !!onReact &&
+    !message.pending &&
+    !message.deleted &&
+    message.messageId !== 0;
+  const replyable =
+    !!onReply &&
+    !message.pending &&
+    !message.deleted &&
+    message.messageId !== 0;
   const chips = groupReactions(message, selfId);
+  const media = message.deleted ? "" : inlineMediaUrl(message.text);
 
   const react = (emoji: string) => {
     onReact?.(message.messageId, emoji);
@@ -75,7 +100,8 @@ export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onRe
   };
   const commitEdit = () => {
     const trimmed = draft.trim();
-    if (trimmed && trimmed !== message.text) onEdit?.(message.messageId, trimmed);
+    if (trimmed && trimmed !== message.text)
+      onEdit?.(message.messageId, trimmed);
     setEditing(false);
   };
   const cancelEdit = () => setEditing(false);
@@ -84,7 +110,9 @@ export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onRe
     <div className={cls}>
       <div className="msg__bubble">
         {message.replyTo > 0 && !message.deleted && (
-          <div className="msg__quote">{replyPreview ?? "replying to a message"}</div>
+          <div className="msg__quote">
+            {replyPreview ?? "replying to a message"}
+          </div>
         )}
         {message.deleted ? (
           <span className="msg__deleted">message deleted</span>
@@ -101,6 +129,17 @@ export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onRe
             onBlur={cancelEdit}
             spellCheck={false}
           />
+        ) : media !== "" ? (
+          // A message that is nothing but a trusted media URL is the GIF the
+          // sender picked — show the image, keep the link for anyone who wants it.
+          <a
+            className="msg__media"
+            href={media}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            <img src={media} alt="GIF" loading="lazy" />
+          </a>
         ) : (
           <span className="msg__text">{message.text}</span>
         )}
@@ -112,36 +151,61 @@ export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onRe
             title={message.attachmentName || "Open attachment"}
           >
             <span className="msg__attach-icon">📎</span>
-            <span className="msg__attach-name">{message.attachmentName || "Attachment"}</span>
+            <span className="msg__attach-name">
+              {message.attachmentName || "Attachment"}
+            </span>
           </button>
         )}
-        {message.editedAt > 0 && !message.deleted && !editing && <span className="msg__edited">(edited)</span>}
+        {message.editedAt > 0 && !message.deleted && !editing && (
+          <span className="msg__edited">(edited)</span>
+        )}
         {!editing && (canMutate || reactable || replyable) && (
           <span className="msg__actions">
             {reactable && (
-              <button className="msg__action" onClick={() => setPicking((p) => !p)} aria-label="Add reaction">
+              <button
+                className="msg__action"
+                onClick={() => setPicking((p) => !p)}
+                aria-label="Add reaction"
+              >
                 ＋
               </button>
             )}
             {replyable && (
-              <button className="msg__action" onClick={() => onReply!(message.messageId)} aria-label="Reply">
+              <button
+                className="msg__action"
+                onClick={() => onReply!(message.messageId)}
+                aria-label="Reply"
+              >
                 ↩
               </button>
             )}
             {canMutate && onEdit && (
-              <button className="msg__action" onClick={startEdit} aria-label="Edit message">
+              <button
+                className="msg__action"
+                onClick={startEdit}
+                aria-label="Edit message"
+              >
                 ✎
               </button>
             )}
             {canMutate && onDelete && (
-              <button className="msg__action" onClick={() => onDelete(message.messageId)} aria-label="Delete message">
+              <button
+                className="msg__action"
+                onClick={() => onDelete(message.messageId)}
+                aria-label="Delete message"
+              >
                 🗑
               </button>
             )}
             {picking && (
               <span className="msg__picker">
                 {REACTION_PALETTE.map((emoji) => (
-                  <button key={emoji} className="msg__picker-emoji" onClick={() => react(emoji)} aria-label={`React ${emoji}`}>
+                  <button
+                    key={emoji}
+                    className="msg__picker-emoji"
+                    onClick={() => react(emoji)}
+                    aria-label={`React ${emoji}`}
+                  >
                     {emoji}
                   </button>
                 ))}
@@ -169,7 +233,9 @@ export function MessageRow({ message, mine, read, selfId, onEdit, onDelete, onRe
       <div className="msg__meta">
         <span className="msg__time">{clockTime(message.timestamp)}</span>
         {message.pending && <span className="msg__status">sending…</span>}
-        {mine && !message.pending && read && <span className="msg__status">Read</span>}
+        {mine && !message.pending && read && (
+          <span className="msg__status">Read</span>
+        )}
       </div>
     </div>
   );

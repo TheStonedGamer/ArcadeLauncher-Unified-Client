@@ -17,6 +17,8 @@ export interface GeneralSettings {
   controllerEnabled: boolean;
   controllerDeadZone: number;
   steamgriddbApiKey: string;
+  /** Tenor v2 key for the chat GIF picker (empty disables GIF search). */
+  tenorApiKey: string;
   retroachievementsUsername: string;
   retroachievementsApiKey: string;
   /** Cloud-save auto-sync preferences (pull-on-launch / push-on-exit). */
