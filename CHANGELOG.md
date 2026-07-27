@@ -13,7 +13,7 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
-## [0.15.23] - 2026-07-27
+## [0.15.24] - 2026-07-27
 
 ### Added
 
