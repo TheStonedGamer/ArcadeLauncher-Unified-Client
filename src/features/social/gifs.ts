@@ -4,7 +4,8 @@
 // A GIF is sent as an ordinary text message containing its URL — the wire
 // protocol, the server, and the mobile client all stay untouched, and a client
 // that doesn't know about GIFs still shows something meaningful (the link).
-// MessageRow turns a message that is *only* a media URL back into an image.
+// MessageRow turns a message that is *only* a media URL back into an image;
+// see embeds.ts for that rule.
 //
 // The key is user-supplied (Settings → Integrations). Tenor requires one and we
 // have nowhere to hide a shared secret in a desktop app, so with no key the
@@ -26,7 +27,11 @@ const TENOR = "https://tenor.googleapis.com/v2";
 /** Tenor caps `limit` at 50; asking for more is an error, not a bigger page. */
 export const GIF_LIMIT = 24;
 
-export function searchUrl(key: string, query: string, limit = GIF_LIMIT): string {
+export function searchUrl(
+  key: string,
+  query: string,
+  limit = GIF_LIMIT,
+): string {
   const q = new URLSearchParams({
     key,
     q: query.trim(),
@@ -69,7 +74,8 @@ export function parseGifs(body: unknown): Gif[] {
   if (!Array.isArray(results)) return [];
   const out: Gif[] = [];
   for (const r of results) {
-    const formats = (r as { media_formats?: Record<string, unknown> })?.media_formats;
+    const formats = (r as { media_formats?: Record<string, unknown> })
+      ?.media_formats;
     if (!formats) continue;
     const gif = formats.gif as { url?: unknown; dims?: unknown } | undefined;
     const tiny = formats.tinygif as { url?: unknown } | undefined;
@@ -78,7 +84,9 @@ export function parseGifs(body: unknown): Gif[] {
     const dims = Array.isArray(gif?.dims) ? (gif?.dims as unknown[]) : [];
     out.push({
       id: str((r as { id?: unknown }).id) || url,
-      description: str((r as { content_description?: unknown }).content_description),
+      description: str(
+        (r as { content_description?: unknown }).content_description,
+      ),
       url,
       previewUrl: str(tiny?.url) || url,
       width: num(dims[0]),
@@ -86,36 +94,4 @@ export function parseGifs(body: unknown): Gif[] {
     });
   }
   return out;
-}
-
-// Hosts we'll render inline. An arbitrary URL from a stranger is a tracking
-// pixel and an IP leak, so this is an allow-list, not a file-extension check —
-// and it's the same list whoever sent the message.
-const MEDIA_HOSTS = [
-  "media.tenor.com",
-  "c.tenor.com",
-  "tenor.com",
-  "media.giphy.com",
-  "i.giphy.com",
-];
-
-/**
- * The URL to render as an image for this message, or "" if it isn't a plain
- * media link. The whole message must be the URL: text around it means the
- * sender was talking about the link, and a bubble that silently swallows their
- * words would be worse than showing the link.
- */
-export function inlineMediaUrl(text: string): string {
-  const t = text.trim();
-  if (t === "" || /\s/.test(t)) return "";
-  let u: URL;
-  try {
-    u = new URL(t);
-  } catch {
-    return "";
-  }
-  if (u.protocol !== "https:") return "";
-  const host = u.hostname.toLowerCase();
-  if (!MEDIA_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) return "";
-  return t;
 }

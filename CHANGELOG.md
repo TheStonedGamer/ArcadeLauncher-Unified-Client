@@ -18,9 +18,11 @@ Added / Changed / Fixed / Removed.
 - Emoji picker in chat, with search, categories and a recents row. The set is
   bundled with the app, so it works on a machine that can only reach the arcade
   server.
-- GIF picker in chat, powered by Tenor. GIFs sent from it appear inline in the
-  conversation. Add your own Tenor key under **Settings → Integrations** to
-  enable it.
+- GIF picker in chat, powered by Tenor. Add your own Tenor key under
+  **Settings → Integrations** to enable it.
+- Media links posted in chat now embed, on desktop and on the phone: images and
+  GIFs show inline, MP4/WebM videos get a player, and a YouTube link becomes a
+  thumbnail you can press to watch.
 
 ## [0.15.22] - 2026-07-27
 

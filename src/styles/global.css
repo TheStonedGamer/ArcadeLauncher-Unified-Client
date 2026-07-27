@@ -3698,16 +3698,47 @@ body {
   width: 100%;
 }
 
-/* A GIF sent into chat renders as the image itself. */
+/* A message that is nothing but a media link renders as the media itself. */
 .msg__media {
   display: block;
-  max-width: 260px;
+  max-width: 320px;
   border-radius: 8px;
   overflow: hidden;
+  border: none;
+  padding: 0;
+  background: var(--bg);
 }
 .msg__media img {
   display: block;
   width: 100%;
+}
+.msg__media--video {
+  width: 320px;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+/* YouTube stays a thumbnail until pressed — see MediaEmbed. */
+.msg__yt {
+  position: relative;
+  cursor: pointer;
+}
+.msg__yt-play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.15);
+}
+.msg__yt:hover .msg__yt-play {
+  background: rgba(0, 0, 0, 0.3);
+}
+/* Fallback when an embed won't load: the plain link, still clickable. */
+.msg__link {
+  color: var(--accent);
+  word-break: break-all;
 }
 
 /* ── Profile panel (T9d) ──────────────────────────────────────────────────── */

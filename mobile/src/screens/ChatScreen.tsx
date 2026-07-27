@@ -7,12 +7,25 @@
 // appearing and then quietly needing to be taken away again.
 
 import { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import * as ImagePicker from "expo-image-picker";
 
 import { ApiError, uploadAttachment } from "../api";
+import { MediaEmbed } from "../components/MediaEmbed";
+import { embedFor } from "../core/embeds";
 import { friendPresence, presenceOnline, type Friend } from "../core/friends";
-import { conversationOrder, type Message, type RosterState } from "../core/roster";
+import {
+  conversationOrder,
+  type Message,
+  type RosterState,
+} from "../core/roster";
 import type { MobileSession } from "../core/session";
 import { outbound } from "../core/social";
 import { colors, styles } from "../theme";
@@ -54,7 +67,15 @@ export default function ChatScreen({
   const online_ = (id: number) => presenceOnline(presence[id]);
 
   if (peer === null) {
-    return <ConversationList roster={roster} friends={friends} nameOf={nameOf} isOnline={online_} onOpen={setPeer} />;
+    return (
+      <ConversationList
+        roster={roster}
+        friends={friends}
+        nameOf={nameOf}
+        isOnline={online_}
+        onOpen={setPeer}
+      />
+    );
   }
   return (
     <Conversation
@@ -99,7 +120,11 @@ function ConversationList({
       style={styles.screen}
       data={rows}
       keyExtractor={(id) => String(id)}
-      ListEmptyComponent={<Text style={styles.empty}>No friends yet. Add them from the desktop launcher.</Text>}
+      ListEmptyComponent={
+        <Text style={styles.empty}>
+          No friends yet. Add them from the desktop launcher.
+        </Text>
+      }
       renderItem={({ item }) => {
         const thread = roster.conversations[item] ?? [];
         const last = thread[thread.length - 1];
@@ -118,7 +143,9 @@ function ConversationList({
                 {nameOf(item)}
               </Text>
               <Text style={styles.dim} numberOfLines={1}>
-                {last ? preview(last) : roster.playing[item] || "Tap to start a conversation"}
+                {last
+                  ? preview(last)
+                  : roster.playing[item] || "Tap to start a conversation"}
               </Text>
             </View>
           </TouchableOpacity>
@@ -180,7 +207,9 @@ function Conversation({
       if (send(outbound.chat(peer, draft.trim(), 0, id))) setDraft("");
       else setAttachError("Sent nothing — you are offline.");
     } catch (err) {
-      setAttachError(err instanceof ApiError ? err.message : "Could not send that photo.");
+      setAttachError(
+        err instanceof ApiError ? err.message : "Could not send that photo.",
+      );
     } finally {
       setUploading(false);
     }
@@ -204,7 +233,11 @@ function Conversation({
           {name}
         </Text>
         <TouchableOpacity onPress={onCall} disabled={!online}>
-          <Text style={{ color: online ? colors.accent : colors.dim, fontSize: 15 }}>Call</Text>
+          <Text
+            style={{ color: online ? colors.accent : colors.dim, fontSize: 15 }}
+          >
+            Call
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -213,39 +246,76 @@ function Conversation({
         data={messages}
         keyExtractor={(m, i) => (m.id > 0 ? String(m.id) : `local-${i}`)}
         contentContainerStyle={{ padding: 12 }}
-        onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
+        onContentSizeChange={() =>
+          list.current?.scrollToEnd({ animated: true })
+        }
         ListEmptyComponent={<Text style={styles.empty}>Nothing here yet.</Text>}
-        renderItem={({ item }) => (
-          <View
-            style={{
-              alignSelf: item.mine ? "flex-end" : "flex-start",
-              backgroundColor: item.mine ? colors.accent : colors.panel,
-              borderRadius: 14,
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              marginVertical: 3,
-              maxWidth: "80%",
-            }}
-          >
-            {item.attachmentId > 0 && (
-              <Text style={{ color: item.mine ? "#0b0d12" : colors.dim, fontSize: 13, marginBottom: 2 }}>
-                Attachment
-              </Text>
-            )}
-            {item.text ? (
-              <Text style={{ color: item.mine ? "#0b0d12" : colors.text, fontSize: 15 }}>{item.text}</Text>
-            ) : null}
-          </View>
-        )}
+        renderItem={({ item }) => {
+          const embed = embedFor(item.text);
+          return (
+            <View
+              style={{
+                alignSelf: item.mine ? "flex-end" : "flex-start",
+                backgroundColor: item.mine ? colors.accent : colors.panel,
+                borderRadius: 14,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                marginVertical: 3,
+                maxWidth: "80%",
+              }}
+            >
+              {item.attachmentId > 0 && (
+                <Text
+                  style={{
+                    color: item.mine ? "#0b0d12" : colors.dim,
+                    fontSize: 13,
+                    marginBottom: 2,
+                  }}
+                >
+                  Attachment
+                </Text>
+              )}
+              {item.text ? (
+                embed ? (
+                  <MediaEmbed embed={embed} />
+                ) : (
+                  <Text
+                    style={{
+                      color: item.mine ? "#0b0d12" : colors.text,
+                      fontSize: 15,
+                    }}
+                  >
+                    {item.text}
+                  </Text>
+                )
+              ) : null}
+            </View>
+          );
+        }}
       />
 
-      {attachError ? <Text style={[styles.error, { paddingHorizontal: 12 }]}>{attachError}</Text> : null}
+      {attachError ? (
+        <Text style={[styles.error, { paddingHorizontal: 12 }]}>
+          {attachError}
+        </Text>
+      ) : null}
 
-      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, padding: 12 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "flex-end",
+          gap: 8,
+          padding: 12,
+        }}
+      >
         <TouchableOpacity
           onPress={() => void attach()}
           disabled={!online || uploading}
-          style={{ paddingVertical: 12, paddingHorizontal: 4, opacity: online && !uploading ? 1 : 0.4 }}
+          style={{
+            paddingVertical: 12,
+            paddingHorizontal: 4,
+            opacity: online && !uploading ? 1 : 0.4,
+          }}
         >
           {uploading ? (
             <ActivityIndicator color={colors.dim} size="small" />
@@ -267,7 +337,14 @@ function Conversation({
           onSubmitEditing={submit}
         />
         <TouchableOpacity
-          style={[styles.button, { marginTop: 0, paddingHorizontal: 18, opacity: online && draft.trim() ? 1 : 0.4 }]}
+          style={[
+            styles.button,
+            {
+              marginTop: 0,
+              paddingHorizontal: 18,
+              opacity: online && draft.trim() ? 1 : 0.4,
+            },
+          ]}
           onPress={submit}
           disabled={!online || !draft.trim()}
         >

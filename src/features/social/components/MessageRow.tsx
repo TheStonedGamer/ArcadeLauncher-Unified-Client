@@ -5,7 +5,8 @@
 
 import { useState } from "react";
 import type { ChatMessage } from "../types";
-import { inlineMediaUrl } from "../gifs";
+import { embedFor } from "../embeds";
+import { MediaEmbed } from "./MediaEmbed";
 
 interface Props {
   message: ChatMessage;
@@ -87,7 +88,7 @@ export function MessageRow({
     !message.deleted &&
     message.messageId !== 0;
   const chips = groupReactions(message, selfId);
-  const media = message.deleted ? "" : inlineMediaUrl(message.text);
+  const embed = message.deleted ? null : embedFor(message.text);
 
   const react = (emoji: string) => {
     onReact?.(message.messageId, emoji);
@@ -129,17 +130,8 @@ export function MessageRow({
             onBlur={cancelEdit}
             spellCheck={false}
           />
-        ) : media !== "" ? (
-          // A message that is nothing but a trusted media URL is the GIF the
-          // sender picked — show the image, keep the link for anyone who wants it.
-          <a
-            className="msg__media"
-            href={media}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            <img src={media} alt="GIF" loading="lazy" />
-          </a>
+        ) : embed ? (
+          <MediaEmbed embed={embed} />
         ) : (
           <span className="msg__text">{message.text}</span>
         )}
