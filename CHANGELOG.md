@@ -13,6 +13,8 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.23] - 2026-07-27
+
 ### Added
 
 - Emoji picker in chat, with search, categories and a recents row. The set is
@@ -27,10 +29,22 @@ Added / Changed / Fixed / Removed.
   conversation starts the call with the camera already on at both ends, on the
   desktop client and in the phone app. Calling someone from an older client
   still works — it just rings as a voice call.
+- Call and Video buttons on every friend row, so you can ring someone straight
+  from the friends list without opening the conversation first.
+- **Settings → Voice & Video** controls the microphone processing used on calls:
+  noise suppression, echo cancellation and automatic gain, each switchable on
+  its own. Noise suppression is on by default and applies to group calls too.
+- Cloud saves now find your saves on their own: the launcher detects the usual
+  save location for each emulator (and, where it can tell, for PC games) the
+  first time you open your library, and the library right-click menu gained
+  **Set cloud save folder…**, **Set cloud save file…** and **Use detected save
+  location** so you can point it anywhere — including a single memory-card file.
 
 ### Changed
 
 - The Call button is green on both the desktop client and the phone app.
+- The Call and Video buttons no longer vanish when the connection to the social
+  service drops. They stay put, greyed out, and say why.
 
 ## [0.15.22] - 2026-07-27
 
