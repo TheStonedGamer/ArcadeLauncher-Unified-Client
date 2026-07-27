@@ -10,6 +10,10 @@ describe("cycleView", () => {
     expect(cycleView("steam", "prev")).toBe("library");
     expect(cycleView("epic", "prev")).toBe("steam");
   });
+  it("does not cycle through Friends or Game Requests — they are windows now", () => {
+    expect(VIEW_ORDER).not.toContain("friends");
+    expect(VIEW_ORDER).not.toContain("requests");
+  });
   it("wraps at both ends", () => {
     expect(cycleView(VIEW_ORDER[0], "prev")).toBe(VIEW_ORDER[VIEW_ORDER.length - 1]);
     expect(cycleView(VIEW_ORDER[VIEW_ORDER.length - 1], "next")).toBe(VIEW_ORDER[0]);

@@ -2079,24 +2079,134 @@ body {
   color: var(--muted);
 }
 
+/* The roster is alone in its window now — the conversation moved to its own —
+   so this is a single full-height column, not the old two-pane split. */
 .social__layout {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 240px 1fr;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
 }
 .social__roster {
   overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--panel);
   padding: 6px;
 }
 .social__chat {
   min-width: 0;
+  height: 100%;
   display: flex;
+}
+.social__gamereq {
+  width: 100%;
+  margin: 2px 0 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.social__gamereq:hover {
+  background: var(--panel-3);
+}
+
+/* ── Floating windows (Friends, chats, the requests board) ── */
+.floatwin {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  max-width: 100vw;
+  max-height: 100vh;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+.floatwin__bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  cursor: move;
+  /* A drag that leaves the titlebar must not start a text selection. */
+  user-select: none;
+  touch-action: none;
+}
+.floatwin__titles {
+  flex: 1;
+  min-width: 0;
+}
+.floatwin__title {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.floatwin__subtitle {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.floatwin__close {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.floatwin__close:hover {
+  background: var(--panel-3);
+  color: var(--text);
+}
+.floatwin__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.floatwin--requests .floatwin__body {
+  padding: 12px 16px;
+}
+
+/* Header entry point for the Friends window. */
+.app__friendsbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.app__friendsbtn:hover {
+  background: var(--panel-3);
+}
+.app__friendsbtn--on {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* Roster tabs (Friends / Requests / Rooms / Activity). Scroll horizontally when

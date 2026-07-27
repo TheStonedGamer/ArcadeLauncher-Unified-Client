@@ -4,14 +4,14 @@
 
 // Settings is deliberately absent: it is no longer a tab. It opens as a modal
 // window from the account dropdown (Steam-style), so it takes part in neither
-// the header strip nor the controller cycle.
+// the header strip nor the controller cycle. Friends and Game Requests left the
+// strip for the same reason — Friends is a floating window opened from the
+// header's Friends & Chat button, and the requests board opens from inside it.
 export type View =
   | "store"
   | "library"
   | "steam"
   | "epic"
-  | "friends"
-  | "requests"
   | "downloads";
 
 /** Tab order, left to right — also the controller cycle order. Store leads, then
@@ -21,8 +21,6 @@ export const VIEW_ORDER: View[] = [
   "library",
   "steam",
   "epic",
-  "friends",
-  "requests",
   "downloads",
 ];
 
