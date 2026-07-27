@@ -1,4 +1,6 @@
-// Chats tab (the first roster tab): active DM threads, newest message on top.
+// Conversation rows: active DM threads, newest message on top. The roster no
+// longer has a Chats tab — friends open their own DM — so this now renders only
+// the leftover threads with people who aren't in the roster.
 // Each row shows the peer, a one-line preview of the last message, its time, and
 // an unread badge. Selecting a row opens that conversation. The ordering + last
 // message come from the `chatSummaries` selector (unit-tested); this is

@@ -2371,7 +2371,9 @@ body {
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  /* dot | name | status | unread. The last track collapses to zero when the row
+     has no unread badge, so quiet rows look exactly as they did before. */
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
@@ -2421,6 +2423,43 @@ body {
 }
 .friendlist__sub--game {
   color: var(--on);
+}
+.friendlist__unread {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* Pending friend requests + stray threads, folded into the friends list. */
+.social__pending,
+.social__strays {
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.social__strays {
+  border-bottom: none;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+.social__pending-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 /* Friends-tab sort control */

@@ -1,6 +1,11 @@
 // Social feature view: a connection-status bar, the friend roster on the left,
 // and the active conversation on the right. State + actions come from useSocial;
 // this component is composition only.
+//
+// The roster is Friends | Rooms | Activity. Chats and Requests used to be tabs
+// of their own; both now live inside the friends list — pending invites on top,
+// unread DM counts on the friend rows — so clicking a person is the one way to
+// open a conversation, as in Steam.
 
 import { useMemo, useState } from "react";
 import { useSocialContext } from "./SocialContext";
@@ -14,7 +19,13 @@ import { GroupCallBar } from "./components/GroupCallBar";
 import { fetchTurnServers } from "./api";
 import { FriendList } from "./components/FriendList";
 import { ChatList } from "./components/ChatList";
-import { sortFriendsBy, FRIEND_SORT_LABELS, type FriendSort } from "./selectors";
+import {
+  sortFriendsBy,
+  unreadByPeer,
+  orphanChats,
+  FRIEND_SORT_LABELS,
+  type FriendSort,
+} from "./selectors";
 import { RequestsPanel } from "./components/RequestsPanel";
 import { ActivityFeed } from "./components/ActivityFeed";
 import { AddFriend } from "./components/AddFriend";
@@ -64,15 +75,24 @@ export function SocialView() {
       ? async () => (await fetchTurnServers(auth.host, auth.token)).iceServers
       : undefined,
   });
-  const [rosterTab, setRosterTab] = useState<"chats" | "friends" | "requests" | "activity" | "rooms">(
-    "chats",
-  );
+  // Steam-shaped roster: one Friends list is the home tab. Chats and Requests
+  // are no longer tabs of their own — pending friend requests sit at the top of
+  // the friends list, and a DM opens by clicking the person, with the unread
+  // count riding on their row.
+  const [rosterTab, setRosterTab] = useState<"friends" | "activity" | "rooms">("friends");
   const [friendSort, setFriendSort] = useState<FriendSort>("status");
   const sortedFriendList = useMemo(
     () => sortFriendsBy(social.friends, friendSort),
     [social.friends, friendSort],
   );
   const requestCount = social.incoming.length + social.outgoing.length;
+  const unread = useMemo(() => unreadByPeer(social.chats), [social.chats]);
+  // Threads with someone who isn't in the roster still need a way in now that
+  // the Chats tab is gone.
+  const strays = useMemo(
+    () => orphanChats(social.chats, social.friends),
+    [social.chats, social.friends],
+  );
   const peer = social.friends.find((f) => f.accountId === social.selectedPeer) ?? null;
   const activeRoom = social.rooms.find((r) => r.roomId === social.selectedRoom) ?? null;
   // The right pane shows a room when one is open, else the 1:1 DM. Selecting a
@@ -124,24 +144,11 @@ export function SocialView() {
           )}
           <div className="social__rostertabs">
             <button
-              className={`social__rostertab${rosterTab === "chats" ? " social__rostertab--active" : ""}`}
-              onClick={() => setRosterTab("chats")}
-            >
-              Chats
-              {social.unreadTotal > 0 && <span className="social__rosterbadge">{social.unreadTotal}</span>}
-            </button>
-            <button
               className={`social__rostertab${rosterTab === "friends" ? " social__rostertab--active" : ""}`}
               onClick={() => setRosterTab("friends")}
             >
               Friends
-            </button>
-            <button
-              className={`social__rostertab${rosterTab === "requests" ? " social__rostertab--active" : ""}`}
-              onClick={() => setRosterTab("requests")}
-            >
-              Requests
-              {requestCount > 0 && <span className="social__rosterbadge">{requestCount}</span>}
+              {social.unreadTotal > 0 && <span className="social__rosterbadge">{social.unreadTotal}</span>}
             </button>
             <button
               className={`social__rostertab${rosterTab === "rooms" ? " social__rostertab--active" : ""}`}
@@ -160,16 +167,21 @@ export function SocialView() {
               Activity
             </button>
           </div>
-          {rosterTab === "chats" && (
-            <ChatList
-              chats={social.chats}
-              selfId={social.selfId}
-              selectedPeer={social.selectedPeer}
-              onSelect={selectPeer}
-            />
-          )}
           {rosterTab === "friends" && (
             <>
+              {requestCount > 0 && (
+                <div className="social__pending">
+                  <div className="social__pending-heading">
+                    Friend requests
+                    <span className="social__rosterbadge">{requestCount}</span>
+                  </div>
+                  <RequestsPanel
+                    incoming={social.incoming}
+                    outgoing={social.outgoing}
+                    onRespond={social.respondToRequest}
+                  />
+                </div>
+              )}
               <div className="social__sortbar">
                 <label className="social__sortlabel" htmlFor="friend-sort">
                   Sort
@@ -193,7 +205,19 @@ export function SocialView() {
                 onSelect={selectPeer}
                 meta={auth ? friendMeta : undefined}
                 ignore={auth ? { isIgnored: privacy.isIgnored, toggleIgnore: privacy.toggleIgnore } : undefined}
+                unread={unread}
               />
+              {strays.length > 0 && (
+                <div className="social__strays">
+                  <div className="social__pending-heading">Other conversations</div>
+                  <ChatList
+                    chats={strays}
+                    selfId={social.selfId}
+                    selectedPeer={social.selectedPeer}
+                    onSelect={selectPeer}
+                  />
+                </div>
+              )}
             </>
           )}
           {rosterTab === "rooms" && (
@@ -203,13 +227,6 @@ export function SocialView() {
               friends={social.friends}
               onSelect={selectRoom}
               onCreateRoom={social.createRoom}
-            />
-          )}
-          {rosterTab === "requests" && (
-            <RequestsPanel
-              incoming={social.incoming}
-              outgoing={social.outgoing}
-              onRespond={social.respondToRequest}
             />
           )}
           {rosterTab === "activity" && <ActivityFeed activity={activity} />}

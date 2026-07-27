@@ -5,10 +5,12 @@ import {
   displayName,
   incomingRequests,
   onlineCount,
+  orphanChats,
   outgoingRequests,
   sortedFriends,
   sortFriendsBy,
   totalUnread,
+  unreadByPeer,
 } from "./selectors";
 import type { Friend } from "./types";
 
@@ -123,6 +125,27 @@ describe("chatSummaries", () => {
     let s = withFriends([friend({ accountId: 2 }), friend({ accountId: 3 })]);
     s = applyInbound(s, { type: "chat", messageId: 1, senderId: 2, receiverId: 42, text: "a", attachmentId: 0, replyTo: 0, timestamp: 5 }, NOW);
     expect(chatSummaries(s).map((r) => r.peerId)).toEqual([2]);
+  });
+});
+
+describe("unreadByPeer / orphanChats", () => {
+  const chat = (peerId: number, unread: number) => ({
+    peerId,
+    friend: undefined,
+    lastMessage: {} as never,
+    unread,
+    lastActivity: 0,
+  });
+
+  it("maps unread counts by peer and omits quiet threads", () => {
+    const m = unreadByPeer([chat(2, 3), chat(3, 0)]);
+    expect(m.get(2)).toBe(3);
+    expect(m.has(3)).toBe(false);
+  });
+
+  it("keeps only threads whose peer left the roster", () => {
+    const rows = orphanChats([chat(2, 1), chat(9, 0)], [friend({ accountId: 2 })]);
+    expect(rows.map((r) => r.peerId)).toEqual([9]);
   });
 });
 

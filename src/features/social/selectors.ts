@@ -57,7 +57,7 @@ export function onlineCount(state: SocialState): number {
   return state.friends.filter((f) => f.relation === "accepted" && isVisible(f.presence)).length;
 }
 
-/** One row in the Chats tab: a peer conversation summarized for the list. */
+/** One row in the roster's conversation list: a peer conversation summarized. */
 export interface ChatSummary {
   peerId: number;
   /** The friend record for this peer, if still in the roster (else undefined). */
@@ -71,10 +71,10 @@ export interface ChatSummary {
 }
 
 /**
- * Conversations that have at least one message, summarized for the Chats tab and
- * ordered most-recent-first (newest DM on top). Each row carries the last message
- * and the peer's friend record (when still in the roster). Threads with no
- * messages are omitted — the Chats tab lists active conversations, not friends.
+ * Conversations that have at least one message, ordered most-recent-first
+ * (newest DM on top). Each row carries the last message and the peer's friend
+ * record (when still in the roster). Threads with no messages are omitted —
+ * this lists active conversations, not friends.
  */
 export function chatSummaries(state: SocialState): ChatSummary[] {
   const byId = new Map(state.friends.map((f) => [f.accountId, f]));
@@ -93,7 +93,31 @@ export function chatSummaries(state: SocialState): ChatSummary[] {
   return rows.sort((a, b) => b.lastActivity - a.lastActivity);
 }
 
-/** Sort modes for the Friends tab roster. */
+/**
+ * Unread count per peer, so a friend row can carry its own badge. The roster is
+ * Steam-shaped now — you open a DM by clicking the person, not by visiting a
+ * separate Chats list — so the unread signal has to live on the friend row.
+ */
+export function unreadByPeer(chats: ChatSummary[]): Map<number, number> {
+  const m = new Map<number, number>();
+  for (const c of chats) {
+    if (c.unread > 0) m.set(c.peerId, c.unread);
+  }
+  return m;
+}
+
+/**
+ * Threads whose peer is not in the accepted roster — someone who unfriended you,
+ * or a conversation that started before the roster caught up. Without the old
+ * Chats tab these rows would have no entry point at all, so the roster lists
+ * them under their own heading rather than dropping them.
+ */
+export function orphanChats(chats: ChatSummary[], friends: Friend[]): ChatSummary[] {
+  const known = new Set(friends.map((f) => f.accountId));
+  return chats.filter((c) => !known.has(c.peerId));
+}
+
+/** Sort modes for the friend roster. */
 export type FriendSort = "status" | "name" | "recent";
 
 export const FRIEND_SORT_LABELS: Record<FriendSort, string> = {

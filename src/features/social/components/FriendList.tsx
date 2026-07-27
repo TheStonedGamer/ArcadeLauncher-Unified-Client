@@ -23,6 +23,8 @@ interface Props {
   onSelect: (peerId: number) => void;
   meta?: FriendMetaApi;
   ignore?: IgnoreControl;
+  /** Unread DM count per peer — clicking a row opens that conversation. */
+  unread?: Map<number, number>;
 }
 
 function subline(f: Friend): { text: string; game: boolean } {
@@ -40,6 +42,7 @@ function FriendRow({
   meta,
   fmeta,
   ignore,
+  unread,
 }: {
   f: Friend;
   selected: boolean;
@@ -47,6 +50,7 @@ function FriendRow({
   meta?: FriendMetaApi;
   fmeta: FriendMeta;
   ignore?: IgnoreControl;
+  unread: number;
 }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState(fmeta.note);
@@ -64,6 +68,11 @@ function FriendRow({
             {displayName(f)}
           </span>
           <span className={`friendlist__sub${sub.game ? " friendlist__sub--game" : ""}`}>{sub.text}</span>
+          {unread > 0 && (
+            <span className="friendlist__unread" aria-label={`${unread} unread messages`}>
+              {unread}
+            </span>
+          )}
         </button>
         {meta && (
           <button
@@ -130,7 +139,7 @@ function FriendRow({
   );
 }
 
-export function FriendList({ friends, selectedPeer, onSelect, meta, ignore }: Props) {
+export function FriendList({ friends, selectedPeer, onSelect, meta, ignore, unread }: Props) {
   if (friends.length === 0) {
     return <p className="social__empty">No friends yet.</p>;
   }
@@ -179,6 +188,7 @@ export function FriendList({ friends, selectedPeer, onSelect, meta, ignore }: Pr
                 meta={meta}
                 fmeta={w.meta}
                 ignore={ignore}
+                unread={unread?.get(w.friend.accountId) ?? 0}
               />
             ))}
           </ul>

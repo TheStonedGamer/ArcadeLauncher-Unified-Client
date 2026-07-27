@@ -1,8 +1,8 @@
 // Pending friend-requests panel: incoming requests (Accept / Decline / Ignore)
 // and outgoing requests I've sent (Cancel). Pure presentation — every action is
 // a respondToRequest callback supplied by useSocial, which POSTs to the server
-// and re-pulls the roster. Surfaced as the roster's "Requests" tab; the count
-// drives the tab badge.
+// and re-pulls the roster. Rendered at the top of the friends list (Steam puts
+// pending invites there too), and only when something is actually pending.
 
 import { displayName } from "../selectors";
 import type { Friend } from "../types";
