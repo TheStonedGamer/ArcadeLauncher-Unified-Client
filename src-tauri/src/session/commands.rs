@@ -211,51 +211,55 @@ pub async fn session_login(
     let host = normalize_host(&host);
     let client = reqwest::Client::new();
 
-    // 1) Try the privacy-preserving challenge-response flow.
-    let challenge = client
+    // 1) Try the privacy-preserving challenge-response flow. Network errors
+    // (DNS, TLS, timeout) are swallowed so we fall through to plain password
+    // login — the challenge endpoint may be unreachable while /api/login works,
+    // or a server may not implement challenge-response at all.
+    if let Ok(challenge) = client
         .get(format!("https://{host}/api/auth/challenge"))
         .query(&[("username", username.as_str())])
         .send()
         .await
-        .map_err(|e| AppError::msg(format!("challenge request failed: {e}")))?;
-
-    if challenge.status().is_success() {
-        let ChallengeResp { nonce } = challenge
-            .json()
-            .await
-            .map_err(|e| AppError::msg(format!("invalid challenge response: {e}")))?;
-
-        let key = crypto::derive_auth_key(&username, &password);
-        let proof = crypto::challenge_proof(&key, &nonce);
-
-        let resp = client
-            .post(format!("https://{host}/api/auth/verify"))
-            .form(&[
-                ("username", username.as_str()),
-                ("proof", proof.as_str()),
-                ("totpCode", totp_code.as_str()),
-            ])
-            .send()
-            .await
-            .map_err(|e| AppError::msg(format!("verify request failed: {e}")))?;
-
-        if resp.status().is_success() {
-            let v: VerifyResp = resp
+    {
+        if challenge.status().is_success() {
+            let ChallengeResp { nonce } = challenge
                 .json()
                 .await
-                .map_err(|e| AppError::msg(format!("invalid verify response: {e}")))?;
-            let token = crypto::decrypt_token(&key, &v.iv, &v.token).map_err(AppError::msg)?;
-            return Ok(Session {
-                host,
-                username: pick_name(v.username, &username),
-                token,
-                is_admin: v.is_admin,
-                must_change_password: v.must_change_password,
-            });
+                .map_err(|e| AppError::msg(format!("invalid challenge response: {e}")))?;
+
+            let key = crypto::derive_auth_key(&username, &password);
+            let proof = crypto::challenge_proof(&key, &nonce);
+
+            let resp = client
+                .post(format!("https://{host}/api/auth/verify"))
+                .form(&[
+                    ("username", username.as_str()),
+                    ("proof", proof.as_str()),
+                    ("totpCode", totp_code.as_str()),
+                ])
+                .send()
+                .await
+                .map_err(|e| AppError::msg(format!("verify request failed: {e}")))?;
+
+            if resp.status().is_success() {
+                let v: VerifyResp = resp
+                    .json()
+                    .await
+                    .map_err(|e| AppError::msg(format!("invalid verify response: {e}")))?;
+                let token =
+                    crypto::decrypt_token(&key, &v.iv, &v.token).map_err(AppError::msg)?;
+                return Ok(Session {
+                    host,
+                    username: pick_name(v.username, &username),
+                    token,
+                    is_admin: v.is_admin,
+                    must_change_password: v.must_change_password,
+                });
+            }
+            // A 401 here usually means "no challenge key for this account" — fall
+            // through to password login. Other errors also fall through and surface
+            // from the password attempt (so the user sees one clear message).
         }
-        // A 401 here usually means "no challenge key for this account" — fall
-        // through to password login. Other errors also fall through and surface
-        // from the password attempt (so the user sees one clear message).
     }
 
     // 2) Fallback: plain password login.
