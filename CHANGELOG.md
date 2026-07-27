@@ -13,6 +13,11 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+### Fixed
+
+- Xbox games now boot the disc image instead of starting the emulator with
+  nothing loaded — the launch arguments the server sends were being dropped.
+
 ## [0.15.14] - 2026-07-27
 
 ### Fixed
