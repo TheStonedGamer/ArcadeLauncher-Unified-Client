@@ -1,9 +1,14 @@
-// Detail panel for a variant group: cover + metadata of the representative
-// dump, a summary, and (when the group has multiple dumps) a version picker.
-// Launching uses the currently selected dump. Esc / backdrop click closes.
+// Full game page for a variant group, laid out like a store page rather than a
+// popup: wide key-art banner, one primary action with a stat strip beside it,
+// then About / summary on the left and everything you can *do* to the game
+// (collections, versions, saves, artwork) on the right.
+//
+// It still renders over the grid rather than being a route — the catalog owns
+// the selection — so Esc and the Back button close it.
 
 import { useEffect, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { heroSrc } from "../../arcadestore/cover";
 import { checkRunnable, type ArtCandidate, type TargetStatus } from "../api";
 import type { Game } from "../types";
 import type { ConflictPolicy, SyncReport, SaveVersion } from "../../saves/api";
@@ -58,6 +63,22 @@ function playtimeStr(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+/** "Last played" for the stat strip. The catalog stores 0 for never-played. */
+function lastPlayedStr(lastPlayed: number): string {
+  if (!lastPlayed) return "Never";
+  return new Date(lastPlayed * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+/** One cell of the stat strip under the banner. */
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="gamepage__stat">
+      <span className="gamepage__stat-label">{label}</span>
+      <span className="gamepage__stat-value">{value}</span>
+    </div>
+  );
 }
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -296,37 +317,122 @@ export function GameDetail({
   // Offer cloud-save sync for any server-backed game.
   const syncable = !!onSyncSaves && pick.serverBacked;
 
-  return (
-    <div className="detail-backdrop" onClick={onClose}>
-      <div className="detail" onClick={(e) => e.stopPropagation()}>
-        <button className="detail__close" onClick={onClose} aria-label="Close">
-          ×
+  // The page fills the view, so there is no backdrop left to click — Esc is the
+  // only keyboard way out.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  // Wide key art for the banner; games IGDB had no artwork for fall back to the
+  // portrait cover, which is blurred behind the sharp copy rather than stretched.
+  const banner = pickedCover ? convertFileSrc(pickedCover) : heroSrc(game);
+
+  // Steam-style single primary action: Install while a server game isn't on disk
+  // yet (or is mid-install), Launch once it is. Local, non-server games are
+  // always launchable. It sits in the action bar under the banner.
+  const primaryAction = installable ? (
+    <div className="detail__install">
+      <button
+        className="detail__launch detail__install-btn"
+        onClick={install}
+        disabled={installing || inProgress || !canInstall}
+        title={canInstall ? "" : "Sign in to install"}
+      >
+        {inProgress
+          ? "⬇ Installing…"
+          : installing
+            ? "Starting…"
+            : canInstall
+              ? state === "failed"
+                ? "⬇ Retry install"
+                : "⬇ Install"
+              : "⬇ Sign in to install"}
+      </button>
+      {installMsg && <span className="detail__fetchmsg">{installMsg}</span>}
+    </div>
+  ) : (
+    <div className="detail__launch-wrap">
+      {updatable && (
+        <button
+          className="detail__fetch detail__update-btn"
+          onClick={update}
+          disabled={installing || inProgress || !canInstall}
+          title={canInstall ? "" : "Sign in to update"}
+        >
+          {inProgress ? "⬆ Updating…" : installing ? "Starting…" : "⬆ Update available"}
         </button>
-        <div className="detail__cover">
-          {cover ? <img src={cover} alt={game.title} /> : <span>{game.title}</span>}
+      )}
+      <button
+        className="detail__launch"
+        onClick={() => onLaunch(pick)}
+        disabled={runStatus !== null && !runStatus.runnable}
+      >
+        ▶ {state === "updateAvailable" ? "Launch (update available)" : "Launch"}
+        {hasVariants ? ` — ${variantLabel(pick) || "Base"}` : ""}
+      </button>
+      {updatable && installMsg && <span className="detail__fetchmsg">{installMsg}</span>}
+      {runStatus && !runStatus.runnable && (
+        <span className="detail__fetchmsg detail__launch-reason">{runStatus.message}</span>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="gamepage">
+      <div className="gamepage__banner">
+        {banner && <img className="gamepage__banner-img" src={banner} alt="" />}
+        <div className="gamepage__banner-scrim" />
+        <button className="gamepage__back" onClick={onClose}>
+          ← Back
+        </button>
+        <div className="gamepage__heading">
+          <div className="gamepage__cover">
+            {cover ? <img src={cover} alt={game.title} /> : <span>{game.title}</span>}
+          </div>
+          <div className="gamepage__heading-text">
+            <h2 className="gamepage__title">{game.title}</h2>
+            <span className="gamepage__sub">
+              {[game.platform, yearOf(game.releaseDate), game.developer].filter(Boolean).join(" · ")}
+            </span>
+            {installedNotOwned && <InstalledNotOwnedBadge />}
+          </div>
         </div>
-        <div className="detail__body">
-          <h2 className="detail__title">{game.title}</h2>
-          {installedNotOwned && <InstalledNotOwnedBadge />}
+      </div>
 
-          {(onToggleFavorite || onToggleHidden) && (
-            <div className="detail__actions">
-              {onToggleFavorite && (
-                <button
-                  className={`detail__toggle${favorite ? " detail__toggle--on" : ""}`}
-                  onClick={toggleFavorite}
-                >
-                  {favorite ? "★ Favorited" : "☆ Favorite"}
-                </button>
-              )}
-              {onToggleHidden && (
-                <button className="detail__toggle" onClick={toggleHidden}>
-                  {hidden ? "🙈 Hidden" : "Hide"}
-                </button>
-              )}
-            </div>
-          )}
+      <div className="gamepage__actionbar">
+        {primaryAction}
+        <div className="gamepage__stats">
+          <Stat label="LAST PLAYED" value={lastPlayedStr(game.lastPlayed)} />
+          <Stat label="PLAYTIME" value={playtimeStr(game.playtimeSeconds)} />
+          {rating && <Stat label="RATING" value={rating} />}
+          {hasVariants && <Stat label="VERSIONS" value={String(group.members.length)} />}
+        </div>
+        {(onToggleFavorite || onToggleHidden) && (
+          <div className="detail__actions gamepage__toggles">
+            {onToggleFavorite && (
+              <button
+                className={`detail__toggle${favorite ? " detail__toggle--on" : ""}`}
+                onClick={toggleFavorite}
+              >
+                {favorite ? "★ Favorited" : "☆ Favorite"}
+              </button>
+            )}
+            {onToggleHidden && (
+              <button className="detail__toggle" onClick={toggleHidden}>
+                {hidden ? "🙈 Hidden" : "Hide"}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
+      <div className="gamepage__body">
+        <div className="gamepage__main">
+          {game.summary && <p className="detail__summary">{game.summary}</p>}
           <div className="detail__meta">
             <Row label="Platform" value={game.platform} />
             <Row label="Developer" value={game.developer} />
@@ -337,7 +443,9 @@ export function GameDetail({
             <Row label="Rating" value={rating} />
             <Row label="Playtime" value={playtimeStr(game.playtimeSeconds)} />
           </div>
-          {game.summary && <p className="detail__summary">{game.summary}</p>}
+        </div>
+
+        <aside className="gamepage__side">
 
           {onFindArtwork && (
             <div className="detail__artwork">
@@ -497,56 +605,7 @@ export function GameDetail({
             </div>
           )}
 
-          {/* Steam-style single primary action: Install while a server game
-              isn't on disk yet (or is mid-install), Launch once it is. Local,
-              non-server games are always launchable. */}
-          {installable ? (
-            <div className="detail__install">
-              <button
-                className="detail__launch detail__install-btn"
-                onClick={install}
-                disabled={installing || inProgress || !canInstall}
-                title={canInstall ? "" : "Sign in to install"}
-              >
-                {inProgress
-                  ? "⬇ Installing…"
-                  : installing
-                    ? "Starting…"
-                    : canInstall
-                      ? state === "failed"
-                        ? "⬇ Retry install"
-                        : "⬇ Install"
-                      : "⬇ Sign in to install"}
-              </button>
-              {installMsg && <span className="detail__fetchmsg">{installMsg}</span>}
-            </div>
-          ) : (
-            <div className="detail__launch-wrap">
-              {updatable && (
-                <button
-                  className="detail__fetch detail__update-btn"
-                  onClick={update}
-                  disabled={installing || inProgress || !canInstall}
-                  title={canInstall ? "" : "Sign in to update"}
-                >
-                  {inProgress ? "⬆ Updating…" : installing ? "Starting…" : "⬆ Update available"}
-                </button>
-              )}
-              <button
-                className="detail__launch"
-                onClick={() => onLaunch(pick)}
-                disabled={runStatus !== null && !runStatus.runnable}
-              >
-                ▶ {state === "updateAvailable" ? "Launch (update available)" : "Launch"}
-                {hasVariants ? ` — ${variantLabel(pick) || "Base"}` : ""}
-              </button>
-              {updatable && installMsg && <span className="detail__fetchmsg">{installMsg}</span>}
-              {runStatus && !runStatus.runnable && (
-                <span className="detail__fetchmsg detail__launch-reason">{runStatus.message}</span>
-              )}
-            </div>
-          )}
-        </div>
+        </aside>
       </div>
     </div>
   );

@@ -4987,3 +4987,168 @@ body {
   overflow-y: auto;
   padding: 16px 20px 24px;
 }
+
+/* ── Game page ─────────────────────────────────────────────────────────────
+   The per-game store page: banner, action bar, then a two-column body. It
+   overlays the grid (the catalog still owns which game is selected) rather
+   than being a route, so it is fixed-position and scrolls internally. */
+.gamepage {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.gamepage__banner {
+  position: relative;
+  min-height: 320px;
+  display: flex;
+  align-items: flex-end;
+  padding: 24px 32px;
+  overflow: hidden;
+  background: var(--panel);
+}
+/* Cover-cropped so a portrait fallback fills the strip instead of letter-boxing;
+   the scrim below keeps the title legible over whatever art lands here. */
+.gamepage__banner-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(1.05);
+}
+.gamepage__banner-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(23, 26, 33, 0.45) 0%, rgba(27, 40, 56, 0.75) 55%, var(--bg) 100%);
+}
+.gamepage__back {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  z-index: 1;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(23, 26, 33, 0.8);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.gamepage__back:hover {
+  border-color: var(--accent);
+}
+.gamepage__heading {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  width: 100%;
+}
+.gamepage__cover {
+  width: 132px;
+  flex: 0 0 auto;
+  aspect-ratio: 3 / 4;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gamepage__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.gamepage__cover span {
+  padding: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+/* min-width: 0 so a long title wraps instead of forcing the flex row wider. */
+.gamepage__heading-text {
+  min-width: 0;
+  padding-bottom: 4px;
+}
+.gamepage__title {
+  margin: 0 0 4px;
+  font-size: 30px;
+  line-height: 1.15;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+.gamepage__sub {
+  color: var(--muted);
+  font-size: 13px;
+}
+.gamepage__actionbar {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+  padding: 14px 32px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.gamepage__stats {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.gamepage__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.gamepage__stat-label {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+.gamepage__stat-value {
+  color: var(--text);
+  font-size: 14px;
+}
+/* Pushed to the far end so Favorite/Hide read as chrome, not primary actions. */
+.gamepage__toggles {
+  margin-left: auto;
+}
+/* minmax(0, 1fr): the main column holds a summary and long metadata values, and
+   a bare 1fr track would grow to their min-content width and overflow the page. */
+.gamepage__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 28px;
+  padding: 24px 32px 40px;
+}
+.gamepage__main {
+  min-width: 0;
+}
+.gamepage__side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.gamepage__side > * {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 0;
+}
+@media (max-width: 900px) {
+  .gamepage__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .gamepage__banner {
+    min-height: 220px;
+  }
+  .gamepage__title {
+    font-size: 22px;
+  }
+}
