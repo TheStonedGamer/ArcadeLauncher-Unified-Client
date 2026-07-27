@@ -11,6 +11,17 @@ extracts this version's section verbatim and posts it to Discord — so this fil
 _is_ the announcement. Keep entries short, user-facing, and grouped under
 Added / Changed / Fixed / Removed.
 
+## [Unreleased]
+
+### Added
+
+- Emoji picker in chat, with search, categories and a recents row. The set is
+  bundled with the app, so it works on a machine that can only reach the arcade
+  server.
+- GIF picker in chat, powered by Tenor. GIFs sent from it appear inline in the
+  conversation. Add your own Tenor key under **Settings → Integrations** to
+  enable it.
+
 ## [0.15.22] - 2026-07-27
 
 ### Changed
