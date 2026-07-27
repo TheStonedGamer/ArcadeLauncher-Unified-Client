@@ -41,6 +41,22 @@ describe("collections", () => {
     expect(collections(plain).map((s) => s.id)).toEqual(["all"]);
   });
 
+  it("lists the user's own collections between the built-ins and All Games", () => {
+    const secs = collections(
+      groupVariants([
+        game({ id: "a", title: "Alpha", platform: "PC", favorite: true, collections: "RPGs" }),
+        game({ id: "b", title: "Beta", platform: "PC", collections: "Co-op\nRPGs" }),
+      ]),
+    );
+    expect(secs.map((s) => s.id)).toEqual([
+      "favorites",
+      "collection:Co-op",
+      "collection:RPGs",
+      "all",
+    ]);
+    expect(secs[2].groups.map((g) => g.representative.title)).toEqual(["Alpha", "Beta"]);
+  });
+
   it("handles an empty library", () => {
     expect(collections([])).toEqual([{ id: "all", label: "All Games", groups: [] }]);
   });

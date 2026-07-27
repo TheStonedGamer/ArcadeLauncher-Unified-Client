@@ -13,6 +13,20 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+### Added
+
+- Library toolbar now has a Show control: narrow the grid to Installed,
+  Favorites or Hidden games, to a single platform, or to one of your own
+  collections. Each option carries its count, and your choice is remembered.
+- Your collections now appear as their own collapsible sections in the library
+  sidebar, between Favorites/Installed and All Games.
+
+### Changed
+
+- The Store's featured banner now uses wide 1080p key art from the server
+  instead of stretching the portrait cover, and covers themselves are fetched at
+  twice the previous resolution.
+
 ## [0.15.18] - 2026-07-27
 
 ### Changed

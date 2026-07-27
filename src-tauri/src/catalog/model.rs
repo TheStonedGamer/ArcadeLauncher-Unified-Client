@@ -19,6 +19,10 @@ pub struct Game {
     // ── Art ────────────────────────────────────────────────────────────────
     pub cover_art_path: String,
     pub cover_art_url: String,
+    /// Wide 1080p key art from the server, for the store's featured banner.
+    /// Empty for local-only entries and for games IGDB has no artwork for, in
+    /// which case the UI falls back to the (portrait) cover.
+    pub hero_art_url: String,
 
     // ── Metadata ─────────────────────────────────────────────────────────────
     pub developer: String,

@@ -5,6 +5,7 @@ import {
   buildSidebar,
   matchesSearch,
   collectionsOf,
+  filterFromId,
   yearOf,
   DEFAULT_QUERY,
 } from "./query";
@@ -151,5 +152,26 @@ describe("buildSidebar", () => {
     expect(sb.find((e) => e.id === "platform:Xbox")?.count).toBe(1);
     expect(sb.find((e) => e.id === "collection:RPGs")?.count).toBe(2);
     expect(sb.find((e) => e.id === "collection:Shmups")?.count).toBe(1);
+  });
+});
+
+describe("filterFromId", () => {
+  const entries = buildSidebar([
+    game({ title: "A", platform: "NES", collections: "RPGs" }),
+    game({ title: "B", platform: "NES", installState: "installed" }),
+  ]);
+
+  it("resolves a built-in, a platform and a collection id", () => {
+    expect(filterFromId(entries, "installed")).toEqual({ kind: "installed" });
+    expect(filterFromId(entries, "platform:NES")).toEqual({ kind: "platform", value: "NES" });
+    expect(filterFromId(entries, "collection:RPGs")).toEqual({
+      kind: "collection",
+      value: "RPGs",
+    });
+  });
+
+  it("falls back to all for a scope that no longer exists", () => {
+    expect(filterFromId(entries, "collection:Deleted")).toEqual({ kind: "all" });
+    expect(filterFromId([], "installed")).toEqual({ kind: "all" });
   });
 });

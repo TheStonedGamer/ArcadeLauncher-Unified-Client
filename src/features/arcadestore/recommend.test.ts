@@ -4,7 +4,7 @@ import { affinity, recommendations, rotate, taste } from "./recommend";
 
 function game(p: Partial<Game>): Game {
   return {
-    id: "", title: "", platform: "", installState: "", coverArtPath: "", coverArtUrl: "",
+    id: "", title: "", platform: "", installState: "", coverArtPath: "", coverArtUrl: "", heroArtUrl: "",
     developer: "", publisher: "", franchise: "", genres: "", contentPath: "",
     releaseDate: 0, playtimeSeconds: 0, lastPlayed: 0, igdbRating: 0, summary: "",
     serverBacked: false, favorite: false, hidden: false, collections: "",

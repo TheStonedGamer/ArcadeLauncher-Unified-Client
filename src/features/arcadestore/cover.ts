@@ -10,6 +10,13 @@ export function coverSrc(game: Game): string {
   return game.coverArtUrl || "";
 }
 
+/** Art for banner-sized slots (the featured hero). Prefers the server's wide
+ *  1080p key art; falls back to the cover, which is portrait and much smaller,
+ *  only when the game has none. */
+export function heroSrc(game: Game): string {
+  return game.heroArtUrl || coverSrc(game);
+}
+
 /** Star rating shown on capsules, or null when the game has no IGDB rating. */
 export function ratingBadge(game: Game): number | null {
   return game.igdbRating > 0 ? Math.round(game.igdbRating) : null;

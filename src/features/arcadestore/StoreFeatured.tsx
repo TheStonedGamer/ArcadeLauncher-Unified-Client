@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import type { Game } from "../catalog/types";
-import { coverSrc, ratingBadge } from "./cover";
+import { heroSrc, ratingBadge } from "./cover";
 import { LibraryToggle } from "./LibraryToggle";
 import { InstalledNotOwnedBadge } from "../catalog/components/InstalledNotOwnedBadge";
 
@@ -39,11 +39,11 @@ export function StoreFeatured({
 }: Props) {
   // Re-keyed off the game id: the hero swaps games in place as it rotates, and
   // without this the previous cover would stay until the new one decoded.
-  const [src, setSrc] = useState(coverSrc(game));
+  const [src, setSrc] = useState(heroSrc(game));
   const [shownFor, setShownFor] = useState(game.id);
   if (shownFor !== game.id) {
     setShownFor(game.id);
-    setSrc(coverSrc(game));
+    setSrc(heroSrc(game));
   }
   const score = ratingBadge(game);
   return (

@@ -10,6 +10,7 @@
 import { useMemo, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { VariantGroup } from "../variants";
+import { collectionsOf } from "../query";
 
 interface Props {
   groups: VariantGroup[];
@@ -23,8 +24,10 @@ interface Collection {
   groups: VariantGroup[];
 }
 
-/** Split the list into Steam-like collections. A game can appear in more than
- *  one (Favorites also lists under All Games), which is how Steam behaves. */
+/** Split the list into Steam-like collections: the two built-in ones, then every
+ *  collection the user has actually put a game into (alphabetical), then All
+ *  Games. A game can appear in more than one — Favorites also lists under All
+ *  Games — which is how Steam behaves. */
 export function collections(groups: VariantGroup[]): Collection[] {
   const favorites = groups.filter((g) => g.representative.favorite);
   const installed = groups.filter((g) =>
@@ -33,6 +36,20 @@ export function collections(groups: VariantGroup[]): Collection[] {
   const all: Collection[] = [];
   if (favorites.length) all.push({ id: "favorites", label: "Favorites", groups: favorites });
   if (installed.length) all.push({ id: "installed", label: "Installed", groups: installed });
+
+  // User collections come from the prefs overlay, newline-joined on each game.
+  const named = new Map<string, VariantGroup[]>();
+  for (const g of groups) {
+    for (const name of collectionsOf(g.representative)) {
+      const list = named.get(name);
+      if (list) list.push(g);
+      else named.set(name, [g]);
+    }
+  }
+  for (const name of [...named.keys()].sort((a, b) => a.localeCompare(b))) {
+    all.push({ id: `collection:${name}`, label: name, groups: named.get(name)! });
+  }
+
   all.push({ id: "all", label: "All Games", groups });
   return all;
 }

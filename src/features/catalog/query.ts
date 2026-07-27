@@ -120,6 +120,14 @@ export function applyQuery(games: Game[], query: Query): Game[] {
     .sort(comparator(query.sort));
 }
 
+/** Resolve a filter id back to a Filter, against the scopes that currently
+ *  exist. An id that no longer matches anything — a collection the user has
+ *  since emptied, a platform that left the library, a value restored from an
+ *  older build — falls back to "all" rather than silently showing nothing. */
+export function filterFromId(entries: SidebarEntry[], id: string): Filter {
+  return entries.find((e) => e.id === id)?.filter ?? { kind: "all" };
+}
+
 export interface SidebarEntry {
   id: string;
   label: string;

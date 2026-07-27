@@ -1542,6 +1542,9 @@ body {
   border: 1px solid var(--border);
   background: var(--panel);
   color: var(--text);
+  /* Scope names are user-authored collections, so cap the control instead of
+     letting one long name push the search box off the toolbar. */
+  max-width: 200px;
 }
 .catalog__count {
   min-width: 28px;

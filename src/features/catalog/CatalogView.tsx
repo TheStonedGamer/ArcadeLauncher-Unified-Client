@@ -21,7 +21,15 @@ import { recentlyPlayed } from "./stats";
 import { CardContextMenu, type CardMenuTarget } from "./components/CardContextMenu";
 import { Sidebar } from "./components/Sidebar";
 import { GameDetail } from "./components/GameDetail";
-import { applyQuery, DEFAULT_QUERY, SORT_LABELS, type Query, type SortMode } from "./query";
+import {
+  applyQuery,
+  buildSidebar,
+  DEFAULT_QUERY,
+  filterFromId,
+  SORT_LABELS,
+  type Query,
+  type SortMode,
+} from "./query";
 import { groupVariants, type VariantGroup } from "./variants";
 import { useCatalogPrefs } from "./useCatalogPrefs";
 import { applyPrefs } from "./prefs";
@@ -56,6 +64,14 @@ import {
   isInstalledWithoutOwnership,
   shouldShowInLibrary,
 } from "./ownershipDisplay";
+
+/** How the scope dropdown is sectioned. Order matters: built-ins first, then
+ *  platforms, then the user's collections. */
+const SCOPE_GROUPS: { label: string; match: (s: { id: string }) => boolean }[] = [
+  { label: "", match: (s) => !s.id.includes(":") },
+  { label: "Platforms", match: (s) => s.id.startsWith("platform:") },
+  { label: "Collections", match: (s) => s.id.startsWith("collection:") },
+];
 
 interface CatalogViewProps {
   /** Live per-game install progress, keyed by game id (from the download hook).
@@ -287,17 +303,18 @@ export function CatalogView({
     return withInstallState.filter((g) => shouldShowInLibrary(g, ownedIds));
   }, [games, prefs.prefs, installOverlay, ownedIds]);
 
-  // Restore the last sort so it survives a relaunch. The filter is deliberately
-  // NOT restored: the sidebar that used to set it is gone, so a persisted
-  // platform/collection filter from an older build would silently hide most of
-  // the library with no control left to clear it. It stays at its "all" default.
-  // Search text is intentionally not persisted — a stale query on startup is
-  // confusing.
+  // Restore the last sort and scope so both survive a relaunch. A restored scope
+  // is safe now that the toolbar exposes a control for it: it is resolved
+  // through filterFromId against the scopes that actually exist, so a collection
+  // the user has since emptied falls back to All Games instead of showing an
+  // empty library with no obvious way out. Search text is intentionally not
+  // persisted — a stale query on startup is confusing.
   const [query, setQuery] = useState<Query>(() => {
     try {
       const saved = localStorage.getItem("catalog.query");
       if (saved) {
-        const p = JSON.parse(saved) as Partial<Query>;
+        const p = JSON.parse(saved) as { sort?: SortMode };
+        // `filter` is restored separately, as an id — see scopeId below.
         return { ...DEFAULT_QUERY, sort: p.sort ?? DEFAULT_QUERY.sort };
       }
     } catch {
@@ -305,13 +322,27 @@ export function CatalogView({
     }
     return DEFAULT_QUERY;
   });
+  // The scope id the user picked, kept separately from the resolved Filter so an
+  // id that isn't valid *yet* (the catalog is still loading) isn't discarded.
+  const [scopeId, setScopeId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem("catalog.query");
+      if (saved) return (JSON.parse(saved) as { filter?: string }).filter ?? "all";
+    } catch {
+      // ignore malformed/absent storage
+    }
+    return "all";
+  });
   useEffect(() => {
     try {
-      localStorage.setItem("catalog.query", JSON.stringify({ sort: query.sort }));
+      localStorage.setItem(
+        "catalog.query",
+        JSON.stringify({ sort: query.sort, filter: scopeId }),
+      );
     } catch {
       // storage may be unavailable; persistence is best-effort
     }
-  }, [query.sort]);
+  }, [query.sort, scopeId]);
   const autoLoaded = useRef(false);
   const syncedFor = useRef<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -347,7 +378,19 @@ export function CatalogView({
     setCardMenu({ game: group.representative, x: e.clientX, y: e.clientY });
   }, []);
 
-  const groups = useMemo(() => groupVariants(applyQuery(merged, query)), [merged, query]);
+  // Every scope the library can be narrowed to, with counts: All / Installed /
+  // Favorites / Hidden, then each platform, then each of the user's own
+  // collections. Built from the prefs-overlaid catalog so collection membership
+  // and favorites are already applied.
+  const scopes = useMemo(() => buildSidebar(merged), [merged]);
+  const effectiveQuery = useMemo(
+    () => ({ ...query, filter: filterFromId(scopes, scopeId) }),
+    [query, scopes, scopeId],
+  );
+  const groups = useMemo(
+    () => groupVariants(applyQuery(merged, effectiveQuery)),
+    [merged, effectiveQuery],
+  );
 
   // "Continue Playing" strip: only when there's no active search, so it doesn't
   // fight a searched result set. Recomputed from the prefs-overlaid catalog
@@ -465,6 +508,34 @@ export function CatalogView({
                 </button>
               )}
             </div>
+            {/* Scope: "only show installed", a platform, or one of the user's
+                collections. Grouped the way Steam groups its library filters. */}
+            <label className="catalog__sort">
+              Show
+              <select
+                value={scopes.some((s) => s.id === scopeId) ? scopeId : "all"}
+                onChange={(e) => setScopeId(e.target.value)}
+              >
+                {SCOPE_GROUPS.map(({ label, match }) => {
+                  const entries = scopes.filter(match);
+                  if (entries.length === 0) return null;
+                  const options = entries.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label} ({s.count})
+                    </option>
+                  ));
+                  // The built-in scopes sit at the top level, like Steam's; the
+                  // platform and collection lists get their own headings.
+                  return label ? (
+                    <optgroup key={label} label={label}>
+                      {options}
+                    </optgroup>
+                  ) : (
+                    options
+                  );
+                })}
+              </select>
+            </label>
             <label className="catalog__sort">
               Sort
               <select

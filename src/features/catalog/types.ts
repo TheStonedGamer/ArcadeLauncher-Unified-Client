@@ -8,6 +8,10 @@ export interface Game {
   installState: string;
   coverArtPath: string;
   coverArtUrl: string;
+  /** Wide 1080p key art for banner-sized slots. Optional because a `library.json`
+   *  cached by an older client predates the field and games IGDB has no artwork
+   *  for carry none; callers fall back to the cover. */
+  heroArtUrl?: string;
   developer: string;
   publisher: string;
   franchise: string;
