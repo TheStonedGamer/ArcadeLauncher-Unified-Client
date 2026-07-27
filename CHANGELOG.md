@@ -11,6 +11,19 @@ extracts this version's section verbatim and posts it to Discord — so this fil
 _is_ the announcement. Keep entries short, user-facing, and grouped under
 Added / Changed / Fixed / Removed.
 
+## [0.15.20] - 2026-07-27
+
+### Changed
+
+- Games now open as a full page instead of a small popup: a wide key-art banner
+  with the cover and title over it, one Install/Launch button in a bar with your
+  playtime and last-played stats beside it, and the summary, collections,
+  versions, cloud saves and artwork laid out in two columns below. Esc or Back
+  returns to the grid.
+- The mobile app's Requests tab can now search for games and file new requests
+  instead of only browsing and upvoting. Asking for a game someone already
+  requested upvotes theirs rather than creating a duplicate.
+
 ## [0.15.19] - 2026-07-27
 
 ### Added
