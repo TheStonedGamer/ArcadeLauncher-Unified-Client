@@ -2,6 +2,9 @@
 // header tabs and controller tab-cycling (LB/RB), so they can't drift apart.
 // Kept DOM-free and unit-tested independently of AppShell rendering.
 
+// Settings is deliberately absent: it is no longer a tab. It opens as a modal
+// window from the account dropdown (Steam-style), so it takes part in neither
+// the header strip nor the controller cycle.
 export type View =
   | "store"
   | "library"
@@ -9,8 +12,7 @@ export type View =
   | "epic"
   | "friends"
   | "requests"
-  | "downloads"
-  | "settings";
+  | "downloads";
 
 /** Tab order, left to right — also the controller cycle order. Store leads, then
  *  Library (owned games), mirroring Steam's STORE | LIBRARY ordering. */
@@ -22,7 +24,6 @@ export const VIEW_ORDER: View[] = [
   "friends",
   "requests",
   "downloads",
-  "settings",
 ];
 
 /** Cycle to the previous/next view, wrapping around the ends. Wrapping (rather

@@ -1349,7 +1349,7 @@ body {
 /* ── Layout: sidebar + content ─────────────────────────────────────────── */
 .catalog__layout {
   display: grid;
-  grid-template-columns: 210px 1fr;
+  grid-template-columns: 240px 1fr;
   gap: 16px;
   align-items: start;
 }
@@ -1359,15 +1359,37 @@ body {
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 2px;
   position: sticky;
   top: 0;
   background: var(--sidebar);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px;
+  padding: 0;
   max-height: calc(100vh - 24px);
+  overflow: hidden;
+}
+/* The search box is pinned; only the game list below it scrolls. */
+.sidebar__search-wrap {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar__search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 9px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+}
+.sidebar__search::placeholder {
+  color: var(--muted);
+}
+.sidebar__list {
+  flex: 1;
   overflow-y: auto;
+  padding: 6px 6px 10px;
 }
 .sidebar__empty {
   font-size: 13px;
@@ -1375,24 +1397,83 @@ body {
   padding: 7px 10px;
   margin: 0;
 }
+.sidebar__section + .sidebar__section {
+  margin-top: 10px;
+}
+/* Collection header — uppercase and dim, like Steam's "FAVORITES (25)". */
+.sidebar__header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 5px 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.sidebar__header:hover {
+  color: var(--text);
+}
+.sidebar__caret {
+  font-size: 9px;
+  width: 9px;
+}
+.sidebar__header-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar__header-count {
+  font-weight: 400;
+}
 .sidebar__item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
+  width: 100%;
+  padding: 3px 6px;
   border: none;
-  border-radius: 6px;
+  border-radius: 3px;
   background: transparent;
-  color: var(--text);
+  color: var(--muted);
   cursor: pointer;
   text-align: left;
 }
 .sidebar__item:hover {
   background: var(--panel);
+  color: var(--text);
 }
 .sidebar__item--active {
   background: var(--panel-2);
   color: #fff;
+}
+/* Small square capsule icon, cropped from the cover art. */
+.sidebar__icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--panel-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.sidebar__icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .sidebar__label {
   flex: 1;
@@ -1400,10 +1481,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.sidebar__count {
-  font-size: 11px;
-  color: var(--muted);
 }
 
 .catalog__content {
@@ -4816,4 +4893,63 @@ body {
   .sdetail__body {
     grid-template-columns: 1fr;
   }
+}
+
+/* --- Settings window ---------------------------------------------------- */
+/* Settings is no longer a tab: it floats over the app as a Steam-style window. */
+.settings-window {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.6);
+}
+.settings-window__frame {
+  display: flex;
+  flex-direction: column;
+  width: min(1040px, 100%);
+  height: min(760px, 100%);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+.settings-window__titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+}
+.settings-window__title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.settings-window__close {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.settings-window__close:hover {
+  background: var(--panel-3);
+  color: #fff;
+}
+.settings-window__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px 24px;
 }

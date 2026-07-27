@@ -13,6 +13,20 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.16] - 2026-07-27
+
+### Changed
+
+- Library sidebar redesigned in the style of Steam: a Search by Name box, games
+  grouped under collapsible Favorites / Installed / All Games headings with
+  counts, and compact rows with cover-art icons.
+- Settings now opens as a window from the profile menu, over whatever you were
+  doing, instead of taking over the whole app.
+
+### Removed
+
+- Settings tab in the header — use the profile menu in the top right.
+
 ## [0.15.15] - 2026-07-27
 
 ### Fixed
