@@ -55,27 +55,25 @@ body {
 }
 
 /* Version info in bottom left corner */
-.version-info {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 16px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
-  pointer-events: none;
+/* Version numbers live in Settings → Version (they used to be pinned over the
+   bottom-left of the library). */
+.version-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 18px;
+  margin: 0;
+  font-size: 13px;
 }
-.version-info__client {
-  font-size: 12px;
-  font-weight: 600;
+.version-list dt {
   color: var(--muted);
 }
-.version-info__server {
-  font-size: 11px;
+.version-list dd {
+  margin: 0;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.version-list__unavailable {
   color: var(--muted);
-  opacity: 0.7;
 }
 
 .app__header {
@@ -500,23 +498,19 @@ body {
   font-size: 13px;
 }
 
-/* Save bar pinned to the bottom of the scroll area, version on the left. */
+/* Save bar pinned to the bottom of the scroll area. */
 .settings__footer {
   position: sticky;
   bottom: -18px;
   z-index: 5;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   margin-top: 30px;
   padding: 12px 0;
   background: var(--bg);
   border-top: 1px solid var(--border);
-}
-.settings__footver {
-  font-size: 12px;
-  color: var(--muted);
 }
 .settings__actions {
   display: flex;

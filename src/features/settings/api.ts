@@ -11,6 +11,12 @@ export function saveSettings(settings: GeneralSettings): Promise<void> {
   return call<void>("save_settings", { settings });
 }
 
+/** Version of the server this client is pointed at, from its `/api/health`.
+ *  Rejects when the host is unreachable. */
+export function connectedServerVersion(host: string): Promise<string> {
+  return call<string>("connected_server_version", { host });
+}
+
 /** Re-register the global summon/hide hotkey live (after a settings change).
  *  Resolves to nothing; rejects with a message for an invalid accelerator. */
 export function applyHotkey(enabled: boolean, accelerator: string): Promise<void> {

@@ -4,6 +4,7 @@
 import { useCallback, useEffect } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { useSettings } from "./useSettings";
+import { connectedServerVersion } from "./api";
 import { useSession } from "../session/SessionContext";
 import { useEmulators } from "../emulators/useEmulators";
 import { formatBytes } from "../download/selectors";
@@ -22,7 +23,15 @@ import { clampKeep, type AutoSyncSettings } from "../saves/saves";
 /** The Settings screen is split into tabs so it isn't one long scroll. Each tab
  *  groups related sections; `draft` marks tabs that hold config.json-bound fields
  *  (the shared save draft) — the Save bar is only meaningful there. */
-type SettingsTab = "general" | "appearance" | "library" | "saves" | "controller" | "remoteplay" | "integrations";
+type SettingsTab =
+  | "general"
+  | "appearance"
+  | "library"
+  | "saves"
+  | "controller"
+  | "remoteplay"
+  | "integrations"
+  | "version";
 const SETTINGS_TABS: { id: SettingsTab; label: string; draft: boolean }[] = [
   { id: "general", label: "General", draft: true },
   { id: "appearance", label: "Appearance", draft: false },
@@ -31,6 +40,7 @@ const SETTINGS_TABS: { id: SettingsTab; label: string; draft: boolean }[] = [
   { id: "controller", label: "Controller", draft: true },
   { id: "remoteplay", label: "Remote Play", draft: false },
   { id: "integrations", label: "Integrations", draft: true },
+  { id: "version", label: "Version", draft: false },
 ];
 
 export function SettingsView() {
@@ -220,13 +230,14 @@ export function SettingsView() {
             </label>
           </>
         )}
+
+        {tab === "version" && <VersionSection clientVersion={version} />}
       </div>
 
-      <footer className="settings__footer">
-        <span className="settings__footver">
-          ArcadeLauncher Unified Client{version ? ` v${version}` : ""}
-        </span>
-        {activeTab.draft && (
+      {/* The save bar only exists on tabs bound to the config draft — with the
+          version line moved to its own tab there is nothing else to show. */}
+      {activeTab.draft && (
+        <footer className="settings__footer">
           <div className="settings__actions">
             {error && <span className="catalog__error">{error}</span>}
             {saved && <span className="settings__saved">Saved ✓</span>}
@@ -234,9 +245,60 @@ export function SettingsView() {
               Save
             </button>
           </div>
-        )}
-      </footer>
+        </footer>
+      )}
     </section>
+  );
+}
+
+/** Version tab: the client build and the version of the server it is talking to.
+ *  These used to be pinned in the bottom-left corner of every screen, over the
+ *  library; they belong here, where you go looking for them.
+ *
+ *  The server number is fetched from the live host rather than baked in, so it
+ *  reflects what is actually deployed. Signed out, there is no host to ask. */
+function VersionSection({ clientVersion }: { clientVersion: string }) {
+  const { session } = useSession();
+  const [serverVersion, setServerVersion] = useState("");
+  const [serverError, setServerError] = useState("");
+
+  useEffect(() => {
+    if (!session) {
+      setServerVersion("");
+      setServerError("Not signed in");
+      return;
+    }
+    let alive = true;
+    setServerVersion("");
+    setServerError("");
+    connectedServerVersion(session.host)
+      .then((v) => alive && setServerVersion(v))
+      .catch((e) => alive && setServerError(String(e)));
+    return () => {
+      alive = false;
+    };
+  }, [session]);
+
+  return (
+    <>
+      <h2 className="settings__heading">Version</h2>
+      <dl className="version-list">
+        <dt>Unified Client</dt>
+        <dd>{clientVersion ? `v${clientVersion}` : "Unknown"}</dd>
+        <dt>Server</dt>
+        <dd>
+          {serverVersion ? (
+            `v${serverVersion}`
+          ) : serverError ? (
+            <span className="version-list__unavailable">{serverError}</span>
+          ) : (
+            "Checking…"
+          )}
+        </dd>
+        <dt>Host</dt>
+        <dd>{session ? session.host : <span className="version-list__unavailable">—</span>}</dd>
+      </dl>
+    </>
   );
 }
 

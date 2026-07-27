@@ -13,6 +13,15 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.17] - 2026-07-27
+
+### Changed
+
+- Client and server version numbers moved out of the corner of the screen into
+  their own Version tab in Settings, alongside the server you're connected to.
+  The server number is now read from that server instead of repeating the
+  client's own version.
+
 ## [0.15.16] - 2026-07-27
 
 ### Changed

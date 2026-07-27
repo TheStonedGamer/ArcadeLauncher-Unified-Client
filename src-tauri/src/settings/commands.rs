@@ -84,6 +84,51 @@ pub fn get_server_version() -> AppResult<String> {
     Ok(env!("CARGO_PKG_VERSION").to_string())
 }
 
+/// Strip a scheme and trailing slash so a host can be pasted in any form.
+fn normalize_host(host: &str) -> String {
+    let s = host
+        .strip_prefix("https://")
+        .or_else(|| host.strip_prefix("http://"))
+        .unwrap_or(host);
+    s.trim_end_matches('/').to_string()
+}
+
+#[derive(Deserialize)]
+struct Health {
+    #[serde(default)]
+    version: String,
+}
+
+/// Version of the *connected* server, read from its `/api/health`. Unauthed, so
+/// the Version tab can fill in even when a session has expired.
+///
+/// Note this is genuinely different from [`get_server_version`], which despite
+/// its name reports this client's own crate version — the two numbers move on
+/// separate release trains and are shown side by side in Settings → Version.
+#[tauri::command]
+pub async fn connected_server_version(host: String) -> AppResult<String> {
+    let host = normalize_host(&host);
+    let resp = reqwest::Client::new()
+        .get(format!("https://{host}/api/health"))
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("health request failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!(
+            "health check failed (HTTP {})",
+            resp.status()
+        )));
+    }
+    let health: Health = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("health read failed: {e}")))?;
+    if health.version.is_empty() {
+        return Err(AppError::msg("server reported no version"));
+    }
+    Ok(health.version)
+}
+
 /// Spawn the bootstrap updater and exit the launcher. The updater handles
 /// downloading, verifying, and installing the update, then relaunches the app.
 #[tauri::command]
