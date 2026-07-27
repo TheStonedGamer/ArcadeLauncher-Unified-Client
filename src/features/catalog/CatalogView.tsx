@@ -287,8 +287,10 @@ export function CatalogView({
     return withInstallState.filter((g) => shouldShowInLibrary(g, ownedIds));
   }, [games, prefs.prefs, installOverlay, ownedIds]);
 
-  // Restore the last sort so it survives a relaunch. (filter is retained in the
-  // query for applyQuery but no longer has a UI; it stays at its "all" default.)
+  // Restore the last sort so it survives a relaunch. The filter is deliberately
+  // NOT restored: the sidebar that used to set it is gone, so a persisted
+  // platform/collection filter from an older build would silently hide most of
+  // the library with no control left to clear it. It stays at its "all" default.
   // Search text is intentionally not persisted — a stale query on startup is
   // confusing.
   const [query, setQuery] = useState<Query>(() => {
@@ -296,7 +298,7 @@ export function CatalogView({
       const saved = localStorage.getItem("catalog.query");
       if (saved) {
         const p = JSON.parse(saved) as Partial<Query>;
-        return { ...DEFAULT_QUERY, filter: p.filter ?? DEFAULT_QUERY.filter, sort: p.sort ?? DEFAULT_QUERY.sort };
+        return { ...DEFAULT_QUERY, sort: p.sort ?? DEFAULT_QUERY.sort };
       }
     } catch {
       // ignore malformed/absent storage
@@ -305,11 +307,11 @@ export function CatalogView({
   });
   useEffect(() => {
     try {
-      localStorage.setItem("catalog.query", JSON.stringify({ filter: query.filter, sort: query.sort }));
+      localStorage.setItem("catalog.query", JSON.stringify({ sort: query.sort }));
     } catch {
       // storage may be unavailable; persistence is best-effort
     }
-  }, [query.filter, query.sort]);
+  }, [query.sort]);
   const autoLoaded = useRef(false);
   const syncedFor = useRef<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
