@@ -13,6 +13,16 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.18] - 2026-07-27
+
+### Changed
+
+- The Store's Featured & Recommended pick is now personal and rotates. Instead of
+  one fixed highest-rated game, it cycles through six suggestions chosen from the
+  platforms, genres and series you've actually put hours into, skipping anything
+  you've already played. Dots below the heading jump between picks, and a "Based
+  on your playtime" chip appears once there's play history to go on.
+
 ## [0.15.17] - 2026-07-27
 
 ### Changed

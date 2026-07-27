@@ -15,6 +15,12 @@ import { StoreDetail } from "./StoreDetail";
 import { useInstallOverlay } from "../download/useInstallOverlay";
 import { effectiveInstallState } from "../download/installState";
 import { isInstalledWithoutOwnership } from "../catalog/ownershipDisplay";
+import { recommendations, rotate, taste } from "./recommend";
+
+/** How many recommendations the hero cycles through. */
+const FEATURED_PICKS = 6;
+/** Dwell time per pick. Long enough to read the blurb, short enough to notice. */
+const ROTATE_MS = 9000;
 
 export function ArcadeStoreView({ ownership }: { ownership: Ownership }) {
   const { session } = useSession();
@@ -62,11 +68,29 @@ export function ArcadeStoreView({ ownership }: { ownership: Ownership }) {
     });
   }, [liveGames, query, platform]);
 
-  // Featured = a stable pick (highest-rated), shown only when browsing unfiltered.
-  const featured = useMemo(() => {
-    if (query || platform !== "all" || liveGames.length === 0) return null;
-    return [...liveGames].sort((a, b) => b.igdbRating - a.igdbRating)[0] ?? null;
-  }, [liveGames, query, platform]);
+  // Featured = a rotating shortlist recommended from tracked playtime, shown
+  // only when browsing unfiltered. It used to be one fixed highest-rated game,
+  // which never changed and ignored the player entirely.
+  const picks = useMemo(
+    () => (query || platform !== "all" ? [] : recommendations(liveGames, FEATURED_PICKS)),
+    [liveGames, query, platform],
+  );
+  const [tick, setTick] = useState(0);
+  // Advance on a timer; restart only when the shortlist's *contents* change, so
+  // an unrelated re-render (an install-progress tick, say) can't keep resetting
+  // the rotation to the first pick.
+  const picksKey = picks.map((p) => p.id).join(",");
+  useEffect(() => {
+    setTick(0);
+    const count = picksKey ? picksKey.split(",").length : 0;
+    if (count < 2) return;
+    const id = setInterval(() => setTick((t) => t + 1), ROTATE_MS);
+    return () => clearInterval(id);
+  }, [picksKey]);
+  const featured = rotate(picks, tick);
+  // Whether the shortlist reflects actual play history, or is just the
+  // highest-rated fallback for an account that hasn't played anything yet.
+  const personalized = useMemo(() => taste(liveGames).totalSeconds > 0, [liveGames]);
 
   return (
     <section className="astore">
@@ -110,6 +134,10 @@ export function ArcadeStoreView({ ownership }: { ownership: Ownership }) {
           canModify={!!session}
           onOpen={() => setSelected(featured)}
           onToggle={() => toggle(featured, ownership)}
+          count={picks.length}
+          index={picks.indexOf(featured)}
+          onSelect={setTick}
+          personalized={personalized}
           installedNotOwned={isInstalledWithoutOwnership(
             featured,
             ownership.loaded ? ownership.ownedIds : undefined,

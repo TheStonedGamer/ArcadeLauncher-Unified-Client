@@ -4617,6 +4617,43 @@ body {
   flex-direction: column;
   gap: 10px;
 }
+/* Heading row: title, the "why am I seeing this" note, and the rotation dots. */
+.featured__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.featured__head .astore__heading {
+  margin: 0;
+}
+.featured__why {
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+.featured__dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.featured__dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--panel-3);
+  cursor: pointer;
+}
+.featured__dot:hover {
+  background: var(--muted);
+}
+.featured__dot--active {
+  background: var(--accent);
+}
 .featured__body {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
