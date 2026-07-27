@@ -96,6 +96,19 @@ export function useOwnership(session: Session | null): Ownership {
     void refresh();
   }, [sessionKey, refresh]);
 
+  // Games can also be added from the store website while the launcher is
+  // running, and nothing pushes that to us. Re-pull whenever the window regains
+  // focus so the Library catches up without a restart. A late/stale response is
+  // rejected by refresh()'s sequence check, so this is safe to fire freely.
+  useEffect(() => {
+    if (!sessionKey) return;
+    const onFocus = () => {
+      void refresh();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [sessionKey, refresh]);
+
   const isOwned = useCallback((id: string) => ownedIds.has(id), [ownedIds]);
 
   const add = useCallback(
