@@ -11,7 +11,16 @@ import {
   type QrSigninChallenge,
   type QrSigninDetails,
 } from "./core/qr";
-import { parseBoard, type MobileBoard } from "./core/requests";
+import {
+  createOutcome,
+  isSearchable,
+  parseBoard,
+  parseHits,
+  type CreateOutcome,
+  type CreateRequestBody,
+  type MobileBoard,
+  type RequestHit,
+} from "./core/requests";
 import {
   apiUrl,
   authHeaders,
@@ -155,6 +164,36 @@ export async function removeFromLibrary(session: MobileSession, gameId: string):
 
 export async function fetchRequests(session: MobileSession): Promise<MobileBoard> {
   return parseBoard(await authed(session, "/requests/api/requests"));
+}
+
+/** IGDB-backed search for something to request. The server answers an empty
+ *  result set for a query under two characters, so short ones are skipped here
+ *  rather than round-tripped. `platform` is an optional server-side filter. */
+export async function searchRequestCandidates(
+  session: MobileSession,
+  query: string,
+  platform = "",
+): Promise<RequestHit[]> {
+  if (!isSearchable(query)) return [];
+  const qs = new URLSearchParams({ q: query.trim() });
+  if (platform.trim()) qs.set("platform", platform.trim());
+  return parseHits(await authed(session, `/requests/api/search?${qs.toString()}`));
+}
+
+/** File a request. The server folds a request for a game already on the board
+ *  into an upvote instead of creating a duplicate, so the outcome has to be
+ *  read off the response rather than assumed. */
+export async function createRequest(
+  session: MobileSession,
+  body: CreateRequestBody,
+): Promise<CreateOutcome> {
+  return createOutcome(
+    await authed(session, "/requests/api/requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  );
 }
 
 /** Upvote a board row. Returns the server's own view of whether the caller has

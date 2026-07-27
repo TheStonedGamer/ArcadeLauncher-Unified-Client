@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   applyVote,
+  createBodyFromHit,
+  createOutcome,
+  hitSubtitle,
+  hitYear,
   isOpen,
+  isSearchable,
+  outcomeMessage,
   parseBoard,
+  parseHit,
+  parseHits,
   parseRequest,
   sortRequests,
   statusLabel,
@@ -129,5 +137,79 @@ describe("applyVote / voteLabel", () => {
   it("labels the button by vote state", () => {
     expect(voteLabel(req({ id: 1, votes: 2 }))).toBe("△ 2");
     expect(voteLabel(req({ id: 1, votes: 3, votedByMe: true }))).toBe("▲ 3");
+  });
+});
+
+describe("request search", () => {
+  const hit = {
+    igdb_id: 7346,
+    name: "The Legend of Zelda: Breath of the Wild",
+    summary: "An open-air adventure.",
+    platforms: "Switch, Wii U",
+    cover_url: "https://img/cover.jpg",
+    release_date: 1488499200,
+  };
+
+  it("parses the server's snake_case search fields", () => {
+    expect(parseHit(hit)).toEqual({
+      igdbId: 7346,
+      name: "The Legend of Zelda: Breath of the Wild",
+      summary: "An open-air adventure.",
+      platforms: "Switch, Wii U",
+      coverUrl: "https://img/cover.jpg",
+      releaseDate: 1488499200,
+    });
+  });
+
+  it("drops hits that cannot be requested", () => {
+    expect(parseHit({ ...hit, igdb_id: 0 })).toBeNull(); // no dedup key
+    expect(parseHit({ ...hit, name: "   " })).toBeNull(); // server 400s on this
+    expect(parseHit(null)).toBeNull();
+  });
+
+  it("reads the results envelope and a bare array alike", () => {
+    expect(parseHits({ results: [hit, { igdb_id: 0 }] })).toHaveLength(1);
+    expect(parseHits([hit])).toHaveLength(1);
+    expect(parseHits({ error: "nope" })).toEqual([]);
+  });
+
+  it("skips queries the server would ignore", () => {
+    expect(isSearchable("a")).toBe(false);
+    expect(isSearchable("  a ")).toBe(false);
+    expect(isSearchable("zelda")).toBe(true);
+  });
+
+  it("shows a year only when IGDB had a date", () => {
+    const parsed = parseHit(hit)!;
+    expect(hitYear(parsed)).toBe("2017");
+    expect(hitSubtitle(parsed)).toBe("2017 · Switch, Wii U");
+    expect(hitSubtitle({ ...parsed, releaseDate: 0 })).toBe("Switch, Wii U");
+  });
+
+  it("builds a create body and clamps the note to what the server stores", () => {
+    const parsed = parseHit(hit)!;
+    const body = createBodyFromHit(parsed, `  ${"x".repeat(600)}  `);
+    expect(body.igdb_id).toBe(7346);
+    expect(body.title).toBe(parsed.name);
+    expect(body.platform).toBe("Switch, Wii U");
+    expect(body.note).toHaveLength(500);
+  });
+});
+
+describe("create outcome", () => {
+  it("treats a body with no voted flag as a fresh request", () => {
+    expect(createOutcome({ ok: true, id: 12 })).toBe("created");
+  });
+
+  it("distinguishes the duplicate-becomes-upvote paths", () => {
+    expect(createOutcome({ ok: true, id: 12, voted: true })).toBe("upvoted");
+    expect(createOutcome({ ok: true, id: 12, voted: false })).toBe("already");
+  });
+
+  it("says something useful for each outcome", () => {
+    expect(outcomeMessage("created", "Hades")).toBe("Requested Hades.");
+    expect(outcomeMessage("upvoted", "Hades")).toContain("upvoted it");
+    expect(outcomeMessage("already", "Hades")).toContain("already voted");
+    expect(outcomeMessage("created", "  ")).toBe("Requested That game.");
   });
 });
