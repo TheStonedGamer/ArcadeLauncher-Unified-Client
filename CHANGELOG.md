@@ -11,6 +11,18 @@ extracts this version's section verbatim and posts it to Discord — so this fil
 _is_ the announcement. Keep entries short, user-facing, and grouped under
 Added / Changed / Fixed / Removed.
 
+## [0.15.21] - 2026-07-27
+
+### Changed
+
+- Friends is one list again. Pending friend requests now sit at the top of it
+  instead of behind their own tab, and you open a DM by clicking the person,
+  with the unread count on their row.
+
+### Removed
+
+- The separate Chats and Requests tabs in the friends roster.
+
 ## [0.15.20] - 2026-07-27
 
 ### Changed
