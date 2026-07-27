@@ -11,6 +11,20 @@ extracts this version's section verbatim and posts it to Discord — so this fil
 _is_ the announcement. Keep entries short, user-facing, and grouped under
 Added / Changed / Fixed / Removed.
 
+## [0.15.22] - 2026-07-27
+
+### Changed
+
+- Friends is a window now, not a tab. The **Friends & Chat** button in the
+  header opens the roster in a small window you can drag anywhere, and clicking
+  a friend opens that conversation in its own window — both float over the
+  store or your library instead of taking over the client.
+- The game-requests board opens from a button inside Friends.
+
+### Removed
+
+- The Friends and Requests tabs in the header.
+
 ## [0.15.21] - 2026-07-27
 
 ### Changed
