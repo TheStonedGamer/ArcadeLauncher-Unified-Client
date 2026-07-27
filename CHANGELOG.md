@@ -13,6 +13,18 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.14] - 2026-07-27
+
+### Fixed
+
+- Library no longer hides most of your games. A leftover platform filter from an
+  older build was being restored on every launch with no way left to clear it,
+  so owned emulated games never appeared while PC games did.
+- Games added on the store website now show up in the Library when you switch
+  back to the launcher, instead of only after a restart.
+- Signing in no longer fails outright when the server's challenge endpoint is
+  unreachable; it falls back to password sign-in.
+
 ## [0.15.13] - 2026-07-26
 
 ### Changed
