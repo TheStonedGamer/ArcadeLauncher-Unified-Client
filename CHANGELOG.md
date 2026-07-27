@@ -13,6 +13,8 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.15] - 2026-07-27
+
 ### Fixed
 
 - Xbox games now boot the disc image instead of starting the emulator with
