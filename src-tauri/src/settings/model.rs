@@ -24,6 +24,27 @@ impl Default for AutoSync {
     }
 }
 
+/// Microphone processing for voice/video calls. The browser applies these
+/// inside the capture pipeline, before encoding. Mirrors the TS
+/// `VoiceAudioSettings` in `src/features/social/audio.ts`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct VoiceAudio {
+    /// Remove the far end's voice leaking back through the speakers.
+    pub echo_cancellation: bool,
+    /// Suppress steady background noise — fans, keyboards, hum.
+    pub noise_suppression: bool,
+    /// Even out the input level.
+    pub auto_gain_control: bool,
+}
+
+impl Default for VoiceAudio {
+    /// All on, matching what browsers do by default for a call.
+    fn default() -> Self {
+        VoiceAudio { echo_cancellation: true, noise_suppression: true, auto_gain_control: true }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct General {
@@ -66,6 +87,8 @@ pub struct General {
     pub retroachievements_api_key: String,
     /// Cloud-save auto-sync preferences (pull-on-launch / push-on-exit).
     pub auto_sync: AutoSync,
+    /// Microphone processing for voice/video calls.
+    pub voice_audio: VoiceAudio,
 }
 
 impl Default for General {
@@ -88,6 +111,40 @@ impl Default for General {
             retroachievements_username: String::new(),
             retroachievements_api_key: String::new(),
             auto_sync: AutoSync::default(),
+            voice_audio: VoiceAudio::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_predating_voice_audio_loads_with_processing_on() {
+        // The non-destructive contract: an older config.json has no voiceAudio
+        // key at all, and must come back with the defaults rather than failing
+        // to parse or silently disabling noise suppression.
+        let g: General = serde_json::from_str(r#"{"theme":"dark"}"#).unwrap();
+        assert_eq!(g.voice_audio, VoiceAudio::default());
+        assert!(g.voice_audio.noise_suppression);
+    }
+
+    #[test]
+    fn a_disabled_flag_survives_a_round_trip() {
+        let mut g = General::default();
+        g.voice_audio.noise_suppression = false;
+        let back: General = serde_json::from_str(&serde_json::to_string(&g).unwrap()).unwrap();
+        assert!(!back.voice_audio.noise_suppression);
+        assert!(back.voice_audio.echo_cancellation);
+    }
+
+    #[test]
+    fn voice_audio_is_camel_case_on_the_wire() {
+        // The TS mirror reads these keys verbatim.
+        let json = serde_json::to_string(&VoiceAudio::default()).unwrap();
+        assert!(json.contains("noiseSuppression"), "{json}");
+        assert!(json.contains("echoCancellation"), "{json}");
+        assert!(json.contains("autoGainControl"), "{json}");
     }
 }

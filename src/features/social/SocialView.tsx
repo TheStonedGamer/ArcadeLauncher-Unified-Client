@@ -20,6 +20,7 @@ import { useVoice } from "./useVoice";
 import { useGroupVoice } from "./useGroupVoice";
 import { GroupCallBar } from "./components/GroupCallBar";
 import { fetchTurnServers } from "./api";
+import { loadSettings } from "../settings/api";
 import { FriendList } from "./components/FriendList";
 import { ChatList } from "./components/ChatList";
 import { FloatingWindow } from "./components/FloatingWindow";
@@ -91,6 +92,9 @@ export function SocialView({
   const voice = useVoice(!!auth && social.connected, {
     voiceSend: social.voiceSend,
     setVoiceHandler: social.setVoiceHandler,
+    // Read the mic settings at call time, not at mount: the user can change
+    // them in Settings mid-session and the next call should honour that.
+    micProvider: async () => (await loadSettings()).voiceAudio,
     iceProvider: auth
       ? async () => (await fetchTurnServers(auth.host, auth.token)).iceServers
       : undefined,
@@ -98,6 +102,7 @@ export function SocialView({
   const groupVoice = useGroupVoice(social.selfId, !!auth && social.connected, {
     voiceSend: social.voiceSend,
     setGroupVoiceHandler: social.setGroupVoiceHandler,
+    micProvider: async () => (await loadSettings()).voiceAudio,
     iceProvider: auth
       ? async () => (await fetchTurnServers(auth.host, auth.token)).iceServers
       : undefined,
@@ -299,6 +304,19 @@ export function SocialView({
                           : undefined
                       }
                       unread={unread}
+                      onCall={
+                        voice.enabled ? (id) => voice.startCall(id) : undefined
+                      }
+                      onVideoCall={
+                        voice.enabled
+                          ? (id) => voice.startCall(id, true)
+                          : undefined
+                      }
+                      callDisabledReason={
+                        voice.enabled
+                          ? undefined
+                          : "Calling needs a connection to the social service"
+                      }
                     />
                     {strays.length > 0 && (
                       <div className="social__strays">
@@ -404,6 +422,7 @@ export function SocialView({
                     ? () => voice.startCall(peer.accountId, true)
                     : undefined
                 }
+                callDisabledReason="Calling needs a connection to the social service"
               />
             )}
           </section>

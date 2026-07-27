@@ -2,6 +2,7 @@
 // with src-tauri/src/settings/model.rs.
 
 import type { AutoSyncSettings } from "../saves/saves";
+import type { VoiceAudioSettings } from "../social/audio";
 
 export interface GeneralSettings {
   libraryPath: string;
@@ -23,4 +24,6 @@ export interface GeneralSettings {
   retroachievementsApiKey: string;
   /** Cloud-save auto-sync preferences (pull-on-launch / push-on-exit). */
   autoSync: AutoSyncSettings;
+  /** Microphone processing for voice/video calls. */
+  voiceAudio: VoiceAudioSettings;
 }

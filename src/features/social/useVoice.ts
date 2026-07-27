@@ -11,6 +11,7 @@
 // peers then won't connect until TURN is configured server-side.
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
+import { DEFAULT_VOICE_AUDIO, micConstraints, type VoiceAudioSettings } from "./audio";
 import {
   callReducer,
   IDLE_CALL,
@@ -54,6 +55,10 @@ interface VoiceTransport {
   setVoiceHandler: (cb: (fromId: number, payload: unknown) => void) => void;
   /** Fetch ICE servers (STUN + TURN) for a call; absent → STUN-only fallback. */
   iceProvider?: () => Promise<RTCIceServer[]>;
+  /** The user's mic-processing settings, read fresh per call so a change in
+   *  Settings applies to the next call without remounting anything. Absent →
+   *  the defaults (all processing on). */
+  micProvider?: () => Promise<VoiceAudioSettings>;
 }
 
 export function useVoice(
@@ -178,10 +183,11 @@ export function useVoice(
    *  or attach a duplicate audio track. */
   const addLocalAudio = useCallback(async (pc: RTCPeerConnection) => {
     if (audioAddedRef.current) return;
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: false,
-    });
+    // Settings failing to load must not block a call — fall back to defaults.
+    const audio = await transport.micProvider?.().catch(() => DEFAULT_VOICE_AUDIO);
+    const stream = await navigator.mediaDevices.getUserMedia(
+      micConstraints(audio ?? DEFAULT_VOICE_AUDIO),
+    );
     localRef.current = stream;
     stream.getTracks().forEach((t) => pc.addTrack(t, stream));
     audioAddedRef.current = true;

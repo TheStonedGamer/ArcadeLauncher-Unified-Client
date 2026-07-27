@@ -25,6 +25,14 @@ interface Props {
   ignore?: IgnoreControl;
   /** Unread DM count per peer — clicking a row opens that conversation. */
   unread?: Map<number, number>;
+  /** Start a voice call with this friend. Absent → calling is unavailable. */
+  onCall?: (peerId: number) => void;
+  /** Start a video call with this friend. */
+  onVideoCall?: (peerId: number) => void;
+  /** Why calling is unavailable, shown on the disabled buttons. Buttons stay
+   *  visible rather than vanishing, so a dropped gateway reads as "offline"
+   *  instead of as a missing feature. */
+  callDisabledReason?: string;
 }
 
 function subline(f: Friend): { text: string; game: boolean } {
@@ -43,6 +51,9 @@ function FriendRow({
   fmeta,
   ignore,
   unread,
+  onCall,
+  onVideoCall,
+  callDisabledReason,
 }: {
   f: Friend;
   selected: boolean;
@@ -51,6 +62,9 @@ function FriendRow({
   fmeta: FriendMeta;
   ignore?: IgnoreControl;
   unread: number;
+  onCall?: (peerId: number) => void;
+  onVideoCall?: (peerId: number) => void;
+  callDisabledReason?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState(fmeta.note);
@@ -73,6 +87,24 @@ function FriendRow({
               {unread}
             </span>
           )}
+        </button>
+        <button
+          className="friendlist__call"
+          title={callDisabledReason ?? `Call ${displayName(f)}`}
+          aria-label={`Call ${displayName(f)}`}
+          disabled={!onCall}
+          onClick={() => onCall?.(f.accountId)}
+        >
+          📞
+        </button>
+        <button
+          className="friendlist__call friendlist__call--video"
+          title={callDisabledReason ?? `Video call ${displayName(f)}`}
+          aria-label={`Video call ${displayName(f)}`}
+          disabled={!onVideoCall}
+          onClick={() => onVideoCall?.(f.accountId)}
+        >
+          📹
         </button>
         {meta && (
           <button
@@ -139,7 +171,17 @@ function FriendRow({
   );
 }
 
-export function FriendList({ friends, selectedPeer, onSelect, meta, ignore, unread }: Props) {
+export function FriendList({
+  friends,
+  selectedPeer,
+  onSelect,
+  meta,
+  ignore,
+  unread,
+  onCall,
+  onVideoCall,
+  callDisabledReason,
+}: Props) {
   if (friends.length === 0) {
     return <p className="social__empty">No friends yet.</p>;
   }
@@ -189,6 +231,9 @@ export function FriendList({ friends, selectedPeer, onSelect, meta, ignore, unre
                 fmeta={w.meta}
                 ignore={ignore}
                 unread={unread?.get(w.friend.accountId) ?? 0}
+                onCall={onCall}
+                onVideoCall={onVideoCall}
+                callDisabledReason={callDisabledReason}
               />
             ))}
           </ul>

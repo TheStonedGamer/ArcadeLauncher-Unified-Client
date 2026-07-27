@@ -24,6 +24,8 @@ import {
   type GroupSignalKind,
 } from "./voiceMesh";
 
+import { DEFAULT_VOICE_AUDIO, micConstraints, type VoiceAudioSettings } from "./audio";
+
 const DEFAULT_ICE: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 export interface GroupVoiceApi {
@@ -48,6 +50,8 @@ interface GroupTransport {
   voiceSend: (to: number, payload: unknown) => void;
   setGroupVoiceHandler: (cb: (fromId: number, payload: unknown) => void) => void;
   iceProvider?: () => Promise<RTCIceServer[]>;
+  /** The user's mic-processing settings; absent → defaults (all on). */
+  micProvider?: () => Promise<VoiceAudioSettings>;
 }
 
 export function useGroupVoice(selfId: number, enabled: boolean, transport: GroupTransport): GroupVoiceApi {
@@ -84,10 +88,14 @@ export function useGroupVoice(selfId: number, enabled: boolean, transport: Group
 
   const ensureMic = useCallback(async (): Promise<MediaStream> => {
     if (localRef.current) return localRef.current;
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    // Same processing as a 1:1 call; a settings-load failure never blocks the call.
+    const audio = await transport.micProvider?.().catch(() => DEFAULT_VOICE_AUDIO);
+    const stream = await navigator.mediaDevices.getUserMedia(
+      micConstraints(audio ?? DEFAULT_VOICE_AUDIO),
+    );
     localRef.current = stream;
     return stream;
-  }, []);
+  }, [transport]);
 
   const sendTo = useCallback(
     (peerId: number, kind: GroupSignalKind, extra?: { sdp?: string; candidate?: string; muted?: boolean }) => {

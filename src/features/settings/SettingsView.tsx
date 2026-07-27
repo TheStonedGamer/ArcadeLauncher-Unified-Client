@@ -19,6 +19,7 @@ import { useState } from "react";
 import { fetchRaSummary, type RaSummary } from "../retroachievements/api";
 import { pointsToLevel, summaryHeadline, topUnlocks, unlockLabel } from "../retroachievements/ra";
 import { clampKeep, type AutoSyncSettings } from "../saves/saves";
+import { voiceAudioSummary, type VoiceAudioSettings } from "../social/audio";
 
 /** The Settings screen is split into tabs so it isn't one long scroll. Each tab
  *  groups related sections; `draft` marks tabs that hold config.json-bound fields
@@ -28,6 +29,7 @@ type SettingsTab =
   | "appearance"
   | "library"
   | "saves"
+  | "voice"
   | "controller"
   | "remoteplay"
   | "integrations"
@@ -37,6 +39,7 @@ const SETTINGS_TABS: { id: SettingsTab; label: string; draft: boolean }[] = [
   { id: "appearance", label: "Appearance", draft: false },
   { id: "library", label: "Library", draft: false },
   { id: "saves", label: "Cloud Saves", draft: true },
+  { id: "voice", label: "Voice & Video", draft: true },
   { id: "controller", label: "Controller", draft: true },
   { id: "remoteplay", label: "Remote Play", draft: false },
   { id: "integrations", label: "Integrations", draft: true },
@@ -176,6 +179,10 @@ export function SettingsView() {
 
         {tab === "saves" && (
           <CloudSavesSection autoSync={draft.autoSync} onChange={(next) => set("autoSync", next)} />
+        )}
+
+        {tab === "voice" && (
+          <VoiceSection voice={draft.voiceAudio} onChange={(next) => set("voiceAudio", next)} />
         )}
 
         {tab === "controller" && (
@@ -485,6 +492,61 @@ function CloudSavesSection({
           onChange={(e) => onChange({ ...autoSync, keepVersions: clampKeep(Number(e.target.value)) })}
         />
       </label>
+    </>
+  );
+}
+
+/** Microphone processing for voice and video calls. These are capture-time
+ *  constraints handed to getUserMedia, so they clean the signal before it's
+ *  encoded — the peer hears the processed audio and nothing is spent decoding
+ *  it back out. They apply to the next call you start or answer, not the one
+ *  already running, since the mic stream is opened when the call comes up. */
+function VoiceSection({
+  voice,
+  onChange,
+}: {
+  voice: VoiceAudioSettings;
+  onChange: (next: VoiceAudioSettings) => void;
+}) {
+  return (
+    <>
+      <h2 className="settings__heading">Microphone</h2>
+      <p className="catalog__status">
+        Cleanup applied to your microphone during voice and video calls. Leave these on unless you're
+        using a mic that already does its own processing, or you hear the results fighting each other.
+        Changes take effect on your next call.
+      </p>
+      <label className="settings__check">
+        <input
+          type="checkbox"
+          checked={voice.noiseSuppression}
+          onChange={(e) => onChange({ ...voice, noiseSuppression: e.target.checked })}
+        />
+        Noise suppression — cut steady background noise (fans, keyboards, hum)
+      </label>
+      <label className="settings__check">
+        <input
+          type="checkbox"
+          checked={voice.echoCancellation}
+          onChange={(e) => onChange({ ...voice, echoCancellation: e.target.checked })}
+        />
+        Echo cancellation — stop the other side hearing themselves back
+      </label>
+      <label className="settings__check">
+        <input
+          type="checkbox"
+          checked={voice.autoGainControl}
+          onChange={(e) => onChange({ ...voice, autoGainControl: e.target.checked })}
+        />
+        Automatic gain — even out a mic that's too quiet or too loud
+      </label>
+      <p className="catalog__status">{voiceAudioSummary(voice)}</p>
+      <h2 className="settings__heading">Calls</h2>
+      <p className="catalog__status">
+        Start a call from any conversation, or straight from a friend in the roster: 📞 places a voice
+        call and 📹 opens with your camera on. Once you're connected you can switch between camera and
+        screen sharing from the call bar. Group rooms are voice-only for now.
+      </p>
     </>
   );
 }

@@ -2507,6 +2507,26 @@ body {
   color: var(--text);
   background: var(--panel);
 }
+/* Call / video call straight from a roster row (T12e). Kept visible but
+   disabled when the social gateway is down, so the feature never looks absent. */
+.friendlist__call {
+  border: none;
+  background: transparent;
+  color: var(--green);
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 6px;
+}
+.friendlist__call:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--green) 22%, transparent);
+}
+.friendlist__call:disabled {
+  color: var(--muted);
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .friendlist__name {
   font-size: 13px;
   font-weight: 600;

@@ -33,6 +33,8 @@ interface Props {
   onCall?: () => void;
   /** Start a video call with this peer (absent → no video button). */
   onVideoCall?: () => void;
+  /** Shown on the call buttons when they are disabled. */
+  callDisabledReason?: string;
 }
 
 /** Shorten a parent message to a one-line reply quote. */
@@ -59,6 +61,7 @@ export function ChatPane({
   onViewProfile,
   onCall,
   onVideoCall,
+  callDisabledReason,
 }: Props) {
   const endRef = useRef<HTMLDivElement>(null);
   const msgCount = conversation?.messages.length ?? 0;
@@ -103,26 +106,26 @@ export function ChatPane({
             ? peer.currentGameTitle
             : presenceLabel[peer.presence]}
         </span>
-        {onCall && (
-          <button
-            className="chatpane__call"
-            onClick={onCall}
-            title="Start voice call"
-            aria-label="Start voice call"
-          >
-            📞
-          </button>
-        )}
-        {onVideoCall && (
-          <button
-            className="chatpane__call chatpane__call--video"
-            onClick={onVideoCall}
-            title="Start video call"
-            aria-label="Start video call"
-          >
-            📹
-          </button>
-        )}
+        {/* Both buttons stay mounted when calling is unavailable — vanishing
+            controls read as a missing feature rather than a dropped gateway. */}
+        <button
+          className="chatpane__call"
+          onClick={onCall}
+          disabled={!onCall}
+          title={onCall ? "Start voice call" : callDisabledReason}
+          aria-label="Start voice call"
+        >
+          📞
+        </button>
+        <button
+          className="chatpane__call chatpane__call--video"
+          onClick={onVideoCall}
+          disabled={!onVideoCall}
+          title={onVideoCall ? "Start video call" : callDisabledReason}
+          aria-label="Start video call"
+        >
+          📹
+        </button>
       </header>
 
       <div className="chatpane__messages">

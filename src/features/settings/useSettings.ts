@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { applyHotkey, loadSettings, saveSettings } from "./api";
 import type { GeneralSettings } from "./types";
 import { DEFAULT_AUTO_SYNC } from "../saves/saves";
+import { DEFAULT_VOICE_AUDIO } from "../social/audio";
 
 const DEFAULTS: GeneralSettings = {
   libraryPath: "",
@@ -24,6 +25,7 @@ const DEFAULTS: GeneralSettings = {
   retroachievementsUsername: "",
   retroachievementsApiKey: "",
   autoSync: DEFAULT_AUTO_SYNC,
+  voiceAudio: DEFAULT_VOICE_AUDIO,
 };
 
 export function useSettings() {
