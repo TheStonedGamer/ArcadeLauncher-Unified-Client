@@ -23,6 +23,14 @@ Added / Changed / Fixed / Removed.
 - Media links posted in chat now embed, on desktop and on the phone: images and
   GIFs show inline, MP4/WebM videos get a player, and a YouTube link becomes a
   thumbnail you can press to watch.
+- Video calls can be placed directly: a **Video** button next to Call in a
+  conversation starts the call with the camera already on at both ends, on the
+  desktop client and in the phone app. Calling someone from an older client
+  still works — it just rings as a voice call.
+
+### Changed
+
+- The Call button is green on both the desktop client and the phone app.
 
 ## [0.15.22] - 2026-07-27
 

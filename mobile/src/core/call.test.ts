@@ -12,13 +12,20 @@ import {
   type CallState,
 } from "./call";
 
-function at(phase: CallState["phase"], over: Partial<CallState> = {}): CallState {
+function at(
+  phase: CallState["phase"],
+  over: Partial<CallState> = {},
+): CallState {
   return { ...IDLE_CALL, phase, peerId: 42, ...over };
 }
 
 describe("placing and receiving a call", () => {
   it("goes idle -> inviting -> connecting -> connected for the caller", () => {
-    let s = callReducer(IDLE_CALL, { type: "invite", peerId: 42 });
+    let s = callReducer(IDLE_CALL, {
+      type: "invite",
+      peerId: 42,
+      video: false,
+    });
     expect(s).toMatchObject({ phase: "inviting", peerId: 42 });
     s = callReducer(s, { type: "remoteAccept" });
     expect(s.phase).toBe("connecting");
@@ -27,7 +34,11 @@ describe("placing and receiving a call", () => {
   });
 
   it("goes idle -> ringing -> connecting -> connected for the callee", () => {
-    let s = callReducer(IDLE_CALL, { type: "incoming", peerId: 7 });
+    let s = callReducer(IDLE_CALL, {
+      type: "incoming",
+      peerId: 7,
+      video: false,
+    });
     expect(s).toMatchObject({ phase: "ringing", peerId: 7 });
     s = callReducer(s, { type: "accept" });
     expect(s.phase).toBe("connecting");
@@ -39,21 +50,34 @@ describe("placing and receiving a call", () => {
     // Otherwise the second call of the evening would be impossible without a
     // separate reset step somebody will forget to dispatch.
     const ended = at("ended");
-    expect(callReducer(ended, { type: "invite", peerId: 9 })).toMatchObject({
+    expect(
+      callReducer(ended, { type: "invite", peerId: 9, video: false }),
+    ).toMatchObject({
       phase: "inviting",
       peerId: 9,
     });
-    expect(callReducer(ended, { type: "incoming", peerId: 9 })).toMatchObject({
+    expect(
+      callReducer(ended, { type: "incoming", peerId: 9, video: false }),
+    ).toMatchObject({
       phase: "ringing",
       peerId: 9,
     });
   });
 
   it("does not let a second call interrupt a live one", () => {
-    for (const phase of ["inviting", "ringing", "connecting", "connected"] as const) {
+    for (const phase of [
+      "inviting",
+      "ringing",
+      "connecting",
+      "connected",
+    ] as const) {
       const s = at(phase);
-      expect(callReducer(s, { type: "invite", peerId: 99 })).toBe(s);
-      expect(callReducer(s, { type: "incoming", peerId: 99 })).toBe(s);
+      expect(callReducer(s, { type: "invite", peerId: 99, video: false })).toBe(
+        s,
+      );
+      expect(
+        callReducer(s, { type: "incoming", peerId: 99, video: false }),
+      ).toBe(s);
     }
   });
 });
@@ -63,21 +87,39 @@ describe("events that arrive in the wrong phase", () => {
   // radio changes hands, so a signal for a call that already moved on must be
   // dropped rather than applied.
   it("ignores accept unless ringing", () => {
-    for (const phase of ["idle", "inviting", "connecting", "connected", "ended"] as const) {
+    for (const phase of [
+      "idle",
+      "inviting",
+      "connecting",
+      "connected",
+      "ended",
+    ] as const) {
       const s = at(phase);
       expect(callReducer(s, { type: "accept" })).toBe(s);
     }
   });
 
   it("ignores remoteAccept unless inviting", () => {
-    for (const phase of ["idle", "ringing", "connecting", "connected", "ended"] as const) {
+    for (const phase of [
+      "idle",
+      "ringing",
+      "connecting",
+      "connected",
+      "ended",
+    ] as const) {
       const s = at(phase);
       expect(callReducer(s, { type: "remoteAccept" })).toBe(s);
     }
   });
 
   it("ignores connected unless connecting", () => {
-    for (const phase of ["idle", "inviting", "ringing", "connected", "ended"] as const) {
+    for (const phase of [
+      "idle",
+      "inviting",
+      "ringing",
+      "connected",
+      "ended",
+    ] as const) {
       const s = at(phase);
       expect(callReducer(s, { type: "connected" })).toBe(s);
     }
@@ -86,8 +128,15 @@ describe("events that arrive in the wrong phase", () => {
 
 describe("hanging up", () => {
   it("ends from any live phase and remembers who it was with", () => {
-    for (const phase of ["inviting", "ringing", "connecting", "connected"] as const) {
-      const s = callReducer(at(phase, { muted: true, localVideo: "camera" }), { type: "hangup" });
+    for (const phase of [
+      "inviting",
+      "ringing",
+      "connecting",
+      "connected",
+    ] as const) {
+      const s = callReducer(at(phase, { muted: true, localVideo: "camera" }), {
+        type: "hangup",
+      });
       expect(s).toEqual({ ...IDLE_CALL, phase: "ended", peerId: 42 });
     }
   });
@@ -106,7 +155,10 @@ describe("hanging up", () => {
   });
 
   it("clears mute and video, so the next call does not start muted", () => {
-    const s = callReducer(at("connected", { muted: true, remoteVideo: "screen" }), { type: "hangup" });
+    const s = callReducer(
+      at("connected", { muted: true, remoteVideo: "screen" }),
+      { type: "hangup" },
+    );
     expect(s.muted).toBe(false);
     expect(s.remoteVideo).toBe("none");
   });
@@ -128,14 +180,20 @@ describe("mute", () => {
 
 describe("video", () => {
   it("records each side's mode once connected", () => {
-    let s = callReducer(at("connected"), { type: "localVideo", mode: "camera" });
+    let s = callReducer(at("connected"), {
+      type: "localVideo",
+      mode: "camera",
+    });
     expect(s.localVideo).toBe("camera");
     s = callReducer(s, { type: "remoteVideo", mode: "screen" });
     expect(s).toMatchObject({ localVideo: "camera", remoteVideo: "screen" });
   });
 
   it("accepts a mode while still connecting, since the offer carries it", () => {
-    expect(callReducer(at("connecting"), { type: "localVideo", mode: "camera" }).localVideo).toBe("camera");
+    expect(
+      callReducer(at("connecting"), { type: "localVideo", mode: "camera" })
+        .localVideo,
+    ).toBe("camera");
   });
 
   it("ignores a stale announcement that lands after the call ended", () => {
@@ -171,7 +229,12 @@ describe("isBusy", () => {
   it("is true exactly while a call occupies the microphone", () => {
     expect(isBusy(IDLE_CALL)).toBe(false);
     expect(isBusy(at("ended"))).toBe(false);
-    for (const phase of ["inviting", "ringing", "connecting", "connected"] as const) {
+    for (const phase of [
+      "inviting",
+      "ringing",
+      "connecting",
+      "connected",
+    ] as const) {
       expect(isBusy(at(phase))).toBe(true);
     }
   });
@@ -181,14 +244,23 @@ describe("parseSignal", () => {
   // This payload crossed the network untouched by the server, so nothing about
   // its shape has been checked before it gets here.
   it("accepts the bare kinds", () => {
-    expect(parseSignal({ kind: "invite" })).toEqual({ kind: "invite" });
+    expect(parseSignal({ kind: "invite" })).toEqual({
+      kind: "invite",
+      video: false,
+    });
     expect(parseSignal({ kind: "accept" })).toEqual({ kind: "accept" });
     expect(parseSignal({ kind: "end" })).toEqual({ kind: "end" });
   });
 
   it("requires the sdp on an offer or answer", () => {
-    expect(parseSignal({ kind: "offer", sdp: "v=0" })).toEqual({ kind: "offer", sdp: "v=0" });
-    expect(parseSignal({ kind: "answer", sdp: "v=0" })).toEqual({ kind: "answer", sdp: "v=0" });
+    expect(parseSignal({ kind: "offer", sdp: "v=0" })).toEqual({
+      kind: "offer",
+      sdp: "v=0",
+    });
+    expect(parseSignal({ kind: "answer", sdp: "v=0" })).toEqual({
+      kind: "answer",
+      sdp: "v=0",
+    });
     expect(parseSignal({ kind: "offer" })).toBeNull();
     expect(parseSignal({ kind: "answer", sdp: 5 })).toBeNull();
   });
@@ -202,12 +274,23 @@ describe("parseSignal", () => {
   });
 
   it("understands screen sharing even though it never sends it", () => {
-    expect(parseSignal({ kind: "video", mode: "screen" })).toEqual({ kind: "video", mode: "screen" });
+    expect(parseSignal({ kind: "video", mode: "screen" })).toEqual({
+      kind: "video",
+      mode: "screen",
+    });
     expect(parseSignal({ kind: "video", mode: "hologram" })).toBeNull();
   });
 
   it("rejects junk instead of throwing", () => {
-    for (const bad of [null, undefined, 5, "invite", [], {}, { kind: "reboot" }]) {
+    for (const bad of [
+      null,
+      undefined,
+      5,
+      "invite",
+      [],
+      {},
+      { kind: "reboot" },
+    ]) {
       expect(parseSignal(bad)).toBeNull();
     }
   });
@@ -223,8 +306,14 @@ describe("eventForSignal", () => {
   it("maps the state-changing signals, tagging the caller from the frame", () => {
     // peerId comes from who the frame was from, never from the payload -- the
     // payload is written by the other client and is not evidence of identity.
-    expect(eventForSignal({ kind: "invite" }, 7)).toEqual({ type: "incoming", peerId: 7 });
-    expect(eventForSignal({ kind: "accept" }, 7)).toEqual({ type: "remoteAccept" });
+    expect(eventForSignal({ kind: "invite" }, 7)).toEqual({
+      type: "incoming",
+      peerId: 7,
+      video: false,
+    });
+    expect(eventForSignal({ kind: "accept" }, 7)).toEqual({
+      type: "remoteAccept",
+    });
     expect(eventForSignal({ kind: "end" }, 7)).toEqual({ type: "remoteEnd" });
     expect(eventForSignal({ kind: "video", mode: "camera" }, 7)).toEqual({
       type: "remoteVideo",
@@ -245,7 +334,9 @@ describe("callStatusText", () => {
     expect(callStatusText(at("ringing"), "Sam")).toBe("Sam is calling");
     expect(callStatusText(at("connecting"), "Sam")).toBe("Connecting…");
     expect(callStatusText(at("connected"), "Sam")).toBe("On a call");
-    expect(callStatusText(at("connected", { remoteVideo: "camera" }), "Sam")).toBe("On a video call");
+    expect(
+      callStatusText(at("connected", { remoteVideo: "camera" }), "Sam"),
+    ).toBe("On a video call");
     expect(callStatusText(at("ended"), "Sam")).toBe("Call ended");
     expect(callStatusText(IDLE_CALL, "Sam")).toBe("");
   });

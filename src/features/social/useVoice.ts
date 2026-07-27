@@ -11,8 +11,20 @@
 // peers then won't connect until TURN is configured server-side.
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import { callReducer, IDLE_CALL, isBusy, parseSignal, type CallState, type SignalPayload } from "./voice";
-import { canShareVideo, nextVideoMode, videoConstraints, type VideoMode } from "./video";
+import {
+  callReducer,
+  IDLE_CALL,
+  isBusy,
+  parseSignal,
+  type CallState,
+  type SignalPayload,
+} from "./voice";
+import {
+  canShareVideo,
+  nextVideoMode,
+  videoConstraints,
+  type VideoMode,
+} from "./video";
 
 const DEFAULT_ICE: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
@@ -20,8 +32,9 @@ export interface VoiceApi {
   call: CallState;
   /** Whether voice is usable (a live session with a working transport). */
   enabled: boolean;
-  /** Start a call to a friend. */
-  startCall: (peerId: number) => void;
+  /** Start a call to a friend. `video` places it as a video call: the camera
+   *  turns on by itself once the call connects, at both ends. */
+  startCall: (peerId: number, video?: boolean) => void;
   /** Accept the current incoming call. */
   acceptCall: () => void;
   /** End / decline / cancel the current call. */
@@ -43,7 +56,10 @@ interface VoiceTransport {
   iceProvider?: () => Promise<RTCIceServer[]>;
 }
 
-export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi {
+export function useVoice(
+  enabled: boolean,
+  transport: VoiceTransport,
+): VoiceApi {
   const [call, dispatch] = useReducer(callReducer, IDLE_CALL);
   const callRef = useRef(call);
   callRef.current = call;
@@ -115,7 +131,11 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
       const iceServers = await ensureIce();
       const pc = new RTCPeerConnection({ iceServers });
       pc.onicecandidate = (e) => {
-        if (e.candidate) transport.voiceSend(peerId, { kind: "ice", candidate: JSON.stringify(e.candidate) });
+        if (e.candidate)
+          transport.voiceSend(peerId, {
+            kind: "ice",
+            candidate: JSON.stringify(e.candidate),
+          });
       };
       pc.ontrack = (e) => {
         const stream = e.streams[0];
@@ -138,7 +158,10 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
       };
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === "connected") dispatch({ type: "connected" });
-        if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+        if (
+          pc.connectionState === "failed" ||
+          pc.connectionState === "disconnected"
+        ) {
           transport.voiceSend(peerId, { kind: "end" });
           dispatch({ type: "remoteEnd" });
           cleanup();
@@ -155,12 +178,16 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
    *  or attach a duplicate audio track. */
   const addLocalAudio = useCallback(async (pc: RTCPeerConnection) => {
     if (audioAddedRef.current) return;
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: false,
+    });
     localRef.current = stream;
     stream.getTracks().forEach((t) => pc.addTrack(t, stream));
     audioAddedRef.current = true;
     // Honour a mute toggled before the mic existed.
-    if (callRef.current.muted) stream.getAudioTracks().forEach((t) => (t.enabled = false));
+    if (callRef.current.muted)
+      stream.getAudioTracks().forEach((t) => (t.enabled = false));
   }, []);
 
   /** End a call that can't proceed (mic denied, negotiation error): tell the
@@ -175,10 +202,10 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
   );
 
   const startCall = useCallback(
-    (peerId: number) => {
+    (peerId: number, video = false) => {
       if (!enabled || isBusy(callRef.current) || !peerId) return;
-      dispatch({ type: "invite", peerId });
-      transport.voiceSend(peerId, { kind: "invite" });
+      dispatch({ type: "invite", peerId, video });
+      transport.voiceSend(peerId, { kind: "invite", video });
     },
     [enabled, transport],
   );
@@ -230,8 +257,12 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
         try {
           stream =
             mode === "screen"
-              ? await navigator.mediaDevices.getDisplayMedia(videoConstraints("screen"))
-              : await navigator.mediaDevices.getUserMedia(videoConstraints("camera"));
+              ? await navigator.mediaDevices.getDisplayMedia(
+                  videoConstraints("screen"),
+                )
+              : await navigator.mediaDevices.getUserMedia(
+                  videoConstraints("camera"),
+                );
         } catch {
           // Picker dismissed or no device — fall back to whatever we had, which
           // dropLocalVideo already stopped, so report "none" to stay truthful.
@@ -302,10 +333,15 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
       void onSignal(fromId, sig, c);
     };
 
-    const onSignal = async (fromId: number, sig: SignalPayload, c: CallState) => {
+    const onSignal = async (
+      fromId: number,
+      sig: SignalPayload,
+      c: CallState,
+    ) => {
       switch (sig.kind) {
         case "invite":
-          if (!isBusy(c)) dispatch({ type: "incoming", peerId: fromId });
+          if (!isBusy(c))
+            dispatch({ type: "incoming", peerId: fromId, video: sig.video });
           else transport.voiceSend(fromId, { kind: "end" }); // busy → auto-decline
           return;
         case "accept": {
@@ -343,7 +379,10 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
           await flushIce(pc);
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          transport.voiceSend(fromId, { kind: "answer", sdp: answer.sdp ?? "" });
+          transport.voiceSend(fromId, {
+            kind: "answer",
+            sdp: answer.sdp ?? "",
+          });
           return;
         }
         case "answer": {
@@ -361,7 +400,8 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
           } catch {
             return;
           }
-          if (pc && pc.remoteDescription) await pc.addIceCandidate(cand).catch(() => {});
+          if (pc && pc.remoteDescription)
+            await pc.addIceCandidate(cand).catch(() => {});
           else pendingIce.current.push(cand);
           return;
         }
@@ -371,7 +411,11 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
             dispatch({ type: "remoteVideo", mode: sig.mode });
             // On a re-share the transceiver is reused, so ontrack won't fire
             // again — re-point the element at the stream we already hold.
-            if (sig.mode !== "none" && remoteElRef.current && remoteStreamRef.current) {
+            if (
+              sig.mode !== "none" &&
+              remoteElRef.current &&
+              remoteStreamRef.current
+            ) {
               remoteElRef.current.srcObject = remoteStreamRef.current;
               void remoteElRef.current.play().catch(() => {});
             }
@@ -395,6 +439,19 @@ export function useVoice(enabled: boolean, transport: VoiceTransport): VoiceApi 
     transport.setVoiceHandler(handle);
     return () => transport.setVoiceHandler(() => {});
   }, [transport, makePc, addLocalAudio, cleanup, failCall]);
+
+  // A video call lights up the camera once — when media is actually up, so an
+  // invite nobody answers never opens a camera. After that it's an ordinary
+  // toggle: turning the camera back off must not turn it on again.
+  const litCamera = useRef(false);
+  useEffect(() => {
+    if (call.phase === "idle" || call.phase === "ended")
+      litCamera.current = false;
+    if (!call.wantsVideo || call.phase !== "connected" || litCamera.current)
+      return;
+    litCamera.current = true;
+    void setVideoMode("camera");
+  }, [call.wantsVideo, call.phase, setVideoMode]);
 
   // Tear down media when a call leaves the active phases.
   useEffect(() => {

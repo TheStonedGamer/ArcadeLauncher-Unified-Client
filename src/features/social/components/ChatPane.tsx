@@ -31,6 +31,8 @@ interface Props {
   onViewProfile?: (userId: number) => void;
   /** Start a voice call with this peer (absent → no call button). */
   onCall?: () => void;
+  /** Start a video call with this peer (absent → no video button). */
+  onVideoCall?: () => void;
 }
 
 /** Shorten a parent message to a one-line reply quote. */
@@ -40,8 +42,23 @@ function snippet(text: string): string {
 }
 
 export function ChatPane({
-  peer, conversation, selfId, connected, onSend, onTyping, onEdit, onDelete, onReact, onReply, replyTo, onCancelReply,
-  onAttach, onOpenAttachment, onViewProfile, onCall,
+  peer,
+  conversation,
+  selfId,
+  connected,
+  onSend,
+  onTyping,
+  onEdit,
+  onDelete,
+  onReact,
+  onReply,
+  replyTo,
+  onCancelReply,
+  onAttach,
+  onOpenAttachment,
+  onViewProfile,
+  onCall,
+  onVideoCall,
 }: Props) {
   const endRef = useRef<HTMLDivElement>(null);
   const msgCount = conversation?.messages.length ?? 0;
@@ -61,16 +78,21 @@ export function ChatPane({
   // messageId → snippet, so a reply can quote its parent inline.
   const textById = new Map<number, string>();
   for (const m of conversation.messages) {
-    if (m.messageId !== 0 && !m.deleted) textById.set(m.messageId, snippet(m.text));
+    if (m.messageId !== 0 && !m.deleted)
+      textById.set(m.messageId, snippet(m.text));
   }
-  const replyParent = replyTo > 0 ? textById.get(replyTo) ?? "a message" : "";
+  const replyParent = replyTo > 0 ? (textById.get(replyTo) ?? "a message") : "";
 
   return (
     <div className="chatpane">
       <header className="chatpane__head">
         <PresenceDot presence={peer.presence} />
         {onViewProfile ? (
-          <button className="chatpane__name chatpane__name--link" onClick={() => onViewProfile(peer.accountId)} title="View profile">
+          <button
+            className="chatpane__name chatpane__name--link"
+            onClick={() => onViewProfile(peer.accountId)}
+            title="View profile"
+          >
             {displayName(peer)}
           </button>
         ) : (
@@ -82,8 +104,23 @@ export function ChatPane({
             : presenceLabel[peer.presence]}
         </span>
         {onCall && (
-          <button className="chatpane__call" onClick={onCall} title="Start voice call" aria-label="Start voice call">
+          <button
+            className="chatpane__call"
+            onClick={onCall}
+            title="Start voice call"
+            aria-label="Start voice call"
+          >
             📞
+          </button>
+        )}
+        {onVideoCall && (
+          <button
+            className="chatpane__call chatpane__call--video"
+            onClick={onVideoCall}
+            title="Start video call"
+            aria-label="Start video call"
+          >
+            📹
           </button>
         )}
       </header>
@@ -116,8 +153,14 @@ export function ChatPane({
 
       {replyTo > 0 && (
         <div className="chatpane__replybar">
-          <span className="chatpane__replybar-text">Replying to: {replyParent}</span>
-          <button className="chatpane__replybar-cancel" onClick={onCancelReply} aria-label="Cancel reply">
+          <span className="chatpane__replybar-text">
+            Replying to: {replyParent}
+          </span>
+          <button
+            className="chatpane__replybar-cancel"
+            onClick={onCancelReply}
+            aria-label="Cancel reply"
+          >
             ✕
           </button>
         </div>
@@ -125,7 +168,11 @@ export function ChatPane({
 
       <Composer
         disabled={!connected}
-        placeholder={connected ? `Message ${displayName(peer)}` : "Offline — gateway connects in T3b"}
+        placeholder={
+          connected
+            ? `Message ${displayName(peer)}`
+            : "Offline — gateway connects in T3b"
+        }
         onSend={onSend}
         onTyping={onTyping}
         onAttach={onAttach}

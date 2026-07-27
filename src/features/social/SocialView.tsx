@@ -399,6 +399,11 @@ export function SocialView({
                     ? () => voice.startCall(peer.accountId)
                     : undefined
                 }
+                onVideoCall={
+                  voice.enabled && peer
+                    ? () => voice.startCall(peer.accountId, true)
+                    : undefined
+                }
               />
             )}
           </section>

@@ -46,7 +46,7 @@ export default function ChatScreen({
    *  and this snapshot presence seed the list; the gateway's live frames refine
    *  presence on top. */
   friends: Friend[];
-  onCall: (peerId: number) => void;
+  onCall: (peerId: number, video?: boolean) => void;
 }) {
   const [peer, setPeer] = useState<number | null>(null);
 
@@ -87,6 +87,7 @@ export default function ChatScreen({
       send={send}
       onBack={() => setPeer(null)}
       onCall={() => onCall(peer)}
+      onVideoCall={() => onCall(peer, true)}
     />
   );
 }
@@ -169,6 +170,7 @@ function Conversation({
   send,
   onBack,
   onCall,
+  onVideoCall,
 }: {
   session: MobileSession;
   peer: number;
@@ -178,6 +180,7 @@ function Conversation({
   send: (frame: string) => boolean;
   onBack: () => void;
   onCall: () => void;
+  onVideoCall: () => void;
 }) {
   const [draft, setDraft] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -234,9 +237,16 @@ function Conversation({
         </Text>
         <TouchableOpacity onPress={onCall} disabled={!online}>
           <Text
-            style={{ color: online ? colors.accent : colors.dim, fontSize: 15 }}
+            style={{ color: online ? colors.ok : colors.dim, fontSize: 15 }}
           >
             Call
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onVideoCall} disabled={!online}>
+          <Text
+            style={{ color: online ? colors.ok : colors.dim, fontSize: 15 }}
+          >
+            Video
           </Text>
         </TouchableOpacity>
       </View>

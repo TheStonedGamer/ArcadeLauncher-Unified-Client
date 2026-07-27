@@ -27,6 +27,10 @@ export interface CallState {
   localVideo: VideoMode;
   /** What the peer announced it is sending (T12e). */
   remoteVideo: VideoMode;
+  /** This call was placed as a video call, by either end. The camera is turned
+   *  on once media is up rather than at invite time, so a call nobody answers
+   *  never lights up a camera. */
+  wantsVideo: boolean;
 }
 
 export const IDLE_CALL: CallState = {
@@ -35,12 +39,13 @@ export const IDLE_CALL: CallState = {
   muted: false,
   localVideo: "none",
   remoteVideo: "none",
+  wantsVideo: false,
 };
 
 /** Events that drive the FSM. Local UI actions + remote signaling, unified. */
 export type CallEvent =
-  | { type: "invite"; peerId: number } // I start a call
-  | { type: "incoming"; peerId: number } // remote invite arrives
+  | { type: "invite"; peerId: number; video: boolean } // I start a call
+  | { type: "incoming"; peerId: number; video: boolean } // remote invite arrives
   | { type: "accept" } // I accept the incoming call
   | { type: "remoteAccept" } // remote accepted my invite
   | { type: "connected" } // media is flowing (pc connected)
@@ -56,10 +61,10 @@ export function callReducer(state: CallState, event: CallEvent): CallState {
   switch (event.type) {
     case "invite":
       if (state.phase !== "idle" && state.phase !== "ended") return state;
-      return { ...IDLE_CALL, phase: "inviting", peerId: event.peerId };
+      return { ...IDLE_CALL, phase: "inviting", peerId: event.peerId, wantsVideo: event.video };
     case "incoming":
       if (state.phase !== "idle" && state.phase !== "ended") return state;
-      return { ...IDLE_CALL, phase: "ringing", peerId: event.peerId };
+      return { ...IDLE_CALL, phase: "ringing", peerId: event.peerId, wantsVideo: event.video };
     case "accept":
       if (state.phase !== "ringing") return state;
       return { ...state, phase: "connecting" };
@@ -101,7 +106,11 @@ export function isBusy(state: CallState): boolean {
 // this shape (not the server).
 
 export type SignalPayload =
-  | { kind: "invite" }
+  /** `video` marks a call placed from the video button, so the callee's phone
+   *  or PC can say "incoming video call" and open its camera on answer. An
+   *  older client omits the field; that reads as a voice call, which is what
+   *  it is. */
+  | { kind: "invite"; video: boolean }
   | { kind: "accept" }
   | { kind: "end" }
   | { kind: "offer"; sdp: string }
@@ -119,6 +128,7 @@ export function parseSignal(payload: unknown): SignalPayload | null {
   const p = payload as Record<string, unknown>;
   switch (p.kind) {
     case "invite":
+      return { kind: "invite", video: p.video === true };
     case "accept":
     case "end":
       return { kind: p.kind };

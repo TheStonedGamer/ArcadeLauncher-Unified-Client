@@ -2687,16 +2687,21 @@ body {
 /* Voice call (T9g) */
 .chatpane__call {
   margin-left: auto;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  color: var(--text);
+  border: 1px solid var(--green);
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+  color: var(--green);
   border-radius: 8px;
   padding: 4px 10px;
   cursor: pointer;
   font-size: 14px;
 }
+/* The two call buttons sit together; only the first one pushes to the right. */
+.chatpane__call--video {
+  margin-left: 6px;
+}
 .chatpane__call:hover {
-  border-color: var(--on);
+  border-color: var(--green-2);
+  background: color-mix(in srgb, var(--green) 28%, transparent);
 }
 .callbar {
   position: fixed;
@@ -5348,7 +5353,12 @@ body {
 .gamepage__banner-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(23, 26, 33, 0.45) 0%, rgba(27, 40, 56, 0.75) 55%, var(--bg) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(23, 26, 33, 0.45) 0%,
+    rgba(27, 40, 56, 0.75) 55%,
+    var(--bg) 100%
+  );
 }
 .gamepage__back {
   position: absolute;

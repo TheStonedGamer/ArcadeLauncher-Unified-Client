@@ -25,6 +25,10 @@ export interface CallState {
   muted: boolean;
   localVideo: VideoMode;
   remoteVideo: VideoMode;
+  /** This call was placed as a video call, by either end. The camera is turned
+   *  on once media is up rather than at invite time, so a call nobody answers
+   *  never lights up a camera. */
+  wantsVideo: boolean;
 }
 
 export const IDLE_CALL: CallState = {
@@ -33,11 +37,12 @@ export const IDLE_CALL: CallState = {
   muted: false,
   localVideo: "none",
   remoteVideo: "none",
+  wantsVideo: false,
 };
 
 export type CallEvent =
-  | { type: "invite"; peerId: number }
-  | { type: "incoming"; peerId: number }
+  | { type: "invite"; peerId: number; video: boolean }
+  | { type: "incoming"; peerId: number; video: boolean }
   | { type: "accept" }
   | { type: "remoteAccept" }
   | { type: "connected" }
@@ -55,10 +60,10 @@ export function callReducer(state: CallState, event: CallEvent): CallState {
   switch (event.type) {
     case "invite":
       if (state.phase !== "idle" && state.phase !== "ended") return state;
-      return { ...IDLE_CALL, phase: "inviting", peerId: event.peerId };
+      return { ...IDLE_CALL, phase: "inviting", peerId: event.peerId, wantsVideo: event.video };
     case "incoming":
       if (state.phase !== "idle" && state.phase !== "ended") return state;
-      return { ...IDLE_CALL, phase: "ringing", peerId: event.peerId };
+      return { ...IDLE_CALL, phase: "ringing", peerId: event.peerId, wantsVideo: event.video };
     case "accept":
       if (state.phase !== "ringing") return state;
       return { ...state, phase: "connecting" };
@@ -109,7 +114,9 @@ export function nextVideoMode(current: VideoMode): VideoMode {
 // verbatim, so this shape is agreed between the two clients, not with it.
 
 export type SignalPayload =
-  | { kind: "invite" }
+  /** `video` marks a call placed from the video button. An older client omits
+   *  the field; that reads as a voice call, which is what it is. */
+  | { kind: "invite"; video: boolean }
   | { kind: "accept" }
   | { kind: "end" }
   | { kind: "offer"; sdp: string }
@@ -130,6 +137,7 @@ export function parseSignal(payload: unknown): SignalPayload | null {
   const p = payload as Record<string, unknown>;
   switch (p.kind) {
     case "invite":
+      return { kind: "invite", video: p.video === true };
     case "accept":
     case "end":
       return { kind: p.kind };
@@ -153,7 +161,7 @@ export function parseSignal(payload: unknown): SignalPayload | null {
 export function eventForSignal(signal: SignalPayload, fromId: number): CallEvent | null {
   switch (signal.kind) {
     case "invite":
-      return { type: "incoming", peerId: fromId };
+      return { type: "incoming", peerId: fromId, video: signal.video === true };
     case "accept":
       return { type: "remoteAccept" };
     case "end":
@@ -169,13 +177,15 @@ export function eventForSignal(signal: SignalPayload, fromId: number): CallEvent
 export function callStatusText(state: CallState, name: string): string {
   switch (state.phase) {
     case "inviting":
-      return `Calling ${name}…`;
+      return state.wantsVideo ? `Video calling ${name}…` : `Calling ${name}…`;
     case "ringing":
-      return `${name} is calling`;
+      return state.wantsVideo ? `${name} is video calling` : `${name} is calling`;
     case "connecting":
       return "Connecting…";
     case "connected":
-      return state.remoteVideo === "none" ? "On a call" : "On a video call";
+      return state.remoteVideo === "none" && state.localVideo === "none"
+        ? "On a call"
+        : "On a video call";
     case "ended":
       return "Call ended";
     default:

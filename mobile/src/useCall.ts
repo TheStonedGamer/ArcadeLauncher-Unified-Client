@@ -41,7 +41,9 @@ export interface Call {
   remoteStream: MediaStream | null;
   /** Non-empty when the call failed for a reason worth showing. */
   error: string;
-  start: (peerId: number) => void;
+  /** `video` places a video call: the camera turns on by itself once the
+   *  call connects, at both ends. */
+  start: (peerId: number, video?: boolean) => void;
   accept: () => void;
   hangup: () => void;
   toggleMute: () => void;
@@ -66,10 +68,12 @@ export function useCall(
   const pending = useRef<RTCIceCandidate[]>([]);
   const haveRemote = useRef(false);
   const sendRef = useRef(send);
+  const cameraRef = useRef<() => void>(() => {});
   sendRef.current = send;
 
   const signal = useCallback((payload: SignalPayload) => {
-    if (peer.current > 0) sendRef.current(outbound.voiceSignal(peer.current, payload));
+    if (peer.current > 0)
+      sendRef.current(outbound.voiceSignal(peer.current, payload));
   }, []);
 
   const teardown = useCallback(() => {
@@ -88,44 +92,45 @@ export function useCall(
   // renegotiating, so answering a call never lights up the camera unasked.
   const capture = useCallback(async (): Promise<MediaStream> => {
     if (local.current) return local.current;
-    const stream = (await mediaDevices.getUserMedia({ audio: true, video: false })) as MediaStream;
+    const stream = (await mediaDevices.getUserMedia({
+      audio: true,
+      video: false,
+    })) as MediaStream;
     local.current = stream;
     setLocalStream(stream);
     return stream;
   }, []);
 
-  const connection = useCallback(
-    async (): Promise<RTCPeerConnection> => {
-      if (pc.current) return pc.current;
-      const conn = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-      pc.current = conn;
+  const connection = useCallback(async (): Promise<RTCPeerConnection> => {
+    if (pc.current) return pc.current;
+    const conn = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    pc.current = conn;
 
-      // react-native-webrtc types these handlers as bare Events, so each one is
-      // narrowed here rather than trusted.
-      conn.onicecandidate = ((event: { candidate?: unknown }) => {
-        if (event.candidate) signal({ kind: "ice", candidate: JSON.stringify(event.candidate) });
-      }) as typeof conn.onicecandidate;
+    // react-native-webrtc types these handlers as bare Events, so each one is
+    // narrowed here rather than trusted.
+    conn.onicecandidate = ((event: { candidate?: unknown }) => {
+      if (event.candidate)
+        signal({ kind: "ice", candidate: JSON.stringify(event.candidate) });
+    }) as typeof conn.onicecandidate;
 
-      conn.ontrack = ((event: { streams?: MediaStream[] }) => {
-        const stream = event.streams?.[0];
-        if (stream) setRemoteStream(stream);
-      }) as typeof conn.ontrack;
+    conn.ontrack = ((event: { streams?: MediaStream[] }) => {
+      const stream = event.streams?.[0];
+      if (stream) setRemoteStream(stream);
+    }) as typeof conn.ontrack;
 
-      conn.onconnectionstatechange = (() => {
-        const s = conn.connectionState;
-        if (s === "connected") dispatch({ type: "connected" });
-        if (s === "failed") {
-          setError("The call could not connect.");
-          dispatch({ type: "hangup" });
-        }
-      }) as typeof conn.onconnectionstatechange;
+    conn.onconnectionstatechange = (() => {
+      const s = conn.connectionState;
+      if (s === "connected") dispatch({ type: "connected" });
+      if (s === "failed") {
+        setError("The call could not connect.");
+        dispatch({ type: "hangup" });
+      }
+    }) as typeof conn.onconnectionstatechange;
 
-      const stream = await capture();
-      stream.getTracks().forEach((track) => conn.addTrack(track, stream));
-      return conn;
-    },
-    [capture, signal],
-  );
+    const stream = await capture();
+    stream.getTracks().forEach((track) => conn.addTrack(track, stream));
+    return conn;
+  }, [capture, signal]);
 
   const offer = useCallback(async () => {
     try {
@@ -177,11 +182,16 @@ export function useCall(
         case "offer": {
           try {
             const conn = await connection();
-            await conn.setRemoteDescription(new RTCSessionDescription(JSON.parse(payload.sdp)));
+            await conn.setRemoteDescription(
+              new RTCSessionDescription(JSON.parse(payload.sdp)),
+            );
             await flushCandidates();
             const answer = await conn.createAnswer();
             await conn.setLocalDescription(answer);
-            signal({ kind: "answer", sdp: JSON.stringify(conn.localDescription) });
+            signal({
+              kind: "answer",
+              sdp: JSON.stringify(conn.localDescription),
+            });
           } catch {
             setError("Could not answer the call.");
             dispatch({ type: "hangup" });
@@ -190,7 +200,9 @@ export function useCall(
         }
         case "answer":
           try {
-            await pc.current?.setRemoteDescription(new RTCSessionDescription(JSON.parse(payload.sdp)));
+            await pc.current?.setRemoteDescription(
+              new RTCSessionDescription(JSON.parse(payload.sdp)),
+            );
             await flushCandidates();
           } catch {
             setError("The call could not connect.");
@@ -199,8 +211,11 @@ export function useCall(
           break;
         case "ice": {
           try {
-            const candidate = new RTCIceCandidate(JSON.parse(payload.candidate));
-            if (pc.current && haveRemote.current) await pc.current.addIceCandidate(candidate);
+            const candidate = new RTCIceCandidate(
+              JSON.parse(payload.candidate),
+            );
+            if (pc.current && haveRemote.current)
+              await pc.current.addIceCandidate(candidate);
             else pending.current.push(candidate);
           } catch {
             // Malformed candidate from the far end; ignore it.
@@ -233,13 +248,25 @@ export function useCall(
     if (!isBusy(state)) teardown();
   }, [state, teardown]);
 
+  // A video call lights up the camera once — when media is actually up, so an
+  // invite nobody answers never opens a camera. After that it is an ordinary
+  // toggle: turning the camera back off must not turn it on again.
+  const litCamera = useRef(false);
+  useEffect(() => {
+    if (!isBusy(state)) litCamera.current = false;
+    if (!state.wantsVideo || state.phase !== "connected" || litCamera.current)
+      return;
+    litCamera.current = true;
+    cameraRef.current();
+  }, [state]);
+
   const start = useCallback(
-    (peerId: number) => {
+    (peerId: number, video = false) => {
       if (isBusy(state) || peerId <= 0) return;
       setError("");
       peer.current = peerId;
-      dispatch({ type: "invite", peerId });
-      signal({ kind: "invite" });
+      dispatch({ type: "invite", peerId, video });
+      signal({ kind: "invite", video });
     },
     [state, signal],
   );
@@ -273,7 +300,9 @@ export function useCall(
       if (!conn || !stream) return;
       try {
         if (mode === "camera") {
-          const cam = (await mediaDevices.getUserMedia({ video: { facingMode: "user" } })) as MediaStream;
+          const cam = (await mediaDevices.getUserMedia({
+            video: { facingMode: "user" },
+          })) as MediaStream;
           cam.getVideoTracks().forEach((track) => {
             stream.addTrack(track);
             conn.addTrack(track, stream);
@@ -295,5 +324,21 @@ export function useCall(
     })();
   }, [state.localVideo, offer, signal]);
 
-  return { state, localStream, remoteStream, error, start, accept, hangup, toggleMute, toggleCamera };
+  // The auto-camera effect above runs before toggleCamera is defined, so it
+  // reaches it through this ref rather than through a forward reference.
+  useEffect(() => {
+    cameraRef.current = toggleCamera;
+  }, [toggleCamera]);
+
+  return {
+    state,
+    localStream,
+    remoteStream,
+    error,
+    start,
+    accept,
+    hangup,
+    toggleMute,
+    toggleCamera,
+  };
 }
