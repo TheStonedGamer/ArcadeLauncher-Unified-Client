@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 All notable user-facing changes to the ArcadeLauncher Unified Client are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
@@ -13,7 +13,7 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
-## [0.15.26] - 2026-07-28
+## [0.15.27] - 2026-07-28
 
 ### Added
 
