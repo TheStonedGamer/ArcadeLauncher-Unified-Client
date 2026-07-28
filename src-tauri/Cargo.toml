@@ -1,6 +1,6 @@
-[package]
+﻿[package]
 name = "arcade_launcher"
-version = "0.15.24"
+version = "0.15.25"
 description = "ArcadeLauncher Unified Client"
 authors = ["TheStonedGamer"]
 edition = "2021"
@@ -27,7 +27,7 @@ serde_json = "1"
 thiserror = "2"
 
 # Social live transport (T3b). rustls (not native-tls) so there is no OpenSSL
-# system dependency — keeps the Windows + Linux CI build identical and simple.
+# system dependency â€” keeps the Windows + Linux CI build identical and simple.
 tokio = { version = "1", features = ["sync", "time", "macros", "net", "io-util", "rt-multi-thread"] }
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
@@ -40,13 +40,13 @@ hex = "0.4"
 base64 = "0.22"
 
 # Free/total disk space per library folder (multi-drive Storage manager). Tiny,
-# pure-Rust, no system-service deps — identical on Windows + Linux, consistent
+# pure-Rust, no system-service deps â€” identical on Windows + Linux, consistent
 # with the project's dependency rule. `sync` selects the std (non-async) backend.
 fs4 = { version = "0.13", features = ["sync"] }
 
 # Cloud saves (T8): set a downloaded save file's mtime to the server's, so the
 # next sync sees it as in-sync instead of re-uploading. Pure-Rust, cross-platform,
-# no system deps — keeps Windows + Linux identical.
+# no system deps â€” keeps Windows + Linux identical.
 filetime = "0.2"
 
 # Archive extraction for pc_archive installs (T4c). Pure-Rust deflate only (no
@@ -54,11 +54,11 @@ filetime = "0.2"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
 # 7-Zip extraction for emulator runtimes shipped as .7z (Dolphin, RPCS3, PCSX2).
-# Pure-Rust LZMA/LZMA2 decoder — no system deps, identical on both CI runners.
+# Pure-Rust LZMA/LZMA2 decoder â€” no system deps, identical on both CI runners.
 sevenz-rust = "0.6"
 
 # Discord Rich Presence (T7a). Pure-Rust IPC over the local Discord socket
-# (unix socket on Linux, named pipe on Windows) — no system deps, identical on
+# (unix socket on Linux, named pipe on Windows) â€” no system deps, identical on
 # both CI runners. Presence is best-effort and gated by a setting.
 discord-rich-presence = "0.2"
 tauri-plugin-dialog = "2"
