@@ -36,9 +36,12 @@ export function setCargoVersion(text, version) {
   const rest = text.slice(idx);
   // Bounded to the first version key after [package] so dependency versions,
   // which look identical, are never touched.
-  const replaced = rest.replace(/^version\s*=\s*"[^"]*"/m, `version = "${version}"`);
-  if (replaced === rest) throw new Error("Cargo.toml [package] has no version key");
-  return head + replaced;
+  const key = /^version\s*=\s*"[^"]*"/m;
+  // Test for the key rather than comparing before/after: when the committed
+  // version already equals the tag the rewrite is a legitimate no-op, and
+  // treating that as "no version key" fails every release where the two agree.
+  if (!key.test(rest)) throw new Error("Cargo.toml [package] has no version key");
+  return head + rest.replace(key, `version = "${version}"`);
 }
 
 /** Replace the top-level `"version"` of a JSON document.

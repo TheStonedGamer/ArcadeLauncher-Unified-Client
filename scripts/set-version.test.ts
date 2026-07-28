@@ -39,6 +39,13 @@ describe("setCargoVersion", () => {
     expect(out).toContain('serde = "1.0.28"');
   });
 
+  it("succeeds when the committed version already matches the tag", () => {
+    // The normal case once the bump is committed before tagging; an earlier
+    // version of this script treated the no-op rewrite as a missing key and
+    // failed both desktop legs of the release.
+    expect(setCargoVersion(manifest, "0.15.28")).toBe(manifest);
+  });
+
   it("refuses a manifest it does not understand", () => {
     expect(() => setCargoVersion('[dependencies]\nserde = "1"\n', "1.0.0")).toThrow();
     expect(() => setCargoVersion('[package]\nname = "x"\n', "1.0.0")).toThrow();
@@ -60,6 +67,11 @@ describe("setJsonVersion", () => {
     const out = setJsonVersion(text, "0.15.30");
     expect(out).toBe(text.replace('"0.15.28"', '"0.15.30"'));
     expect(JSON.parse(out).bundle.version).toBe("nested");
+  });
+
+  it("succeeds when the version already matches the tag", () => {
+    const text = '{\n  "version": "0.15.30"\n}\n';
+    expect(setJsonVersion(text, "0.15.30")).toBe(text);
   });
 
   it("refuses a document with no version", () => {
