@@ -2,7 +2,7 @@
   "expo": {
     "name": "ArcadeLauncher",
     "slug": "arcadelauncher-companion",
-    "version": "0.15.28",
+    "version": "0.15.30",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "scheme": "arcadelauncher",

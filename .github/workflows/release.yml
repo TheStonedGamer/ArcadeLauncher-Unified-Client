@@ -139,6 +139,16 @@ jobs:
       - name: Install npm deps
         run: npm ci
 
+      # The git tag is the release's identity, so stamp it into package.json,
+      # tauri.conf.json and Cargo.toml before building. Without this the
+      # installers and latest.json carry whatever version happened to be
+      # committed, and clients refuse an "update" that is not actually newer.
+      - name: Set the desktop version from the release tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
+        run: node scripts/set-version.mjs "$RELEASE_TAG"
+
       # Build the bootstrap updater natively and stage it as the Tauri sidecar.
       # externalBin requires the file to pre-exist with the host target-triple
       # suffix (x86_64-pc-windows-msvc) and the `.exe` extension.
@@ -239,6 +249,16 @@ jobs:
 
       - name: Install npm deps
         run: npm ci
+
+      # The git tag is the release's identity, so stamp it into package.json,
+      # tauri.conf.json and Cargo.toml before building. Without this the
+      # installers and latest.json carry whatever version happened to be
+      # committed, and clients refuse an "update" that is not actually newer.
+      - name: Set the desktop version from the release tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
+        run: node scripts/set-version.mjs "$RELEASE_TAG"
 
       - name: Build bootstrap updater sidecar
         shell: bash
