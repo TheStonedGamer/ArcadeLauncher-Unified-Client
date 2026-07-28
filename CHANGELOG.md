@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.28] - 2026-07-28
+
+### Added
+
+- The phone can now ring for a call while the app is closed. Incoming calls
+  arrive as a notification even after the app has been swiped away; opening it
+  joins the call that is still ringing.
+
 ## [0.15.27] - 2026-07-28
 
 ### Added
