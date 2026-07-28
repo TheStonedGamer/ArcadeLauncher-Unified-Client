@@ -47,6 +47,30 @@ export function PrivacyPanel({ privacy }: { privacy: PrivacyApi }) {
             </label>
           ))}
         </fieldset>
+
+        <fieldset className="privacy__group">
+          <legend>Blocked</legend>
+          {privacy.blocked.length === 0 ? (
+            <p className="privacy__opt-hint">You haven't blocked anyone.</p>
+          ) : (
+            <ul className="privacy__blocks">
+              {privacy.blocked.map((b) => (
+                <li key={b.userId} className="privacy__block">
+                  <span className="privacy__block-name">
+                    {b.username || `Deleted account (${b.userId})`}
+                  </span>
+                  <button className="privacy__unblock" onClick={() => privacy.unblock(b.userId)}>
+                    Unblock
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="privacy__opt-hint">
+            Blocked people can't message, call or friend you, and you won't appear in their search.
+            Unblocking doesn't restore a friendship — you'd each have to add the other again.
+          </p>
+        </fieldset>
       </div>
     </div>
   );

@@ -24,6 +24,7 @@ import { clearSession, loadSession, saveSession, loadSettings, saveSettings } fr
 import { DEFAULT_SETTINGS, type MobileSettings } from "./src/core/settings";
 import { ensureCallChannel, useRing } from "./src/useRing";
 import { usePush } from "./src/usePush";
+import { useBlocks } from "./src/useBlocks";
 import { colors, styles } from "./src/theme";
 
 type Tab = "library" | "chat" | "requests" | "qr" | "settings";
@@ -65,6 +66,9 @@ export default function App() {
   useRing(call.state, friendName(call.state.peerId), settings.ring);
   // And register this device so a call reaches it when the app is not running.
   const push = usePush(session);
+  // Blocking is offered in a conversation and undone in Settings, so the list
+  // lives here rather than inside either screen.
+  const blocks = useBlocks(session);
 
   useEffect(() => {
     void (async () => {
@@ -190,6 +194,12 @@ export default function App() {
                 send={gateway.send}
                 friends={friendList}
                 onCall={call.start}
+                onBlock={(id, username) => {
+                  blocks.block(id, username);
+                  // The server drops the friendship too, so take the row away
+                  // now rather than waiting for the next sign-in to refetch.
+                  setFriendList((cur) => cur.filter((f) => f.id !== id));
+                }}
               />
             ) : tab === "requests" ? (
               <RequestsScreen session={session} onExpired={signOut} />
@@ -207,6 +217,7 @@ export default function App() {
                 update={update}
                 appVersion={Application.nativeApplicationVersion ?? "—"}
                 push={push}
+                blocks={blocks}
               />
             )}
           </View>

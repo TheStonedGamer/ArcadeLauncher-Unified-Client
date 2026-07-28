@@ -118,6 +118,18 @@ impl Endpoint {
         format!("https://{}/api/social/ignores", self.host)
     }
 
+    /// REST URL for the accounts the caller has blocked (GET). Blocking itself
+    /// goes through `friend_block_url`; this is how a block is found again once
+    /// it has removed the person from the roster.
+    pub fn blocks_url(&self) -> String {
+        format!("https://{}/api/social/blocks", self.host)
+    }
+
+    /// REST URL to add or remove a block (POST `{userId, block}`).
+    pub fn friend_block_url(&self) -> String {
+        format!("https://{}/api/social/friends/block", self.host)
+    }
+
     /// REST URL for per-call WebRTC ICE servers (STUN + short-lived TURN creds).
     pub fn turn_url(&self) -> String {
         format!("https://{}/api/social/turn", self.host)
@@ -188,6 +200,16 @@ mod tests {
         );
         // No identity at all is the same URL the pre-0.14 client sent.
         assert_eq!(e.ws_url_with_device("", "", "", ""), e.ws_url());
+    }
+
+    #[test]
+    fn builds_block_urls() {
+        let e = Endpoint::new("arcade.example.com", "t");
+        assert_eq!(e.blocks_url(), "https://arcade.example.com/api/social/blocks");
+        assert_eq!(
+            e.friend_block_url(),
+            "https://arcade.example.com/api/social/friends/block"
+        );
     }
 
     #[test]

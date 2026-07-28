@@ -13,6 +13,20 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.26] - 2026-07-28
+
+### Added
+
+- Blocking someone is now something you can see and undo. Block a friend from
+  their row on desktop or from the conversation on your phone; the list of
+  people you've blocked, with an Unblock button, lives in Privacy settings on
+  desktop and in Settings on the phone.
+
+### Fixed
+
+- A block now ends a call already in progress and stops any further call
+  attempt, instead of only removing the friendship and relying on that.
+
 ## [0.15.25] - 2026-07-28
 
 ### Added

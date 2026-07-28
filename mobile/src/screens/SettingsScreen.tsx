@@ -7,6 +7,7 @@ import { ScrollView, Switch, Text, TouchableOpacity, View } from "react-native";
 import type { MobileSession } from "../core/session";
 import { voiceAudioSummary, type MobileSettings } from "../core/settings";
 import type { AndroidUpdate } from "../useAndroidUpdate";
+import type { BlocksApi } from "../useBlocks";
 import { PUSH_STATUS_TEXT, type PushStatus } from "../usePush";
 import { colors, styles } from "../theme";
 
@@ -25,6 +26,9 @@ interface Props {
   /** Whether this phone can be rung while the app is closed. Reported rather
    *  than toggled: it depends on OS permission and on server configuration. */
   push: PushStatus;
+  /** Blocking is done from a conversation; this is where it is undone, since a
+   *  blocked person is no longer a friend and has no row to reach. */
+  blocks: BlocksApi;
 }
 
 export default function SettingsScreen({
@@ -38,6 +42,7 @@ export default function SettingsScreen({
   update,
   appVersion,
   push,
+  blocks,
 }: Props) {
   const audio = settings.voiceAudio;
   const setAudio = (patch: Partial<MobileSettings["voiceAudio"]>) =>
@@ -95,6 +100,31 @@ export default function SettingsScreen({
           onChange={(v) => setRing({ notify: v })}
         />
         <Text style={[styles.dim, { marginTop: 8 }]}>{PUSH_STATUS_TEXT[push]}</Text>
+      </Section>
+
+      <Section title="Blocked">
+        {blocks.error ? <Text style={styles.error}>{blocks.error}</Text> : null}
+        {blocks.blocked.length === 0 ? (
+          <Text style={styles.dim}>You haven't blocked anyone.</Text>
+        ) : (
+          blocks.blocked.map((b) => (
+            <View
+              key={b.userId}
+              style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+            >
+              <Text style={{ color: colors.text, fontSize: 15, flex: 1 }} numberOfLines={1}>
+                {b.username || `Deleted account (${b.userId})`}
+              </Text>
+              <TouchableOpacity onPress={() => blocks.unblock(b.userId)}>
+                <Text style={{ color: colors.accent, fontSize: 14 }}>Unblock</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+        <Text style={[styles.dim, { marginTop: 4 }]}>
+          Blocked people can't message, call or add you. Unblocking doesn't bring back a
+          friendship — you'd each have to add the other again.
+        </Text>
       </Section>
 
       <Section title="Devices">

@@ -3116,6 +3116,7 @@ body {
   flex-wrap: wrap;
 }
 .friendmeta__pin,
+.friendmeta__block,
 .friendmeta__ignore {
   padding: 3px 10px;
   border-radius: 7px;
@@ -3132,6 +3133,13 @@ body {
 .friendmeta__ignore--on {
   border-color: var(--error);
   color: var(--error);
+}
+/* Destructive, so it reads as such before it is pressed. */
+.friendmeta__block {
+  color: var(--error);
+}
+.friendmeta__block:hover {
+  border-color: var(--error);
 }
 
 /* Privacy settings overlay (T9f) */
@@ -3197,6 +3205,41 @@ body {
 .privacy__opt-hint {
   font-size: 11px;
   color: var(--muted);
+}
+.privacy__blocks {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  /* Long block lists scroll inside the fieldset rather than growing the modal
+     past the viewport. */
+  max-height: 180px;
+  overflow-y: auto;
+}
+.privacy__block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 2px;
+}
+.privacy__block-name {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.privacy__unblock {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+}
+.privacy__unblock:hover {
+  border-color: var(--accent);
 }
 .friendmeta__note {
   display: flex;

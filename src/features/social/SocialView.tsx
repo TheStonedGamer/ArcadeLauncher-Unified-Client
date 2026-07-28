@@ -303,6 +303,7 @@ export function SocialView({
                             }
                           : undefined
                       }
+                      blocking={auth ? { block: privacy.block } : undefined}
                       unread={unread}
                       onCall={
                         voice.enabled ? (id) => voice.startCall(id) : undefined

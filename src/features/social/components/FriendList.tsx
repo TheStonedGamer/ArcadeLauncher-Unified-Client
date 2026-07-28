@@ -17,12 +17,19 @@ export interface IgnoreControl {
   toggleIgnore: (userId: number) => void;
 }
 
+/** Blocking is destructive — it also ends the friendship — so it is a separate
+ *  control from ignore, and the row asks before doing it. */
+export interface BlockControl {
+  block: (userId: number, username: string) => void;
+}
+
 interface Props {
   friends: Friend[];
   selectedPeer: number | null;
   onSelect: (peerId: number) => void;
   meta?: FriendMetaApi;
   ignore?: IgnoreControl;
+  blocking?: BlockControl;
   /** Unread DM count per peer — clicking a row opens that conversation. */
   unread?: Map<number, number>;
   /** Start a voice call with this friend. Absent → calling is unavailable. */
@@ -50,6 +57,7 @@ function FriendRow({
   meta,
   fmeta,
   ignore,
+  blocking,
   unread,
   onCall,
   onVideoCall,
@@ -61,6 +69,7 @@ function FriendRow({
   meta?: FriendMetaApi;
   fmeta: FriendMeta;
   ignore?: IgnoreControl;
+  blocking?: BlockControl;
   unread: number;
   onCall?: (peerId: number) => void;
   onVideoCall?: (peerId: number) => void;
@@ -132,6 +141,25 @@ function FriendRow({
                 {ignore.isIgnored(f.accountId) ? "🔔 Unignore" : "🔕 Ignore"}
               </button>
             )}
+            {blocking && (
+              <button
+                className="friendmeta__block"
+                onClick={() => {
+                  // Blocking removes the friendship too, so confirm first: this
+                  // is not something an unblock puts back.
+                  const name = displayName(f);
+                  if (
+                    window.confirm(
+                      `Block ${name}?\n\nThey won't be able to message, call or add you, and you'll stop being friends. Unblocking later won't restore the friendship.`,
+                    )
+                  ) {
+                    blocking.block(f.accountId, name);
+                  }
+                }}
+              >
+                🚫 Block
+              </button>
+            )}
           </div>
           <label className="friendmeta__note">
             <span>Note</span>
@@ -177,6 +205,7 @@ export function FriendList({
   onSelect,
   meta,
   ignore,
+  blocking,
   unread,
   onCall,
   onVideoCall,
@@ -230,6 +259,7 @@ export function FriendList({
                 meta={meta}
                 fmeta={w.meta}
                 ignore={ignore}
+                blocking={blocking}
                 unread={unread?.get(w.friend.accountId) ?? 0}
                 onCall={onCall}
                 onVideoCall={onVideoCall}

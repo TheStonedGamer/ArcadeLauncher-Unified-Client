@@ -9,6 +9,7 @@
 import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Text,
   TextInput,
@@ -37,6 +38,7 @@ export default function ChatScreen({
   send,
   friends,
   onCall,
+  onBlock,
 }: {
   session: MobileSession;
   roster: RosterState;
@@ -47,6 +49,8 @@ export default function ChatScreen({
    *  presence on top. */
   friends: Friend[];
   onCall: (peerId: number, video?: boolean) => void;
+  /** Block this peer. Confirmed in the conversation before it is called. */
+  onBlock: (peerId: number, username: string) => void;
 }) {
   const [peer, setPeer] = useState<number | null>(null);
 
@@ -88,6 +92,7 @@ export default function ChatScreen({
       onBack={() => setPeer(null)}
       onCall={() => onCall(peer)}
       onVideoCall={() => onCall(peer, true)}
+      onBlock={() => onBlock(peer, nameOf(peer))}
     />
   );
 }
@@ -171,6 +176,7 @@ function Conversation({
   onBack,
   onCall,
   onVideoCall,
+  onBlock,
 }: {
   session: MobileSession;
   peer: number;
@@ -181,6 +187,7 @@ function Conversation({
   onBack: () => void;
   onCall: () => void;
   onVideoCall: () => void;
+  onBlock: () => void;
 }) {
   const [draft, setDraft] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -248,6 +255,29 @@ function Conversation({
           >
             Video
           </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() =>
+            // Blocking removes the friendship as well, so ask before doing it —
+            // unblocking later does not put it back.
+            Alert.alert(
+              `Block ${name}?`,
+              "They won't be able to message, call or add you, and you'll stop being friends. Unblocking later won't restore the friendship.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Block",
+                  style: "destructive",
+                  onPress: () => {
+                    onBlock();
+                    onBack();
+                  },
+                },
+              ],
+            )
+          }
+        >
+          <Text style={{ color: colors.danger, fontSize: 15 }}>Block</Text>
         </TouchableOpacity>
       </View>
 

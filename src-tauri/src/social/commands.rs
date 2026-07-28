@@ -634,6 +634,81 @@ pub async fn social_ignores_get(host: String, token: String) -> AppResult<Vec<u6
     Ok(r.ignored)
 }
 
+/// Someone the caller has blocked. `username` may be empty if the account was
+/// since deleted — the entry still lists, so the block can still be lifted.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockedUser {
+    pub user_id: u64,
+    #[serde(default)]
+    pub username: String,
+    #[serde(default)]
+    pub since: i64,
+}
+
+/// Fetch the accounts the caller has blocked. Blocking removes the friendship,
+/// so the person disappears from the roster; this list is the only way back to
+/// them to unblock.
+#[tauri::command]
+pub async fn social_blocks_get(host: String, token: String) -> AppResult<Vec<BlockedUser>> {
+    #[derive(Deserialize)]
+    struct Resp {
+        #[serde(default)]
+        blocked: Vec<BlockedUser>,
+    }
+
+    let endpoint = Endpoint::new(host, token);
+    let client = http_client();
+    let resp = client
+        .get(endpoint.blocks_url())
+        .bearer_auth(endpoint.token())
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("blocks request failed: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::msg(format!("blocks lookup failed (HTTP {})", resp.status())));
+    }
+    let r: Resp = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("invalid blocks response: {e}")))?;
+    Ok(r.blocked)
+}
+
+/// Block or unblock another account. Blocking also removes the friendship and
+/// ends any call in progress, server-side — this is not a mute.
+#[tauri::command]
+pub async fn social_block_set(
+    host: String,
+    token: String,
+    user_id: u64,
+    block: bool,
+) -> AppResult<()> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Body {
+        user_id: u64,
+        block: bool,
+    }
+
+    let endpoint = Endpoint::new(host, token);
+    let client = http_client();
+    let resp = client
+        .post(endpoint.friend_block_url())
+        .bearer_auth(endpoint.token())
+        .json(&Body { user_id, block })
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("block update failed: {e}")))?;
+    if !resp.status().is_success() {
+        let st = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        let reason = if body.trim().is_empty() { st.to_string() } else { body };
+        return Err(AppError::msg(format!("block update failed: {reason}")));
+    }
+    Ok(())
+}
+
 /// One ICE server entry for a WebRTC connection. `urls` may be a single string
 /// or an array (RTCIceServer shape); we pass it through as raw JSON. `username`/
 /// `credential` are present only for TURN servers.

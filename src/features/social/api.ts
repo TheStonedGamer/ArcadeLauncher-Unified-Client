@@ -119,6 +119,33 @@ export function setIgnore(host: string, token: string, userId: number, ignore: b
   return call("social_ignore_set", { host, token, userId, ignore });
 }
 
+/** Someone the caller has blocked. `username` is empty for a deleted account. */
+export interface BlockedUser {
+  userId: number;
+  username: string;
+  /** When the block was made, epoch seconds. */
+  since: number;
+}
+
+/** Fetch the accounts the caller has blocked. */
+export function fetchBlocks(host: string, token: string): Promise<BlockedUser[]> {
+  return call("social_blocks_get", { host, token });
+}
+
+/**
+ * Block or unblock another account. Blocking is not a mute: server-side it also
+ * removes the friendship and ends a call in progress, and getting the
+ * friendship back needs a fresh request.
+ */
+export function setBlock(
+  host: string,
+  token: string,
+  userId: number,
+  block: boolean,
+): Promise<void> {
+  return call("social_block_set", { host, token, userId, block });
+}
+
 /** WebRTC ICE config for a voice call (STUN + short-lived TURN credentials). */
 export interface IceConfig {
   /** RTCIceServer-shaped entries (urls may be a string or string[]). */

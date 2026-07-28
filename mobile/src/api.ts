@@ -211,6 +211,45 @@ export async function fetchFriends(session: MobileSession): Promise<Friend[]> {
   return parseFriends(await authed(session, "/api/social/friends"));
 }
 
+/** Someone this account has blocked. `username` is empty for a deleted account,
+ *  which is still listed so the block stays removable. */
+export interface BlockedUser {
+  userId: number;
+  username: string;
+  /** When the block was made, epoch seconds. */
+  since: number;
+}
+
+/** The accounts this session has blocked. Who has blocked *us* is never
+ *  disclosed by the server, so this is only our own side. */
+export async function fetchBlocks(session: MobileSession): Promise<BlockedUser[]> {
+  const body = (await authed(session, "/api/social/blocks")) as { blocked?: unknown } | null;
+  const rows = Array.isArray(body?.blocked) ? body!.blocked : [];
+  return rows
+    .map((r) => r as { userId?: unknown; username?: unknown; since?: unknown })
+    .filter((r) => typeof r.userId === "number" && r.userId > 0)
+    .map((r) => ({
+      userId: r.userId as number,
+      username: typeof r.username === "string" ? r.username : "",
+      since: typeof r.since === "number" ? r.since : 0,
+    }));
+}
+
+/** Block or unblock another account. Blocking is not a mute: the server also
+ *  removes the friendship and ends a call in progress, and getting the
+ *  friendship back needs a fresh request. */
+export async function setBlock(
+  session: MobileSession,
+  userId: number,
+  block: boolean,
+): Promise<void> {
+  await authed(session, "/api/social/friends/block", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, block }),
+  });
+}
+
 /** Tell the server where to reach this device with a call notification.
  *
  *  Returns whether the server can actually send one: it accepts the token
