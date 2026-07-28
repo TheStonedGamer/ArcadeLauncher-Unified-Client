@@ -35,7 +35,14 @@ describe("parseFrame", () => {
       attachmentId: 3,
       replyTo: 5,
       timestamp: 1700000000,
+      kind: "text",
     });
+  });
+
+  it("reads a missed-call record as its own kind", () => {
+    const raw =
+      '{"type":"chat","messageId":8,"senderId":2,"receiverId":42,"text":"Missed call","kind":"call_missed"}';
+    expect(parseFrame(raw)).toMatchObject({ kind: "call_missed" });
   });
 
   it("defaults a chat frame's optional fields instead of leaving them undefined", () => {
@@ -48,6 +55,8 @@ describe("parseFrame", () => {
       attachmentId: 0,
       replyTo: 0,
       timestamp: 0,
+      // A server too old to stamp the field is sending ordinary text.
+      kind: "text",
     });
   });
 

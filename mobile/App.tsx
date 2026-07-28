@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Image, SafeAreaView, Text, TouchableOpacity, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import * as Application from "expo-application";
 
 const LOGO = require("./assets/logo.png");
 
@@ -17,13 +18,23 @@ import { DevicesModal } from "./src/screens/InstallSheet";
 import LibraryScreen from "./src/screens/LibraryScreen";
 import RequestsScreen from "./src/screens/RequestsScreen";
 import QrLoginScreen from "./src/screens/QrLoginScreen";
+import SettingsScreen from "./src/screens/SettingsScreen";
 import SignInScreen from "./src/screens/SignInScreen";
-import { clearSession, loadSession, saveSession } from "./src/storage";
+import { clearSession, loadSession, saveSession, loadSettings, saveSettings } from "./src/storage";
+import { DEFAULT_SETTINGS, type MobileSettings } from "./src/core/settings";
+import { ensureCallChannel, useRing } from "./src/useRing";
+import { usePush } from "./src/usePush";
 import { colors, styles } from "./src/theme";
 
-type Tab = "library" | "chat" | "requests" | "qr";
+type Tab = "library" | "chat" | "requests" | "qr" | "settings";
 
-const TAB_LABELS: Record<Tab, string> = { library: "Games", chat: "DMs", requests: "Requests", qr: "QR Login" };
+const TAB_LABELS: Record<Tab, string> = {
+  library: "Games",
+  chat: "DMs",
+  requests: "Requests",
+  qr: "QR Login",
+  settings: "Settings",
+};
 
 export default function App() {
   const [session, setSession] = useState<MobileSession | null>(null);
@@ -31,6 +42,8 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("library");
   const [showDevices, setShowDevices] = useState(false);
   const [friendList, setFriendList] = useState<Friend[]>([]);
+  const [settings, setSettings] = useState<MobileSettings>(DEFAULT_SETTINGS);
+  const settingsRef = useRef(settings);
   const update = useAndroidUpdate();
 
   // The socket is the app's, not a screen's: the sign-in approval push has to
@@ -40,19 +53,43 @@ export default function App() {
   const online = gateway.state === "connected";
   // Calls live at the app level for the same reason: an incoming call has to
   // ring on whichever tab is open, including none of them.
-  const call = useCall(gateway.send, gateway.setFrameHandler);
+  // The mic settings are read at capture time rather than closed over, so
+  // changing them in Settings applies to the next call with no remount.
+  const call = useCall(gateway.send, gateway.setFrameHandler, async () => settingsRef.current.voiceAudio);
   // Names come from the authoritative friend list (fetched below); a call or a
   // conversation can still reference an id the list has no name for, so both the
   // caller name and the DMs screen fall back to "User N" rather than a blank.
   const names = useMemo(() => friendNames(friendList), [friendList]);
   const friendName = (id: number) => names[id] || (id > 0 ? `User ${id}` : "");
+  // Buzz and notify while a call rings, wherever the user is in the app.
+  useRing(call.state, friendName(call.state.peerId), settings.ring);
+  // And register this device so a call reaches it when the app is not running.
+  const push = usePush(session);
 
   useEffect(() => {
     void (async () => {
       // A stored token is trusted optimistically; the first 401 from any screen
       // signs out, so there is no blocking round-trip on cold start.
       setSession(await loadSession());
+      setSettings(await loadSettings());
       setRestoring(false);
+    })();
+    void ensureCallChannel();
+  }, []);
+
+  // `useCall` reads the mic settings through a ref so its capture callback is
+  // stable; this keeps that ref current.
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  const applySettings = (next: MobileSettings) => {
+    setSettings(next);
+    void saveSettings(next);
+  };
+
+  useEffect(() => {
+    void (async () => {
     })();
   }, []);
 
@@ -117,30 +154,21 @@ export default function App() {
                 ) : null}
               </View>
             </View>
+            {/* The header keeps only what is worth glancing at. Sign out,
+                devices and updates moved to the Settings tab, where they can be
+                explained rather than abbreviated into a header. */}
             <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
               {update.phase === "available" ? (
-                <TouchableOpacity onPress={() => void update.install()}>
+                <TouchableOpacity onPress={() => setTab("settings")}>
                   <Text style={{ color: colors.accent, fontSize: 13 }}>Update {update.version}</Text>
                 </TouchableOpacity>
               ) : update.phase === "downloading" || update.phase === "installing" ? (
                 <Text style={{ color: colors.accent, fontSize: 13 }}>Updating…</Text>
-              ) : update.phase === "error" ? (
-                <>
-                  <TouchableOpacity onPress={() => void update.openInstallSettings()}>
-                    <Text style={{ color: colors.dim, fontSize: 13 }}>Allow installs</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => void update.check()}>
-                    <Text style={{ color: colors.dim, fontSize: 13 }}>Retry update</Text>
-                  </TouchableOpacity>
-                </>
               ) : null}
-              <TouchableOpacity onPress={() => setShowDevices(true)}>
+              <TouchableOpacity onPress={() => setTab("settings")}>
                 <Text style={{ color: online ? colors.ok : colors.dim, fontSize: 13 }}>
-                  {online ? `Devices (${gateway.roster.devices.length})` : gateway.state}
+                  {online ? "Online" : gateway.state}
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={signOut}>
-                <Text style={{ color: colors.dim, fontSize: 13 }}>Sign out</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -165,13 +193,26 @@ export default function App() {
               />
             ) : tab === "requests" ? (
               <RequestsScreen session={session} onExpired={signOut} />
-            ) : (
+            ) : tab === "qr" ? (
               <QrLoginScreen session={session} />
+            ) : (
+              <SettingsScreen
+                session={session}
+                settings={settings}
+                onChange={applySettings}
+                connection={online ? "Connected" : gateway.state}
+                deviceCount={gateway.roster.devices.length}
+                onShowDevices={() => setShowDevices(true)}
+                onSignOut={signOut}
+                update={update}
+                appVersion={Application.nativeApplicationVersion ?? "—"}
+                push={push}
+              />
             )}
           </View>
 
           <View style={styles.tabbar}>
-            {(["library", "chat", "requests", "qr"] as Tab[]).map((t) => (
+            {(["library", "chat", "requests", "qr", "settings"] as Tab[]).map((t) => (
               <TouchableOpacity key={t} style={styles.tab} onPress={() => setTab(t)}>
                 <Text style={[styles.tabText, tab === t && styles.tabTextOn]}>{TAB_LABELS[t]}</Text>
               </TouchableOpacity>

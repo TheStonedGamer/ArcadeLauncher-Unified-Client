@@ -261,6 +261,29 @@ function Conversation({
         }
         ListEmptyComponent={<Text style={styles.empty}>Nothing here yet.</Text>}
         renderItem={({ item }) => {
+          // A missed call is a record, not a bubble: centred, quiet, and with
+          // none of the message chrome around it.
+          if (item.kind === "call_missed") {
+            const video = item.text.toLowerCase().includes("video");
+            return (
+              <Text
+                style={{
+                  color: colors.dim,
+                  fontSize: 13,
+                  textAlign: "center",
+                  marginVertical: 6,
+                  fontStyle: "italic",
+                }}
+              >
+                {video ? "📹" : "📞"}{" "}
+                {item.mine
+                  ? video
+                    ? "No answer to your video call"
+                    : "No answer to your call"
+                  : item.text}
+              </Text>
+            );
+          }
           const embed = embedFor(item.text);
           return (
             <View

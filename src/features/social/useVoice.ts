@@ -12,10 +12,17 @@
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { DEFAULT_VOICE_AUDIO, micConstraints, type VoiceAudioSettings } from "./audio";
+
+/** How long we ring before giving up. Shorter than the server's 60s backstop so
+ *  the caller normally learns the outcome from their own client. */
+const RING_TIMEOUT_MS = 35_000;
+/** How long a "No answer" / "They're offline" notice stays on screen. */
+const NOTICE_MS = 6_000;
 import {
   callReducer,
   IDLE_CALL,
   isBusy,
+  isCallFailure,
   parseSignal,
   type CallState,
   type SignalPayload,
@@ -42,6 +49,8 @@ export interface VoiceApi {
   hangup: () => void;
   /** Toggle local mic mute. */
   toggleMute: () => void;
+  /** Clear a finished call's "No answer" / "They're offline" notice. */
+  dismiss: () => void;
   /** Turn camera or screen share on/off (T12e). Pressing the live mode stops it. */
   toggleVideo: (mode: Exclude<VideoMode, "none">) => void;
   /** Attach the <video> element that should show my own outgoing picture. */
@@ -207,6 +216,29 @@ export function useVoice(
     [transport, cleanup],
   );
 
+  // Give up on our own ring rather than waiting on the server's backstop: the
+  // caller should hear "No answer" at a human timescale. The server still holds
+  // the authoritative record, so this only drives the local UI.
+  useEffect(() => {
+    if (call.phase !== "inviting") return;
+    const t = setTimeout(() => {
+      const c = callRef.current;
+      if (c.phase !== "inviting") return;
+      if (c.peerId) transport.voiceSend(c.peerId, { kind: "end" });
+      dispatch({ type: "noAnswer" });
+      cleanup();
+    }, RING_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [call.phase, transport, cleanup]);
+
+  // Clear a finished call's notice on its own, so a failed call doesn't leave
+  // a bar sitting there forever.
+  useEffect(() => {
+    if (call.phase !== "ended" || !isCallFailure(call.endReason)) return;
+    const t = setTimeout(() => dispatch({ type: "dismiss" }), NOTICE_MS);
+    return () => clearTimeout(t);
+  }, [call.phase, call.endReason]);
+
   const startCall = useCallback(
     (peerId: number, video = false) => {
       if (!enabled || isBusy(callRef.current) || !peerId) return;
@@ -324,6 +356,8 @@ export function useVoice(
     }
   }, []);
 
+  const dismiss = useCallback(() => dispatch({ type: "dismiss" }), []);
+
   const toggleMute = useCallback(() => {
     const next = !callRef.current.muted;
     localRef.current?.getAudioTracks().forEach((t) => (t.enabled = !next));
@@ -433,6 +467,21 @@ export function useVoice(
             cleanup();
           }
           return;
+        // Both of these come from the server rather than the peer: the invite
+        // was never delivered, or the ring aged out. Either way the call is
+        // over and the caller is told why instead of ringing forever.
+        case "unreachable":
+          if (fromId === c.peerId) {
+            dispatch({ type: "unreachable" });
+            cleanup();
+          }
+          return;
+        case "timeout":
+          if (fromId === c.peerId) {
+            dispatch({ type: "noAnswer" });
+            cleanup();
+          }
+          return;
       }
     };
 
@@ -487,6 +536,7 @@ export function useVoice(
     acceptCall,
     hangup,
     toggleMute,
+    dismiss,
     toggleVideo,
     attachLocalVideo,
     attachRemoteVideo,

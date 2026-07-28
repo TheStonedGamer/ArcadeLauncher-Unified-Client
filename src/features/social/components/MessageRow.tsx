@@ -107,6 +107,27 @@ export function MessageRow({
   };
   const cancelEdit = () => setEditing(false);
 
+  // A missed call is a record of something that happened, not something anyone
+  // said: it gets a centred, unstyled-as-a-bubble line with no edit/react/reply
+  // affordances. The server already wrote a readable body, so a client that
+  // doesn't know this kind still shows the same words.
+  if (message.kind === "call_missed") {
+    const video = message.text.toLowerCase().includes("video");
+    return (
+      <div className="msg msg--call">
+        <span className="msg__call-icon">{video ? "📹" : "📞"}</span>
+        <span className="msg__call-text">
+          {mine
+            ? video
+              ? "No answer to your video call"
+              : "No answer to your call"
+            : message.text}
+        </span>
+        <span className="msg__call-time">{clockTime(message.timestamp)}</span>
+      </div>
+    );
+  }
+
   return (
     <div className={cls}>
       <div className="msg__bubble">

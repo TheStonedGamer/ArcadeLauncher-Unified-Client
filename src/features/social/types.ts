@@ -85,6 +85,19 @@ export interface ChatMessage {
   reactions: Reaction[];
   /** messageId this is a reply to (0 = not a reply). */
   replyTo: number;
+  /** "text" for an ordinary DM, "call_missed" for the record a call nobody
+   *  answered leaves behind. Unknown kinds render as plain text, so a newer
+   *  server can add one without breaking this client. */
+  kind: MessageKind;
+}
+
+export type MessageKind = "text" | "call_missed";
+
+/** The server sends the kind as a free-form string; anything we do not know
+ *  about is treated as ordinary text, which still shows the human-readable
+ *  body the server wrote. */
+export function parseMessageKind(value: unknown): MessageKind {
+  return value === "call_missed" ? "call_missed" : "text";
 }
 
 export interface Conversation {

@@ -29,7 +29,27 @@ export interface CallState {
    *  on once media is up rather than at invite time, so a call nobody answers
    *  never lights up a camera. */
   wantsVideo: boolean;
+  /** Why the call is over, so the phone can say something truthful instead of
+   *  the overlay simply vanishing. Only meaningful while `phase` is "ended". */
+  endReason: CallEndReason;
 }
+
+/** How a call finished. "offline" and "noanswer" are the cases that used to
+ *  look exactly like a dead button. */
+export type CallEndReason = "" | "hungup" | "declined" | "offline" | "noanswer";
+
+/** Whether the ending is worth showing the user a notice about. */
+export function isCallFailure(reason: CallEndReason): boolean {
+  return reason === "offline" || reason === "noanswer" || reason === "declined";
+}
+
+export const CALL_END_LABEL: Record<CallEndReason, string> = {
+  "": "",
+  hungup: "Call ended",
+  declined: "Call declined",
+  offline: "They're offline",
+  noanswer: "No answer",
+};
 
 export const IDLE_CALL: CallState = {
   phase: "idle",
@@ -38,6 +58,7 @@ export const IDLE_CALL: CallState = {
   localVideo: "none",
   remoteVideo: "none",
   wantsVideo: false,
+  endReason: "",
 };
 
 export type CallEvent =
@@ -50,7 +71,13 @@ export type CallEvent =
   | { type: "hangup" }
   | { type: "remoteEnd" }
   | { type: "localVideo"; mode: VideoMode }
-  | { type: "remoteVideo"; mode: VideoMode };
+  | { type: "remoteVideo"; mode: VideoMode }
+  /** The server told us the callee has no live socket at all. */
+  | { type: "unreachable" }
+  /** Nobody picked up before the ring window closed. */
+  | { type: "noAnswer" }
+  /** The user acknowledged the failure notice. */
+  | { type: "dismiss" };
 
 /** Pure transition. An event that does not fit the current phase is ignored
  *  rather than applied, so out-of-order signalling cannot corrupt a call --
@@ -86,9 +113,29 @@ export function callReducer(state: CallState, event: CallEvent): CallState {
       return { ...state, [key]: event.mode };
     }
     case "hangup":
+      if (state.phase === "idle") return state;
+      return { ...IDLE_CALL, phase: "ended", peerId: state.peerId, endReason: "hungup" };
     case "remoteEnd":
       if (state.phase === "idle") return state;
-      return { ...IDLE_CALL, phase: "ended", peerId: state.peerId };
+      // Ending an invite we never got an answer to is a decline; ending a call
+      // that had connected is just a hang-up.
+      return {
+        ...IDLE_CALL,
+        phase: "ended",
+        peerId: state.peerId,
+        endReason: state.phase === "inviting" ? "declined" : "hungup",
+      };
+    // Both only mean anything while we are the ones ringing. Arriving late (the
+    // call connected in the meantime) they must not kill a live call.
+    case "unreachable":
+      if (state.phase !== "inviting") return state;
+      return { ...IDLE_CALL, phase: "ended", peerId: state.peerId, endReason: "offline" };
+    case "noAnswer":
+      if (state.phase !== "inviting") return state;
+      return { ...IDLE_CALL, phase: "ended", peerId: state.peerId, endReason: "noanswer" };
+    case "dismiss":
+      if (state.phase !== "ended") return state;
+      return IDLE_CALL;
   }
   return state;
 }
@@ -122,7 +169,11 @@ export type SignalPayload =
   | { kind: "offer"; sdp: string }
   | { kind: "answer"; sdp: string }
   | { kind: "ice"; candidate: string }
-  | { kind: "video"; mode: VideoMode };
+  | { kind: "video"; mode: VideoMode }
+  // The two frames the *server* originates rather than relays: the callee has
+  // no socket, and the ring outlived the server's backstop timeout.
+  | { kind: "unreachable" }
+  | { kind: "timeout" };
 
 export function parseVideoMode(value: unknown): VideoMode | null {
   return typeof value === "string" && (VIDEO_MODES as readonly string[]).includes(value)
@@ -140,6 +191,8 @@ export function parseSignal(payload: unknown): SignalPayload | null {
       return { kind: "invite", video: p.video === true };
     case "accept":
     case "end":
+    case "unreachable":
+    case "timeout":
       return { kind: p.kind };
     case "offer":
     case "answer":
@@ -168,6 +221,10 @@ export function eventForSignal(signal: SignalPayload, fromId: number): CallEvent
       return { type: "remoteEnd" };
     case "video":
       return { type: "remoteVideo", mode: signal.mode };
+    case "unreachable":
+      return { type: "unreachable" };
+    case "timeout":
+      return { type: "noAnswer" };
     default:
       return null;
   }
@@ -187,7 +244,7 @@ export function callStatusText(state: CallState, name: string): string {
         ? "On a call"
         : "On a video call";
     case "ended":
-      return "Call ended";
+      return CALL_END_LABEL[state.endReason] || "Call ended";
     default:
       return "";
   }

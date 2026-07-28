@@ -20,7 +20,17 @@ describe("parseInbound", () => {
       attachmentId: 0,
       replyTo: 3,
       timestamp: 1700000000,
+      // A frame with no `kind` is an ordinary DM (older server, or plain text).
+      kind: "text",
     });
+  });
+
+  it("parses a missed-call record as its own message kind", () => {
+    expect(
+      parseInbound(
+        '{"type":"chat","messageId":9,"senderId":2,"receiverId":42,"text":"Missed video call","attachmentId":0,"replyTo":0,"timestamp":1700000000,"kind":"call_missed"}',
+      ),
+    ).toMatchObject({ kind: "call_missed", text: "Missed video call" });
   });
 
   it("parses presence with game", () => {

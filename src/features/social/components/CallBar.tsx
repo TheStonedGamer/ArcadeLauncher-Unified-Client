@@ -7,6 +7,7 @@
 import type { VoiceApi } from "../useVoice";
 import { CallStage } from "./CallStage";
 import { canShareVideo, videoButtonLabel } from "../video";
+import { CALL_END_LABEL, isCallFailure } from "../voice";
 
 const PHASE_LABEL: Record<string, string> = {
   inviting: "Calling…",
@@ -17,7 +18,24 @@ const PHASE_LABEL: Record<string, string> = {
 
 export function CallBar({ voice, peerName }: { voice: VoiceApi; peerName: string }) {
   const { call } = voice;
-  if (call.phase === "idle" || call.phase === "ended") return null;
+  // A call that failed says why for a few seconds. Silently disappearing is
+  // what made an unanswered call look like a broken button.
+  if (call.phase === "ended") {
+    if (!isCallFailure(call.endReason)) return null;
+    return (
+      <div className="callbar callbar--failed">
+        <span className="callbar__dot" />
+        <span className="callbar__who">{peerName || `User ${call.peerId}`}</span>
+        <span className="callbar__phase">{CALL_END_LABEL[call.endReason]}</span>
+        <div className="callbar__actions">
+          <button className="callbar__mute" onClick={voice.dismiss}>
+            Dismiss
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (call.phase === "idle") return null;
 
   const video = canShareVideo(call.phase);
 

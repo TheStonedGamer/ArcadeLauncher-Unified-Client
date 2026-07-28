@@ -31,7 +31,30 @@ export interface CallState {
    *  on once media is up rather than at invite time, so a call nobody answers
    *  never lights up a camera. */
   wantsVideo: boolean;
+  /** Why the call is over, so the UI can say something truthful instead of
+   *  simply vanishing. Only meaningful while `phase` is "ended". */
+  endReason: CallEndReason;
 }
+
+/** How a call finished. "offline" and "noanswer" are the cases that used to be
+ *  invisible: an invite to somebody with no live socket, and a ring nobody ever
+ *  picked up. Both left the caller staring at "Calling…" indefinitely. */
+export type CallEndReason = "" | "hungup" | "declined" | "offline" | "noanswer";
+
+/** Reasons worth reporting to the caller. A call you ended yourself needs no
+ *  explanation; a call that failed does. */
+export function isCallFailure(reason: CallEndReason): boolean {
+  return reason === "offline" || reason === "noanswer" || reason === "declined";
+}
+
+/** What the UI says about a finished call. */
+export const CALL_END_LABEL: Record<CallEndReason, string> = {
+  "": "",
+  hungup: "Call ended",
+  declined: "Call declined",
+  offline: "They're offline",
+  noanswer: "No answer",
+};
 
 export const IDLE_CALL: CallState = {
   phase: "idle",
@@ -40,6 +63,7 @@ export const IDLE_CALL: CallState = {
   localVideo: "none",
   remoteVideo: "none",
   wantsVideo: false,
+  endReason: "",
 };
 
 /** Events that drive the FSM. Local UI actions + remote signaling, unified. */
@@ -53,7 +77,10 @@ export type CallEvent =
   | { type: "hangup" } // I end / cancel / decline
   | { type: "remoteEnd" } // remote ended / declined
   | { type: "localVideo"; mode: VideoMode } // my camera/screen track changed
-  | { type: "remoteVideo"; mode: VideoMode }; // peer announced its video mode
+  | { type: "remoteVideo"; mode: VideoMode } // peer announced its video mode
+  | { type: "unreachable" } // the server says they have no live client
+  | { type: "noAnswer" } // the ring timed out with nobody picking up
+  | { type: "dismiss" }; // clear a finished call's notice
 
 /** Pure call-state transition. Invalid events for the current phase are ignored
  *  (return the same state) so out-of-order signaling can't corrupt the call. */
@@ -87,9 +114,29 @@ export function callReducer(state: CallState, event: CallEvent): CallState {
       return { ...state, [key]: event.mode };
     }
     case "hangup":
+      if (state.phase === "idle") return state;
+      return { ...IDLE_CALL, phase: "ended", peerId: state.peerId, endReason: "hungup" };
     case "remoteEnd":
       if (state.phase === "idle") return state;
-      return { ...IDLE_CALL, phase: "ended", peerId: state.peerId };
+      // Ending a call that was still ringing out is a decline, not a hang-up —
+      // the difference is the whole point of showing a reason at all.
+      return {
+        ...IDLE_CALL,
+        phase: "ended",
+        peerId: state.peerId,
+        endReason: state.phase === "inviting" ? "declined" : "hungup",
+      };
+    case "unreachable":
+      // Only meaningful for a call we are placing; a stale frame must not
+      // rewrite a connected call.
+      if (state.phase !== "inviting") return state;
+      return { ...IDLE_CALL, phase: "ended", peerId: state.peerId, endReason: "offline" };
+    case "noAnswer":
+      if (state.phase !== "inviting") return state;
+      return { ...IDLE_CALL, phase: "ended", peerId: state.peerId, endReason: "noanswer" };
+    case "dismiss":
+      if (state.phase !== "ended") return state;
+      return IDLE_CALL;
     default:
       return state;
   }
@@ -119,7 +166,12 @@ export type SignalPayload =
   /** Announces what the sender is putting on its video track. Sent alongside
    *  renegotiation so the receiver can label the picture — and, on "none", knows
    *  the track vanished deliberately rather than failing. */
-  | { kind: "video"; mode: VideoMode };
+  | { kind: "video"; mode: VideoMode }
+  /** Server-originated, not peer-originated: the callee has no live client, so
+   *  the invite was never delivered. */
+  | { kind: "unreachable" }
+  /** Server-originated: the ring outlived the server's timeout. */
+  | { kind: "timeout" };
 
 /** Narrow an arbitrary relayed payload object to a known SignalPayload, or null
  *  if it's malformed/unknown. Defensive: the payload crosses the network. */
@@ -131,6 +183,8 @@ export function parseSignal(payload: unknown): SignalPayload | null {
       return { kind: "invite", video: p.video === true };
     case "accept":
     case "end":
+    case "unreachable":
+    case "timeout":
       return { kind: p.kind };
     case "offer":
     case "answer":

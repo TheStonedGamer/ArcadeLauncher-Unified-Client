@@ -21,6 +21,7 @@ import {
   eventForSignal,
   IDLE_CALL,
   isBusy,
+  isCallFailure,
   parseSignal,
   type CallState,
   type SignalPayload,
@@ -28,12 +29,20 @@ import {
 } from "./core/call";
 import type { Frame } from "./core/social";
 import { outbound } from "./core/social";
+import { micConstraints, DEFAULT_SETTINGS, type VoiceAudioSettings } from "./core/settings";
 
 /** Google's public STUN. Enough for two peers behind ordinary home NATs, which
  *  is the case this feature exists for: the owner's phone and the owner's PC.
  *  Symmetric-NAT pairs would need a TURN server, which is a running cost the
  *  owner has not asked for. */
 const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+
+/** How long we ring before giving up. Shorter than the server's 60s backstop so
+ *  the caller normally learns the outcome from their own phone. */
+const RING_TIMEOUT_MS = 35_000;
+
+/** How long a "No answer" / "They're offline" notice stays on screen. */
+const NOTICE_MS = 6_000;
 
 export interface Call {
   state: CallState;
@@ -48,11 +57,17 @@ export interface Call {
   hangup: () => void;
   toggleMute: () => void;
   toggleCamera: () => void;
+  /** Acknowledge a failure notice ("No answer", "They're offline"). */
+  dismiss: () => void;
 }
 
 export function useCall(
   send: (frame: string) => boolean,
   setFrameHandler: (handler: ((frame: Frame) => void) | null) => void,
+  /** The user's mic-processing settings, read fresh per call so a change in
+   *  Settings applies to the next call without remounting anything. Absent →
+   *  the defaults (all processing on). */
+  micProvider?: () => Promise<VoiceAudioSettings>,
 ): Call {
   const [state, dispatch] = useReducer(callReducer, IDLE_CALL);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -69,7 +84,11 @@ export function useCall(
   const haveRemote = useRef(false);
   const sendRef = useRef(send);
   const cameraRef = useRef<() => void>(() => {});
+  // Held in a ref so `capture` does not have to be rebuilt (and the mic
+  // re-requested) every time the provider identity changes.
+  const micRef = useRef(micProvider);
   sendRef.current = send;
+  micRef.current = micProvider;
 
   const signal = useCallback((payload: SignalPayload) => {
     if (peer.current > 0)
@@ -92,10 +111,13 @@ export function useCall(
   // renegotiating, so answering a call never lights up the camera unasked.
   const capture = useCallback(async (): Promise<MediaStream> => {
     if (local.current) return local.current;
-    const stream = (await mediaDevices.getUserMedia({
-      audio: true,
-      video: false,
-    })) as MediaStream;
+    const audio = await micRef.current?.().catch(() => DEFAULT_SETTINGS.voiceAudio);
+    // react-native-webrtc honours these three audio constraints at runtime but
+    // its Constraints type only describes the video ones, hence the cast.
+    const constraints = micConstraints(audio ?? DEFAULT_SETTINGS.voiceAudio);
+    const stream = (await mediaDevices.getUserMedia(
+      constraints as unknown as Parameters<typeof mediaDevices.getUserMedia>[0],
+    )) as MediaStream;
     local.current = stream;
     setLocalStream(stream);
     return stream;
@@ -248,6 +270,26 @@ export function useCall(
     if (!isBusy(state)) teardown();
   }, [state, teardown]);
 
+  // Give up on our own invite before the server's backstop does, so the caller
+  // sees "No answer" rather than a ring that goes on until the socket notices.
+  useEffect(() => {
+    if (state.phase !== "inviting") return;
+    const timer = setTimeout(() => {
+      signal({ kind: "end" });
+      dispatch({ type: "noAnswer" });
+    }, RING_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [state.phase, signal]);
+
+  // A failure notice clears itself; the user can also tap it away.
+  useEffect(() => {
+    if (state.phase !== "ended" || !isCallFailure(state.endReason)) return;
+    const timer = setTimeout(() => dispatch({ type: "dismiss" }), NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [state.phase, state.endReason]);
+
+  const dismiss = useCallback(() => dispatch({ type: "dismiss" }), []);
+
   // A video call lights up the camera once — when media is actually up, so an
   // invite nobody answers never opens a camera. After that it is an ordinary
   // toggle: turning the camera back off must not turn it on again.
@@ -340,5 +382,6 @@ export function useCall(
     hangup,
     toggleMute,
     toggleCamera,
+    dismiss,
   };
 }

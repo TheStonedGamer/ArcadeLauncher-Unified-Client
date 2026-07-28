@@ -13,6 +13,25 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+### Added
+
+- Missed calls now appear in the conversation. Calling someone who is offline,
+  or who never picks up, leaves a "Missed call" line in the DM thread on both
+  desktop and phone instead of ringing into nothing.
+- The call bar and the phone's call screen now say _why_ a call ended —
+  unreachable, declined, or no answer — rather than silently disappearing.
+- The phone can ring for calls while the app is closed or the screen is locked,
+  once the server is configured with Firebase credentials. Opening the
+  notification joins the call that is still ringing.
+- A proper Settings tab on the phone: account and server, microphone controls
+  (noise suppression, echo cancellation, automatic gain), incoming-call vibrate
+  and notification toggles, your devices, and the app version and updater.
+
+### Changed
+
+- The phone's header is now just the connection state and the update chip; the
+  rest moved into Settings.
+
 ## [0.15.24] - 2026-07-27
 
 ### Added

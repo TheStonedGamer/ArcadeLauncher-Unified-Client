@@ -28,6 +28,17 @@ export interface ChatFrame {
   attachmentId: number;
   replyTo: number;
   timestamp: number;
+  /** What this message *is*. A missed call is stored as a message so it lands in
+   *  the conversation, but it is a record rather than something anyone said. */
+  kind: MessageKind;
+}
+
+/** Message kinds the server can stamp. Anything unrecognised — including a
+ *  server too old to send the field — reads as ordinary text. */
+export type MessageKind = "text" | "call_missed";
+
+export function parseMessageKind(value: unknown): MessageKind {
+  return value === "call_missed" ? "call_missed" : "text";
 }
 
 export interface PresenceFrame {
@@ -132,6 +143,7 @@ export function parseFrame(raw: string): Frame {
         attachmentId: num(f.attachmentId),
         replyTo: num(f.replyTo),
         timestamp: num(f.timestamp),
+        kind: parseMessageKind(f.kind),
       };
     case "presence":
       return {

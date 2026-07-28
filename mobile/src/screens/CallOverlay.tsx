@@ -5,18 +5,27 @@
 import { Modal, Text, TouchableOpacity, View } from "react-native";
 import { RTCView } from "react-native-webrtc";
 
-import { callStatusText, canShareVideo, isBusy } from "../core/call";
+import { callStatusText, canShareVideo, isBusy, isCallFailure } from "../core/call";
 import type { Call } from "../useCall";
 import { colors, styles } from "../theme";
 
 export default function CallOverlay({ call, name }: { call: Call; name: string }) {
   const { state } = call;
-  const visible = isBusy(state);
+  // A call that never connected stays up for a few seconds saying why. Before
+  // this the overlay simply vanished, which is what made the call buttons look
+  // like they did nothing at all.
+  const failed = state.phase === "ended" && isCallFailure(state.endReason);
+  const visible = isBusy(state) || failed;
   const showRemote = !!call.remoteStream && state.remoteVideo !== "none";
   const showLocal = !!call.localStream && state.localVideo === "camera";
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={call.hangup}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={false}
+      onRequestClose={failed ? call.dismiss : call.hangup}
+    >
       <View style={[styles.screen, { justifyContent: "space-between" }]}>
         <View style={{ flex: 1, backgroundColor: colors.panel }}>
           {showRemote && call.remoteStream ? (
@@ -60,7 +69,9 @@ export default function CallOverlay({ call, name }: { call: Call; name: string }
         {call.error ? <Text style={[styles.error, { textAlign: "center" }]}>{call.error}</Text> : null}
 
         <View style={{ flexDirection: "row", justifyContent: "center", gap: 12, padding: 20 }}>
-          {state.phase === "ringing" ? (
+          {failed ? (
+            <Action label="OK" tone={colors.panelAlt} onPress={call.dismiss} />
+          ) : state.phase === "ringing" ? (
             // Answering is the only action that matters while it rings, so the
             // camera and mute buttons stay out of the way until there is a call
             // to apply them to.

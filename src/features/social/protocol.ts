@@ -4,12 +4,14 @@
 // speaks to the same gateway. Unknown frame types parse to { type: "unknown" }
 // rather than throwing, so a newer server never breaks an older client.
 
+import { parseMessageKind, type MessageKind } from "./types";
+
 export type Inbound =
   | { type: "hello"; selfId: number }
   | { type: "pong" }
   | { type: "presence"; userId: number; state: string; gameId: string; gameTitle: string; statusText: string }
   | { type: "typing"; fromId: number }
-  | { type: "chat"; messageId: number; senderId: number; receiverId: number; text: string; attachmentId: number; replyTo: number; timestamp: number }
+  | { type: "chat"; messageId: number; senderId: number; receiverId: number; text: string; attachmentId: number; replyTo: number; timestamp: number; kind?: MessageKind }
   | { type: "read"; readerId: number; upToId: number }
   | { type: "chat_edit"; messageId: number; text: string; editedAt: number }
   | { type: "chat_delete"; messageId: number }
@@ -83,6 +85,7 @@ export function parseInbound(utf8: string): Inbound | null {
         attachmentId: num(v.attachmentId),
         replyTo: num(v.replyTo),
         timestamp: num(v.timestamp),
+        kind: parseMessageKind(v.kind),
       };
     case "read":
       return { type: "read", readerId: num(v.readerId), upToId: num(v.upToId) };

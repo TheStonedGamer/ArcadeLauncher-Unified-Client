@@ -92,6 +92,7 @@ export function localEcho(
     messageId: 0,
     senderId: state.selfId,
     receiverId: peerId,
+    kind: "text",
     text,
     timestamp: Math.floor(now / 1000),
     isRead: true,
@@ -220,6 +221,8 @@ export function applyInbound(state: SocialState, msg: Inbound, now: number): Soc
         attachmentName: "",
         reactions: [],
         replyTo: msg.replyTo,
+        // A server without the kind column sends nothing; that is ordinary text.
+        kind: msg.kind ?? "text",
       };
       const c = convOf(state, peer);
       // Resolve a pending echo (matched on sender+text+attachment) if present,

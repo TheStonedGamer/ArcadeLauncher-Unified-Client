@@ -6,7 +6,7 @@
 // need a socket to check. `../gateway.ts` owns the WebSocket and does nothing
 // but hand frames to `applyFrame`.
 
-import type { DeviceEntry, Frame } from "./social";
+import type { DeviceEntry, Frame, MessageKind } from "./social";
 
 export interface Message {
   id: number;
@@ -17,6 +17,8 @@ export interface Message {
   text: string;
   attachmentId: number;
   timestamp: number;
+  /** Ordinary text, or a record of something that happened (a missed call). */
+  kind: MessageKind;
 }
 
 export interface GuardPrompt {
@@ -97,6 +99,7 @@ export function applyFrame(state: RosterState, frame: Frame, now: number): Roste
         mine,
         text: frame.text,
         attachmentId: frame.attachmentId,
+        kind: frame.kind,
         timestamp: frame.timestamp || now,
       };
       return {

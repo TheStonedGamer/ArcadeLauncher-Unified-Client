@@ -2747,6 +2747,14 @@ body {
 .callbar--connected .callbar__dot {
   background: var(--on);
 }
+/* A call that never connected. Muted rather than alarming — nothing broke, the
+   other side just wasn't there — and it dismisses itself after a few seconds. */
+.callbar--failed {
+  border-color: var(--star);
+}
+.callbar--failed .callbar__dot {
+  background: var(--star);
+}
 .callbar--ringing .callbar__dot {
   background: var(--accent);
   animation: callpulse 1s ease-in-out infinite;
@@ -3525,6 +3533,25 @@ body {
 .msg__deleted {
   color: var(--muted);
   font-style: italic;
+}
+/* Missed-call record: a centred event line, not a bubble from either side. */
+.msg--call {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 6px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.msg--call.msg--mine {
+  justify-content: center;
+}
+.msg__call-text {
+  font-style: italic;
+}
+.msg__call-time {
+  opacity: 0.7;
 }
 .msg__edited {
   color: var(--muted);

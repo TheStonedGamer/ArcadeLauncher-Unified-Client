@@ -211,6 +211,38 @@ export async function fetchFriends(session: MobileSession): Promise<Friend[]> {
   return parseFriends(await authed(session, "/api/social/friends"));
 }
 
+/** Tell the server where to reach this device with a call notification.
+ *
+ *  Returns whether the server can actually send one: it accepts the token
+ *  regardless (so the phone need not know how the server is configured), but
+ *  reports `enabled: false` when no FCM credentials are set, and Settings shows
+ *  that rather than promising ringing that will never happen. */
+export async function registerPushToken(
+  session: MobileSession,
+  token: string,
+  platform: string,
+): Promise<boolean> {
+  const body = (await authed(session, "/api/push/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, platform }),
+  })) as { enabled?: unknown } | null;
+  return !!body && body.enabled === true;
+}
+
+/** Stop ringing this device — sent on sign-out, so the next person to use the
+ *  phone does not get the previous account's calls. */
+export async function unregisterPushToken(
+  session: MobileSession,
+  token: string,
+): Promise<void> {
+  await authed(session, "/api/push/unregister", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+}
+
 /** Confirm a stored token still works before showing the library. */
 export async function checkSession(session: MobileSession): Promise<boolean> {
   try {

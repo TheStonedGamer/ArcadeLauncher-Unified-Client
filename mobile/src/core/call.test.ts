@@ -6,6 +6,8 @@ import {
   eventForSignal,
   IDLE_CALL,
   isBusy,
+  isCallFailure,
+  CALL_END_LABEL,
   nextVideoMode,
   parseSignal,
   parseVideoMode,
@@ -137,7 +139,7 @@ describe("hanging up", () => {
       const s = callReducer(at(phase, { muted: true, localVideo: "camera" }), {
         type: "hangup",
       });
-      expect(s).toEqual({ ...IDLE_CALL, phase: "ended", peerId: 42 });
+      expect(s).toEqual({ ...IDLE_CALL, phase: "ended", peerId: 42, endReason: "hungup" });
     }
   });
 
@@ -146,6 +148,7 @@ describe("hanging up", () => {
       ...IDLE_CALL,
       phase: "ended",
       peerId: 42,
+      endReason: "hungup",
     });
   });
 
@@ -339,5 +342,47 @@ describe("callStatusText", () => {
     ).toBe("On a video call");
     expect(callStatusText(at("ended"), "Sam")).toBe("Call ended");
     expect(callStatusText(IDLE_CALL, "Sam")).toBe("");
+  });
+});
+
+
+describe("callReducer — calls that never connect", () => {
+  it("reports an offline callee, and says so", () => {
+    const s = callReducer(at("inviting"), { type: "unreachable" });
+    expect(s.phase).toBe("ended");
+    expect(s.endReason).toBe("offline");
+    expect(isCallFailure(s.endReason)).toBe(true);
+    expect(CALL_END_LABEL[s.endReason]).toBe("They're offline");
+  });
+
+  it("reports a ring nobody answered", () => {
+    expect(callReducer(at("inviting"), { type: "noAnswer" }).endReason).toBe("noanswer");
+  });
+
+  it("distinguishes a decline from a hang-up", () => {
+    expect(callReducer(at("inviting"), { type: "remoteEnd" }).endReason).toBe("declined");
+    expect(callReducer(at("connected"), { type: "remoteEnd" }).endReason).toBe("hungup");
+  });
+
+  it("does not treat my own hang-up as a failure worth a notice", () => {
+    expect(isCallFailure(callReducer(at("connected"), { type: "hangup" }).endReason)).toBe(false);
+  });
+
+  it("ignores a late unreachable rather than killing a live call", () => {
+    const live = at("connected");
+    expect(callReducer(live, { type: "unreachable" })).toBe(live);
+    expect(callReducer(live, { type: "noAnswer" })).toBe(live);
+  });
+
+  it("only dismisses a finished call", () => {
+    const ended = callReducer(at("inviting"), { type: "noAnswer" });
+    expect(callReducer(ended, { type: "dismiss" })).toEqual(IDLE_CALL);
+    const live = at("connected");
+    expect(callReducer(live, { type: "dismiss" })).toBe(live);
+  });
+
+  it("understands the two frames the server originates", () => {
+    expect(parseSignal({ kind: "unreachable" })).toEqual({ kind: "unreachable" });
+    expect(eventForSignal({ kind: "timeout" }, 42)).toEqual({ type: "noAnswer" });
   });
 });

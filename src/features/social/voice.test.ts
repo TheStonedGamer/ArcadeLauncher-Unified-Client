@@ -3,6 +3,8 @@ import {
   callReducer,
   IDLE_CALL,
   isBusy,
+  isCallFailure,
+  CALL_END_LABEL,
   parseSignal,
   type CallState,
 } from "./voice";
@@ -17,10 +19,54 @@ describe("callReducer — outbound call", () => {
     expect(s.phase).toBe("connected");
   });
 
-  it("remote declines my invite → ended", () => {
+  it("remote declines my invite → ended, and says it was declined", () => {
     let s = callReducer(IDLE_CALL, { type: "invite", peerId: 7, video: false });
     s = callReducer(s, { type: "remoteEnd" });
-    expect(s).toEqual({ ...IDLE_CALL, phase: "ended", peerId: 7 });
+    expect(s).toEqual({ ...IDLE_CALL, phase: "ended", peerId: 7, endReason: "declined" });
+  });
+});
+
+describe("callReducer — calls that never connect", () => {
+  // These are the cases that used to be invisible: the invite went nowhere and
+  // the caller sat on "Calling…" with no timeout and no explanation.
+  it("an offline callee ends the call with a reason", () => {
+    let s = callReducer(IDLE_CALL, { type: "invite", peerId: 7, video: false });
+    s = callReducer(s, { type: "unreachable" });
+    expect(s.phase).toBe("ended");
+    expect(s.endReason).toBe("offline");
+    expect(CALL_END_LABEL[s.endReason]).toBe("They're offline");
+  });
+
+  it("a ring nobody answers ends as no answer", () => {
+    let s = callReducer(IDLE_CALL, { type: "invite", peerId: 7, video: true });
+    s = callReducer(s, { type: "noAnswer" });
+    expect(s.endReason).toBe("noanswer");
+  });
+
+  it("hanging up myself needs no explanation", () => {
+    let s = callReducer(IDLE_CALL, { type: "invite", peerId: 7, video: false });
+    s = callReducer(s, { type: "hangup" });
+    expect(isCallFailure(s.endReason)).toBe(false);
+  });
+
+  it("a late unreachable frame cannot kill a live call", () => {
+    let s = callReducer(IDLE_CALL, { type: "invite", peerId: 7, video: false });
+    s = callReducer(s, { type: "remoteAccept" });
+    s = callReducer(s, { type: "connected" });
+    const after = callReducer(s, { type: "unreachable" });
+    expect(after).toEqual(s);
+  });
+
+  it("dismiss clears the notice, and only once the call has ended", () => {
+    let s = callReducer(IDLE_CALL, { type: "invite", peerId: 7, video: false });
+    expect(callReducer(s, { type: "dismiss" })).toEqual(s);
+    s = callReducer(s, { type: "unreachable" });
+    expect(callReducer(s, { type: "dismiss" })).toEqual(IDLE_CALL);
+  });
+
+  it("relays the server's own signals", () => {
+    expect(parseSignal({ kind: "unreachable" })).toEqual({ kind: "unreachable" });
+    expect(parseSignal({ kind: "timeout" })).toEqual({ kind: "timeout" });
   });
 });
 
