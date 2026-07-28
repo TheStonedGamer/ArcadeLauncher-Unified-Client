@@ -39,7 +39,9 @@ export default function LibraryScreen({
   online: boolean;
   send: (frame: string) => boolean;
 }) {
-  const [section, setSection] = useState<"store" | "library">("store");
+  // Opens on Library: the phone is mostly used to reach games you already own
+  // (install one on a PC), so browsing the whole catalogue is the second step.
+  const [section, setSection] = useState<"store" | "library">("library");
   const [games, setGames] = useState<MobileGame[]>([]);
   const [ownedIds, setOwnedIds] = useState<Set<string>>(() => new Set());
   const [query, setQuery] = useState("");
