@@ -13,6 +13,17 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+### Fixed
+
+- Steam and Epic games now actually start. Their launch target is a
+  `steam://` / `com.epicgames.launcher://` link, which we were trying to run as
+  if it were a program file — so the launcher reported the game as ready and
+  then failed the moment you pressed Play. Those links are now handed to the
+  store app the way a desktop shortcut does it.
+- Games that load their files from their own folder no longer fail on startup.
+  A game now runs from its install folder instead of inheriting the launcher's,
+  which is what broke some titles and emulators immediately after launching.
+
 ## [0.15.28] - 2026-07-28
 
 ### Added
