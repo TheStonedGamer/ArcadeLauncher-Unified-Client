@@ -13,6 +13,8 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.31] - 2026-07-31
+
 ### Fixed
 
 - Steam and Epic games now actually start. Their launch target is a
