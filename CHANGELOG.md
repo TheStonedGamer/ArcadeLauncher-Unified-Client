@@ -13,6 +13,14 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.33] - 2026-08-02
+
+### Fixed
+
+- Uninstalling a game on Windows now removes read-only files instead of leaving
+  the game installed when one of those files is present. If Windows still
+  blocks deletion, the launcher reports the affected folder and system error.
+
 ## [0.15.32] - 2026-08-02
 
 ### Fixed

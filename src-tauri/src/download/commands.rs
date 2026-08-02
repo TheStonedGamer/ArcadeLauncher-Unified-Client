@@ -300,6 +300,33 @@ fn is_safe_uninstall_target(target: &std::path::Path, roots: &[PathBuf]) -> bool
         .any(|root| target != root && target.starts_with(root))
 }
 
+/// Windows refuses to delete files carrying the read-only attribute. Game
+/// archives commonly preserve that attribute, so make regular files writable
+/// before removing the already-canonicalized, library-contained directory.
+/// Symlinks are deliberately not followed.
+#[cfg(windows)]
+fn make_tree_deletable(dir: &std::path::Path) -> std::io::Result<()> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        let metadata = std::fs::symlink_metadata(&path)?;
+        if metadata.is_dir() && !metadata.file_type().is_symlink() {
+            make_tree_deletable(&path)?;
+        } else if metadata.is_file() && metadata.permissions().readonly() {
+            let mut permissions = metadata.permissions();
+            permissions.set_readonly(false);
+            std::fs::set_permissions(path, permissions)?;
+        }
+    }
+    Ok(())
+}
+
+fn remove_install_tree(dir: &std::path::Path) -> std::io::Result<()> {
+    #[cfg(windows)]
+    make_tree_deletable(dir)?;
+    std::fs::remove_dir_all(dir)
+}
+
 /// Delete one installed game's local directory and remove its install record.
 /// The account's server-side library ownership is intentionally unchanged.
 #[tauri::command]
@@ -371,7 +398,12 @@ pub fn uninstall_game(
                     "refusing to uninstall: install path is outside configured library folders",
                 ));
             }
-            std::fs::remove_dir_all(&target)?;
+            remove_install_tree(&target).map_err(|e| {
+                AppError::msg(format!(
+                    "failed to delete install folder '{}': {e}",
+                    target.display()
+                ))
+            })?;
         }
 
         // Reload while holding the engine's record lock so installs of other
