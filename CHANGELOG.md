@@ -13,6 +13,17 @@ Added / Changed / Fixed / Removed.
 
 ## [Unreleased]
 
+## [0.15.32] - 2026-08-02
+
+### Fixed
+
+- Emulators download again. The server had stopped handing out emulator and
+  BIOS files, answering every request with a copy of the store web page
+  instead — so downloads appeared to finish and the emulator never showed as
+  installed. The server is fixed, and the launcher now refuses a web page in
+  place of a runtime file and checks each download's size before installing
+  it, so a failure like this reports an error instead of quietly doing nothing.
+
 ## [0.15.31] - 2026-07-31
 
 ### Fixed
