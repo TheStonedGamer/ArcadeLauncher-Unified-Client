@@ -151,6 +151,17 @@ struct EmulatorProgress {
     error: Option<String>,
 }
 
+/// True when a file response is actually an HTML page. Emulator runtimes and
+/// firmware blobs are never `text/html`, so this only ever means the request was
+/// misrouted (typically an SPA catch-all answering 200 for a missing route).
+fn is_html(r: &reqwest::Response) -> bool {
+    r.headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.trim_start().to_ascii_lowercase().starts_with("text/html"))
+        .unwrap_or(false)
+}
+
 /// Fetch the current server emulator list (Bearer-authed).
 async fn fetch_list(client: &reqwest::Client, host: &str, token: &str) -> AppResult<EmulatorList> {
     client
@@ -215,20 +226,45 @@ async fn stage_emulator(
             emit(downloaded, true, Some(msg.clone()));
             return Err(AppError::msg(msg));
         }
+        // A misrouted `/emulators/*` (e.g. swallowed by the store SPA's fallback)
+        // answers 200 with `index.html`. Writing that HTML over a runtime file
+        // fails silently later, so reject it as the download error it is.
+        if is_html(&r) {
+            let msg = format!(
+                "download failed: server returned a web page, not a file ({})",
+                file_url
+            );
+            emit(downloaded, true, Some(msg.clone()));
+            return Err(AppError::msg(msg));
+        }
         let tmp = dest.with_extension("part");
         let mut file =
             std::fs::File::create(&tmp).map_err(|e| AppError::msg(format!("create failed: {e}")))?;
+        let mut written = 0u64;
         while let Some(chunk) = r
             .chunk()
             .await
             .map_err(|e| AppError::msg(format!("stream failed: {e}")))?
         {
             file.write_all(&chunk).map_err(|e| AppError::msg(format!("write failed: {e}")))?;
+            written += chunk.len() as u64;
             downloaded += chunk.len() as u64;
             emit(downloaded, false, None);
         }
         file.flush().ok();
         drop(file);
+        // Never commit a body that doesn't match the manifest — a truncated or
+        // substituted response would otherwise sit on disk looking installed
+        // while every readiness check quietly reports "not ready".
+        if written != f.size {
+            let _ = std::fs::remove_file(&tmp);
+            let msg = format!(
+                "download failed: {} is {written} bytes, expected {}",
+                f.rel, f.size
+            );
+            emit(downloaded, true, Some(msg.clone()));
+            return Err(AppError::msg(msg));
+        }
         std::fs::rename(&tmp, &dest).map_err(|e| AppError::msg(format!("finalize failed: {e}")))?;
     }
 
