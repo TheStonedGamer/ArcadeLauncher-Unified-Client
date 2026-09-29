@@ -1,0 +1,106 @@
+name: Sign release artifacts
+
+# Signs desktop bundles that were built outside CI (for example the local Docker
+# cross-build used while the self-hosted runners are off), then writes the Tauri
+# `latest.json` for them. The bundles must already be uploaded, unsigned, to a
+# DRAFT release. This runs on a GitHub-hosted runner so the updater key never
+# leaves the repo secrets.
+#
+#   gh workflow run sign-release.yml -f release_id=<id> -f version=0.15.34
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Draft release id (gh api repos/{owner}/{repo}/releases)
+        required: true
+      version:
+        description: Version the bundles were built as (no leading v)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_ID: ${{ inputs.release_id }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download unsigned bundles from the draft
+        run: |
+          mkdir -p bundles && cd bundles
+          gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --paginate \
+            --jq '.[] | select(.name | test("(-setup\\.exe|\\.deb|\\.rpm|\\.AppImage)$")) | "\(.id) \(.name)"' |
+          while read -r id name; do
+            gh api -H "Accept: application/octet-stream" \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$id" > "$name"
+          done
+          ls -l
+
+      - name: Sign each bundle
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          cd bundles
+          for f in *-setup.exe *.deb *.rpm *.AppImage; do
+            npx -y @tauri-apps/cli@2 signer sign "$f"
+          done
+          ls -l *.sig
+
+      - name: Write latest.json
+        run: |
+          cd bundles
+          node <<'NODE'
+          const fs = require('fs');
+          const repo = process.env.GITHUB_REPOSITORY;
+          const base = `https://github.com/${repo}/releases/latest/download`;
+          const find = suffix => fs.readdirSync('.').find(f => f.endsWith(suffix));
+          const entry = file => ({
+            signature: fs.readFileSync(`${file}.sig`, 'utf8').trim(),
+            url: `${base}/${encodeURIComponent(file)}`,
+          });
+          const exe = find('-setup.exe'), app = find('.AppImage'), deb = find('.deb'), rpm = find('.rpm');
+          for (const [n, f] of Object.entries({ exe, app, deb, rpm })) {
+            if (!f) throw new Error(`missing ${n} bundle`);
+          }
+          const manifest = {
+            version: process.env.VERSION,
+            notes: '',
+            pub_date: new Date().toISOString(),
+            platforms: {
+              'windows-x86_64': entry(exe),
+              'windows-x86_64-nsis': entry(exe),
+              'linux-x86_64': entry(app),
+              'linux-x86_64-appimage': entry(app),
+              'linux-x86_64-deb': entry(deb),
+              'linux-x86_64-rpm': entry(rpm),
+            },
+          };
+          fs.writeFileSync('latest.json', JSON.stringify(manifest, null, 2));
+          NODE
+          cat latest.json
+
+      - name: Upload signatures and latest.json to the draft
+        # By release id: "get release by tag" (what `gh release upload` uses)
+        # never returns drafts.
+        run: |
+          cd bundles
+          for f in *.sig latest.json; do
+            old=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --paginate \
+              --jq ".[] | select(.name == \"$f\") | .id")
+            [ -n "$old" ] && gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$old"
+            curl -fsS -X POST \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"$f" \
+              "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$f" >/dev/null
+            echo "uploaded $f"
+          done
