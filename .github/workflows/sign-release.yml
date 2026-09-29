@@ -4,7 +4,10 @@ name: Sign release artifacts
 # cross-build used while the self-hosted runners are off), then writes the Tauri
 # `latest.json` for them. The bundles must already be uploaded, unsigned, to a
 # DRAFT release. This runs on a GitHub-hosted runner so the updater key never
-# leaves the repo secrets.
+# leaves the repo secrets. It also builds the qbsdiff delta patches against the
+# installers currently on the download server, plus latest.server.json (the
+# manifest the download server serves). Copying those onto the server is done
+# from the LAN.
 #
 #   gh workflow run sign-release.yml -f release_id=<id> -f version=0.15.34
 
@@ -88,12 +91,81 @@ jobs:
           NODE
           cat latest.json
 
+      # Same delta logic as release.yml's stage-downloads, but the previous
+      # installers come from the public download origin instead of over SSH.
+      # Produces the qbsdiff patches plus latest.server.json: the manifest the
+      # download server serves as latest.json (payload URLs on the download
+      # origin, plus `deltas`). Staging onto the server is done from the LAN.
+      - name: Build delta patches and the download-server manifest
+        run: |
+          cd bundles
+          cargo install qbsdiff --version 1.4.4 --features cmd
+          mkdir -p ../previous
+          node <<'NODE'
+          const fs = require('fs');
+          const { execFileSync } = require('child_process');
+          const origin = 'https://arcade.orlandoaio.net/downloads';
+          const served = JSON.parse(execFileSync('curl', ['-fsS', `${origin}/latest.json`]).toString());
+          for (const key of ['windows-x86_64-nsis', 'linux-x86_64-appimage']) {
+            const url = served.platforms?.[key]?.url;
+            if (!url) continue;
+            const name = decodeURIComponent(new URL(url).pathname.split('/').pop());
+            execFileSync('curl', ['-fsSL', '-o', `../previous/${name}`, `${origin}/${encodeURIComponent(name)}`]);
+            console.log(`previous ${key}: ${name}`);
+          }
+          NODE
+          node <<'NODE'
+          const crypto = require('crypto');
+          const fs = require('fs');
+          const path = require('path');
+          const { execFileSync } = require('child_process');
+          const baseUrl = 'https://arcade.orlandoaio.net/downloads';
+          const manifest = JSON.parse(fs.readFileSync('latest.json', 'utf8'));
+          manifest.deltas = {};
+          for (const entry of Object.values(manifest.platforms)) {
+            const filename = decodeURIComponent(new URL(entry.url).pathname.split('/').pop());
+            entry.url = `${baseUrl}/${filename}`;
+          }
+          const files = dir => fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+          const sha256 = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          for (const spec of [
+            { key: 'windows-x86_64-nsis', suffix: '-setup.exe' },
+            { key: 'linux-x86_64-appimage', suffix: '.AppImage' },
+          ]) {
+            const currentName = files('.').find(n => n.endsWith(spec.suffix));
+            const previousName = files('../previous').find(n => n.endsWith(spec.suffix));
+            if (!currentName || !previousName || currentName === previousName) continue;
+            const previous = path.join('../previous', previousName);
+            const from = (previousName.match(/(\d+\.\d+\.\d+)/) || [])[1];
+            if (!from) continue;
+            const patchName = `ArcadeLauncher_${from}_to_${manifest.version}_${spec.key}.patch`;
+            execFileSync('qbsdiff', [previous, currentName, patchName], { stdio: 'inherit' });
+            const patchSize = fs.statSync(patchName).size;
+            const fullSize = fs.statSync(currentName).size;
+            if (patchSize >= fullSize * 0.85) {
+              fs.rmSync(patchName);
+              console.log(`Skipping inefficient ${spec.key} delta (${patchSize}/${fullSize})`);
+              continue;
+            }
+            manifest.deltas[spec.key] = {
+              from,
+              url: `${baseUrl}/${patchName}`,
+              baseSha256: sha256(previous),
+              size: patchSize,
+            };
+            console.log(`Built ${spec.key} delta ${from} -> ${manifest.version}: ${patchSize} bytes`);
+          }
+          fs.writeFileSync('latest.server.json', JSON.stringify(manifest, null, 2));
+          NODE
+          cat latest.server.json
+
       - name: Upload signatures and latest.json to the draft
         # By release id: "get release by tag" (what `gh release upload` uses)
         # never returns drafts.
         run: |
           cd bundles
-          for f in *.sig latest.json; do
+          for f in *.sig *.patch latest.json latest.server.json; do
+            [ -e "$f" ] || continue
             old=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --paginate \
               --jq ".[] | select(.name == \"$f\") | .id")
             [ -n "$old" ] && gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$old"
