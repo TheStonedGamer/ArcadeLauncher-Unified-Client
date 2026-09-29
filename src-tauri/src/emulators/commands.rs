@@ -205,7 +205,10 @@ async fn stage_emulator(
     emit(0, false, None);
 
     for f in &em.files {
-        let dest = base.join(&f.rel);
+        // `rel` comes from the server's emulator list; refuse anything that
+        // would land outside the emulators dir (`..`, absolute, drive paths).
+        let dest = crate::download::paths::resolve_target(base, &f.rel)
+            .ok_or_else(|| AppError::msg(format!("unsafe emulator file path: {}", f.rel)))?;
         if std::fs::metadata(&dest).map(|m| m.len() == f.size).unwrap_or(false) {
             downloaded += f.size;
             emit(downloaded, false, None);
