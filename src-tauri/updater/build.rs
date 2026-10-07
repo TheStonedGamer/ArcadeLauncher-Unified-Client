@@ -28,18 +28,15 @@ fn main() {
     println!("cargo:rustc-env=APP_VERSION={app_version}");
 
     if std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc") {
-        // Same icon the launcher ships (src-tauri/icons/icon.ico). Compiled into a
-        // .res and linked into updater.exe. We leave the manifest unset here so the
-        // linker-based asInvoker embedding below stays the single source of truth.
+        // Embed the manifest as a Windows resource alongside the icon. Passing it
+        // to the linker with /MANIFESTINPUT makes link.exe merge it with its
+        // default manifest and namespace the execution-level attributes. Windows
+        // then rejects the result because the required unqualified `level`
+        // attribute is missing.
         let mut res = winresource::WindowsResource::new();
         res.set_icon("../icons/icon.ico");
-        res.compile().expect("embed updater icon resource");
-
         let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("updater.manifest");
-        let manifest = manifest.display();
-        // rustc-link-arg covers binaries, examples, and test executables — so
-        // both updater.exe and the unit-test harness get the asInvoker manifest.
-        println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
-        println!("cargo:rustc-link-arg=/MANIFESTINPUT:{manifest}");
+        res.set_manifest_file(manifest.to_str().expect("manifest path is valid UTF-8"));
+        res.compile().expect("embed updater icon and manifest resources");
     }
 }
